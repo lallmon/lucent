@@ -45,9 +45,26 @@ ApplicationWindow {
         zoomLevel: canvas.zoomLevel
     }
 
-    // Main Canvas Area
-    InfiniteCanvas {
-        id: canvas
+    // Main content area with toolbar and canvas
+    RowLayout {
         anchors.fill: parent
+        spacing: 0
+        
+        // Left toolbar
+        ToolBar {
+            id: toolBar
+            Layout.fillHeight: true
+            
+            onToolSelected: (toolName) => {
+                canvas.setDrawingMode(toolName)
+            }
+        }
+        
+        // Main Canvas Area
+        InfiniteCanvas {
+            id: canvas
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+        }
     }
 }
