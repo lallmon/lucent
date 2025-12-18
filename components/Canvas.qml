@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import DesignVibe 1.0
 import "." as DV
 
 // Infinite Canvas component with pan and zoom capabilities
@@ -30,8 +31,8 @@ Item {
     property color rectangleFillColor: "#ffffff"  // White by default
     property real rectangleFillOpacity: 0.0  // Transparent by default
     
-    // List to store drawn rectangles
-    property var rectangles: []
+    // List to store drawn items
+    property var items: []
     
     // Background color
     Rectangle {
@@ -106,22 +107,13 @@ Item {
             width: 0
             height: 0
             
-            // Repeater to render all finalized rectangles
-            Repeater {
-                model: root.rectangles
-                delegate: Rectangle {
-                    x: modelData.x
-                    y: modelData.y
-                    width: modelData.width
-                    height: modelData.height
-                    // Use Qt.rgba to apply opacity only to fill color
-                    color: {
-                        var fillColor = Qt.color(modelData.fillColor);
-                        return Qt.rgba(fillColor.r, fillColor.g, fillColor.b, modelData.fillOpacity);
-                    }
-                    border.color: modelData.strokeColor
-                    border.width: modelData.strokeWidth / root.zoomLevel
-                }
+            CanvasRenderer {
+                x: -5000
+                y: -5000
+                width: 10000
+                height: 10000
+                items: root.items
+                zoomLevel: root.zoomLevel
             }
             
             // Select tool for panning and selection
@@ -146,7 +138,6 @@ Item {
                 active: root.drawingMode === "rectangle"
                 
                 onRectangleCompleted: (x, y, width, height) => {
-                    // Add the completed rectangle to the list
                     // Copy values (not bindings) to ensure each rectangle has independent properties
                     var strokeWidth = Number(root.rectangleStrokeWidth);
                     var strokeColorString = root.rectangleStrokeColor.toString();
@@ -154,8 +145,9 @@ Item {
                     var fillOpacity = Number(root.rectangleFillOpacity);
                     console.log("Creating rectangle with stroke width:", strokeWidth, "stroke color:", strokeColorString, 
                                "fill color:", fillColorString, "fill opacity:", fillOpacity);
-                    var rects = root.rectangles.slice();
-                    rects.push({
+                    var newItems = root.items.slice();
+                    newItems.push({
+                        type: "rectangle",
                         x: x,
                         y: y,
                         width: width,
@@ -165,8 +157,8 @@ Item {
                         fillColor: fillColorString,
                         fillOpacity: fillOpacity
                     });
-                    root.rectangles = rects;
-                    console.log("Total rectangles:", root.rectangles.length);
+                    root.items = newItems;
+                    console.log("Total items:", root.items.length);
                 }
             }
         }
