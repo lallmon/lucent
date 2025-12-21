@@ -38,29 +38,10 @@ class CanvasRenderer(QQuickPaintedItem):
     @items.setter
     def items(self, value: List[Any]) -> None:
         # Convert QML list to Python list of CanvasItem objects
+        # QML automatically converts JavaScript objects to Python dicts
         converted_items = []
         if value:
             for item_data in value:
-                # Ensure we have a dict (handle both dict and QML JS objects)
-                if not isinstance(item_data, dict):
-                    # Try to convert JS object to dict via duck-typing
-                    try:
-                        item_data = {
-                            "type": item_data.get("type") if hasattr(item_data, "get") else item_data.property("type"),
-                            "x": float(item_data.get("x", 0) if hasattr(item_data, "get") else item_data.property("x")),
-                            "y": float(item_data.get("y", 0) if hasattr(item_data, "get") else item_data.property("y")),
-                            "width": float(item_data.get("width", 0) if hasattr(item_data, "get") else item_data.property("width")),
-                            "height": float(item_data.get("height", 0) if hasattr(item_data, "get") else item_data.property("height")),
-                            "strokeWidth": float(item_data.get("strokeWidth", 1) if hasattr(item_data, "get") else item_data.property("strokeWidth")),
-                            "strokeColor": item_data.get("strokeColor", "#ffffff") if hasattr(item_data, "get") else item_data.property("strokeColor"),
-                            "fillColor": item_data.get("fillColor", "#ffffff") if hasattr(item_data, "get") else item_data.property("fillColor"),
-                            "fillOpacity": float(item_data.get("fillOpacity", 0.0) if hasattr(item_data, "get") else item_data.property("fillOpacity")),
-                        }
-                    except (AttributeError, KeyError, TypeError, ValueError) as e:
-                        # Skip items that can't be converted - log for debugging
-                        print(f"Warning: Failed to convert QML object to dict: {type(e).__name__}: {e}")
-                        continue
-                
                 # Use factory method to create appropriate item object
                 try:
                     item_type = item_data.get("type", "")
@@ -71,9 +52,9 @@ class CanvasRenderer(QQuickPaintedItem):
                         item_obj = EllipseItem.from_dict(item_data)
                         converted_items.append(item_obj)
                     # else: Unknown item type, skip
-                except (KeyError, ValueError, TypeError) as e:
+                except (KeyError, ValueError, TypeError, AttributeError) as e:
                     # Skip items that can't be created - log for debugging
-                    print(f"Warning: Failed to create item of type '{item_type}': {type(e).__name__}: {e}")
+                    print(f"Warning: Failed to create item of type '{item_data.get('type', 'unknown')}': {type(e).__name__}: {e}")
                     continue
         
         self._items = converted_items

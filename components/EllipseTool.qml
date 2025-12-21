@@ -134,6 +134,13 @@ Item {
                 var radiusX = currentEllipse.width / 2;
                 var radiusY = currentEllipse.height / 2;
                 
+                // Force value evaluation by storing in local variables first
+                // This prevents QML from creating bindings to the settings object
+                var sw = settings ? settings.strokeWidth : 1;
+                var sc = settings ? settings.strokeColor.toString() : "#ffffff";
+                var fc = settings ? settings.fillColor.toString() : "#ffffff";
+                var fo = settings ? settings.fillOpacity : 0.0;
+                
                 // Create complete item data object
                 var itemData = {
                     type: "ellipse",
@@ -141,10 +148,10 @@ Item {
                     centerY: centerY,
                     radiusX: radiusX,
                     radiusY: radiusY,
-                    strokeWidth: settings ? settings.strokeWidth : 1,
-                    strokeColor: settings ? settings.strokeColor : "#ffffff",
-                    fillColor: settings ? settings.fillColor : "#ffffff",
-                    fillOpacity: settings ? settings.fillOpacity : 0.0
+                    strokeWidth: sw,
+                    strokeColor: sc,
+                    fillColor: fc,
+                    fillOpacity: fo
                 };
                 
                 // Emit signal with complete item data

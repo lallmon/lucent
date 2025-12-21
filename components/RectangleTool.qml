@@ -91,16 +91,23 @@ Item {
                            currentRect.width, currentRect.height);
                 
                 // Create complete item data object
+                // Force value evaluation by storing in local variables first
+                // This prevents QML from creating bindings to the settings object
+                var sw = settings ? settings.strokeWidth : 1;
+                var sc = settings ? settings.strokeColor.toString() : "#ffffff";
+                var fc = settings ? settings.fillColor.toString() : "#ffffff";
+                var fo = settings ? settings.fillOpacity : 0.0;
+                
                 var itemData = {
                     type: "rectangle",
                     x: currentRect.x,
                     y: currentRect.y,
                     width: currentRect.width,
                     height: currentRect.height,
-                    strokeWidth: settings ? settings.strokeWidth : 1,
-                    strokeColor: settings ? settings.strokeColor : "#ffffff",
-                    fillColor: settings ? settings.fillColor : "#ffffff",
-                    fillOpacity: settings ? settings.fillOpacity : 0.0
+                    strokeWidth: sw,
+                    strokeColor: sc,
+                    fillColor: fc,
+                    fillOpacity: fo
                 };
                 
                 // Emit signal with complete item data
