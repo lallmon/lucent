@@ -8,7 +8,6 @@ and launches the main window.
 import sys
 import os
 from pathlib import Path
-from typing import List
 
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
