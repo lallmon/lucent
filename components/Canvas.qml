@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import DesignVibe 1.0
+import CanvasRendering 1.0
 import "." as DV
 
 // Canvas component focused on data management and tool coordination

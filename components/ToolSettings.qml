@@ -15,12 +15,14 @@ ToolBar {
     // Tool-specific settings - Rectangle
     property real rectangleStrokeWidth: 1
     property color rectangleStrokeColor: "#ffffff"
+    property real rectangleStrokeOpacity: 1.0
     property color rectangleFillColor: "#ffffff"
     property real rectangleFillOpacity: 0.0
     
     // Tool-specific settings - Ellipse
     property real ellipseStrokeWidth: 1
     property color ellipseStrokeColor: "#ffffff"
+    property real ellipseStrokeOpacity: 1.0
     property color ellipseFillColor: "#ffffff"
     property real ellipseFillOpacity: 0.0
     
@@ -29,12 +31,14 @@ ToolBar {
         "rectangle": {
             strokeWidth: rectangleStrokeWidth,
             strokeColor: rectangleStrokeColor,
+            strokeOpacity: rectangleStrokeOpacity,
             fillColor: rectangleFillColor,
             fillOpacity: rectangleFillOpacity
         },
         "ellipse": {
             strokeWidth: ellipseStrokeWidth,
             strokeColor: ellipseStrokeColor,
+            strokeOpacity: ellipseStrokeOpacity,
             fillColor: ellipseFillColor,
             fillOpacity: ellipseFillOpacity
         }
@@ -143,6 +147,134 @@ ToolBar {
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
+            }
+            
+            Label {
+                text: qsTr("Opacity:")
+                font.pixelSize: 11
+                Layout.alignment: Qt.AlignVCenter
+            }
+            
+            Slider {
+                id: strokeOpacitySlider
+                Layout.preferredWidth: 80
+                Layout.preferredHeight: DV.Theme.sizes.sliderHeight
+                implicitHeight: DV.Theme.sizes.sliderHeight
+                Layout.alignment: Qt.AlignVCenter
+                from: 0
+                to: 100
+                stepSize: 1
+                value: 100
+                
+                onPressedChanged: {
+                    if (!pressed) {
+                        root.rectangleStrokeOpacity = value / 100.0;
+                    }
+                }
+                
+                onValueChanged: {
+                    root.rectangleStrokeOpacity = value / 100.0;
+                }
+                
+                Component.onCompleted: {
+                    value = Math.round(root.rectangleStrokeOpacity * 100);
+                }
+                
+                Binding {
+                    target: strokeOpacitySlider
+                    property: "value"
+                    value: Math.round(root.rectangleStrokeOpacity * 100)
+                    when: !strokeOpacitySlider.pressed
+                }
+                
+                background: Rectangle {
+                    x: strokeOpacitySlider.leftPadding
+                    y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
+                    width: strokeOpacitySlider.availableWidth
+                    height: DV.Theme.sizes.sliderTrackHeight
+                    implicitWidth: 80
+                    implicitHeight: DV.Theme.sizes.sliderTrackHeight
+                    radius: DV.Theme.sizes.radiusSm
+                    color: DV.Theme.colors.gridMinor
+                    
+                    Rectangle {
+                        width: strokeOpacitySlider.visualPosition * parent.width
+                        height: parent.height
+                        color: DV.Theme.colors.accent
+                        radius: DV.Theme.sizes.radiusSm
+                    }
+                }
+                
+                handle: Rectangle {
+                    x: strokeOpacitySlider.leftPadding + strokeOpacitySlider.visualPosition * (strokeOpacitySlider.availableWidth - width)
+                    y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
+                    width: DV.Theme.sizes.sliderHandleSize
+                    height: DV.Theme.sizes.sliderHandleSize
+                    implicitWidth: DV.Theme.sizes.sliderHandleSize
+                    implicitHeight: DV.Theme.sizes.sliderHandleSize
+                    radius: DV.Theme.sizes.radiusLg
+                    color: strokeOpacitySlider.pressed ? DV.Theme.colors.accent : "#ffffff"
+                    border.color: DV.Theme.colors.borderSubtle
+                    border.width: 1
+                }
+            }
+            
+            TextField {
+                id: strokeOpacityInput
+                Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
+                Layout.preferredHeight: DV.Theme.sizes.settingsFieldHeight
+                Layout.alignment: Qt.AlignVCenter
+                text: Math.round(root.rectangleStrokeOpacity * 100).toString()
+                horizontalAlignment: TextInput.AlignHCenter
+                font.pixelSize: 11
+                validator: IntValidator {
+                    bottom: 0
+                    top: 100
+                }
+                
+                function commitValue() {
+                    var value = parseInt(text);
+                    if (!isNaN(value) && value >= 0 && value <= 100) {
+                        root.rectangleStrokeOpacity = value / 100.0;
+                        console.log("Stroke opacity set to:", root.rectangleStrokeOpacity);
+                    } else {
+                        text = Math.round(root.rectangleStrokeOpacity * 100).toString();
+                    }
+                }
+                
+                onEditingFinished: {
+                    commitValue();
+                }
+                
+                onActiveFocusChanged: {
+                    if (!activeFocus) {
+                        commitValue();
+                    }
+                }
+                
+                Connections {
+                    target: root
+                    function onRectangleStrokeOpacityChanged() {
+                        if (!strokeOpacityInput.activeFocus) {
+                            strokeOpacityInput.text = Math.round(root.rectangleStrokeOpacity * 100).toString();
+                        }
+                    }
+                }
+                
+                background: Rectangle {
+                    color: DV.Theme.colors.gridMinor
+                    border.color: strokeOpacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
+                    border.width: 1
+                    radius: DV.Theme.sizes.radiusSm
+                }
+                
+                color: "#ffffff"
+            }
+            
+            Label {
+                text: qsTr("%")
+                font.pixelSize: 11
+                Layout.alignment: Qt.AlignVCenter
             }
             
             // Separator
@@ -469,6 +601,134 @@ ToolBar {
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
+            }
+            
+            Label {
+                text: qsTr("Opacity:")
+                font.pixelSize: 11
+                Layout.alignment: Qt.AlignVCenter
+            }
+            
+            Slider {
+                id: ellipseStrokeOpacitySlider
+                Layout.preferredWidth: 80
+                Layout.preferredHeight: DV.Theme.sizes.sliderHeight
+                implicitHeight: DV.Theme.sizes.sliderHeight
+                Layout.alignment: Qt.AlignVCenter
+                from: 0
+                to: 100
+                stepSize: 1
+                value: 100
+                
+                onPressedChanged: {
+                    if (!pressed) {
+                        root.ellipseStrokeOpacity = value / 100.0;
+                    }
+                }
+                
+                onValueChanged: {
+                    root.ellipseStrokeOpacity = value / 100.0;
+                }
+                
+                Component.onCompleted: {
+                    value = Math.round(root.ellipseStrokeOpacity * 100);
+                }
+                
+                Binding {
+                    target: ellipseStrokeOpacitySlider
+                    property: "value"
+                    value: Math.round(root.ellipseStrokeOpacity * 100)
+                    when: !ellipseStrokeOpacitySlider.pressed
+                }
+                
+                background: Rectangle {
+                    x: ellipseStrokeOpacitySlider.leftPadding
+                    y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
+                    width: ellipseStrokeOpacitySlider.availableWidth
+                    height: DV.Theme.sizes.sliderTrackHeight
+                    implicitWidth: 80
+                    implicitHeight: DV.Theme.sizes.sliderTrackHeight
+                    radius: DV.Theme.sizes.radiusSm
+                    color: DV.Theme.colors.gridMinor
+                    
+                    Rectangle {
+                        width: ellipseStrokeOpacitySlider.visualPosition * parent.width
+                        height: parent.height
+                        color: DV.Theme.colors.accent
+                        radius: DV.Theme.sizes.radiusSm
+                    }
+                }
+                
+                handle: Rectangle {
+                    x: ellipseStrokeOpacitySlider.leftPadding + ellipseStrokeOpacitySlider.visualPosition * (ellipseStrokeOpacitySlider.availableWidth - width)
+                    y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
+                    width: DV.Theme.sizes.sliderHandleSize
+                    height: DV.Theme.sizes.sliderHandleSize
+                    implicitWidth: DV.Theme.sizes.sliderHandleSize
+                    implicitHeight: DV.Theme.sizes.sliderHandleSize
+                    radius: DV.Theme.sizes.radiusLg
+                    color: ellipseStrokeOpacitySlider.pressed ? DV.Theme.colors.accent : "#ffffff"
+                    border.color: DV.Theme.colors.borderSubtle
+                    border.width: 1
+                }
+            }
+            
+            TextField {
+                id: ellipseStrokeOpacityInput
+                Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
+                Layout.preferredHeight: DV.Theme.sizes.settingsFieldHeight
+                Layout.alignment: Qt.AlignVCenter
+                text: Math.round(root.ellipseStrokeOpacity * 100).toString()
+                horizontalAlignment: TextInput.AlignHCenter
+                font.pixelSize: 11
+                validator: IntValidator {
+                    bottom: 0
+                    top: 100
+                }
+                
+                function commitValue() {
+                    var value = parseInt(text);
+                    if (!isNaN(value) && value >= 0 && value <= 100) {
+                        root.ellipseStrokeOpacity = value / 100.0;
+                        console.log("Ellipse stroke opacity set to:", root.ellipseStrokeOpacity);
+                    } else {
+                        text = Math.round(root.ellipseStrokeOpacity * 100).toString();
+                    }
+                }
+                
+                onEditingFinished: {
+                    commitValue();
+                }
+                
+                onActiveFocusChanged: {
+                    if (!activeFocus) {
+                        commitValue();
+                    }
+                }
+                
+                Connections {
+                    target: root
+                    function onEllipseStrokeOpacityChanged() {
+                        if (!ellipseStrokeOpacityInput.activeFocus) {
+                            ellipseStrokeOpacityInput.text = Math.round(root.ellipseStrokeOpacity * 100).toString();
+                        }
+                    }
+                }
+                
+                background: Rectangle {
+                    color: DV.Theme.colors.gridMinor
+                    border.color: ellipseStrokeOpacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
+                    border.width: 1
+                    radius: DV.Theme.sizes.radiusSm
+                }
+                
+                color: "#ffffff"
+            }
+            
+            Label {
+                text: qsTr("%")
+                font.pixelSize: 11
+                Layout.alignment: Qt.AlignVCenter
             }
             
             // Separator

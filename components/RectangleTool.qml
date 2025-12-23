@@ -49,15 +49,20 @@ Item {
             property real halfStroke: settings ? (settings.strokeWidth / tool.zoomLevel / 2) : 0
             x: -halfStroke
             y: -halfStroke
-            width: parent.width + settings.strokeWidth / tool.zoomLevel
-            height: parent.height + settings.strokeWidth / tool.zoomLevel
+            width: parent.width + (settings ? settings.strokeWidth / tool.zoomLevel : 0)
+            height: parent.height + (settings ? settings.strokeWidth / tool.zoomLevel : 0)
             color: {
                 if (!settings) return "transparent";
                 var c = Qt.color(settings.fillColor);
                 c.a = settings.fillOpacity;
                 return c;
             }
-            border.color: settings ? settings.strokeColor : "#ffffff"
+            border.color: {
+                if (!settings) return "#ffffff";
+                var c = Qt.color(settings.strokeColor);
+                c.a = settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0;
+                return c;
+            }
             border.width: (settings ? settings.strokeWidth : 1) / tool.zoomLevel
         }
     }
@@ -95,6 +100,7 @@ Item {
                 // This prevents QML from creating bindings to the settings object
                 var sw = settings ? settings.strokeWidth : 1;
                 var sc = settings ? settings.strokeColor.toString() : "#ffffff";
+                var so = settings ? (settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0) : 1.0;
                 var fc = settings ? settings.fillColor.toString() : "#ffffff";
                 var fo = settings ? settings.fillOpacity : 0.0;
                 
@@ -106,6 +112,7 @@ Item {
                     height: currentRect.height,
                     strokeWidth: sw,
                     strokeColor: sc,
+                    strokeOpacity: so,
                     fillColor: fc,
                     fillOpacity: fo
                 };

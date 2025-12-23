@@ -77,7 +77,9 @@ Item {
                     ctx.fillStyle = fillColor;
                     ctx.fill();
                     
-                    ctx.strokeStyle = settings.strokeColor;
+                    var strokeColor = Qt.color(settings.strokeColor);
+                    strokeColor.a = settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0;
+                    ctx.strokeStyle = strokeColor;
                     ctx.lineWidth = settings.strokeWidth / tool.zoomLevel;
                     ctx.stroke();
                 }
@@ -138,6 +140,7 @@ Item {
                 // This prevents QML from creating bindings to the settings object
                 var sw = settings ? settings.strokeWidth : 1;
                 var sc = settings ? settings.strokeColor.toString() : "#ffffff";
+                var so = settings ? (settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0) : 1.0;
                 var fc = settings ? settings.fillColor.toString() : "#ffffff";
                 var fo = settings ? settings.fillOpacity : 0.0;
                 
@@ -150,6 +153,7 @@ Item {
                     radiusY: radiusY,
                     strokeWidth: sw,
                     strokeColor: sc,
+                    strokeOpacity: so,
                     fillColor: fc,
                     fillOpacity: fo
                 };

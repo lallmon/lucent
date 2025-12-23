@@ -41,7 +41,8 @@ class RectangleItem(CanvasItem):
     
     def __init__(self, x: float, y: float, width: float, height: float, 
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
-                 fill_color: str = "#ffffff", fill_opacity: float = 0.0) -> None:
+                 fill_color: str = "#ffffff", fill_opacity: float = 0.0,
+                 stroke_opacity: float = 1.0) -> None:
         self.x = x
         self.y = y
         # Validate dimensions (must be non-negative)
@@ -50,6 +51,8 @@ class RectangleItem(CanvasItem):
         # Validate stroke width (must be positive, clamped to reasonable range)
         self.stroke_width = max(0.1, min(100.0, stroke_width))
         self.stroke_color = stroke_color
+        # Validate stroke opacity (must be in range 0.0-1.0)
+        self.stroke_opacity = max(0.0, min(1.0, stroke_opacity))
         self.fill_color = fill_color
         # Validate fill opacity (must be in range 0.0-1.0)
         self.fill_opacity = max(0.0, min(1.0, fill_opacity))
@@ -67,7 +70,9 @@ class RectangleItem(CanvasItem):
         scaled_stroke_width = self.stroke_width / zoom_level
         
         # Set up pen for stroke
-        pen = QPen(QColor(self.stroke_color))
+        stroke_qcolor = QColor(self.stroke_color)
+        stroke_qcolor.setAlphaF(self.stroke_opacity)
+        pen = QPen(stroke_qcolor)
         pen.setWidthF(scaled_stroke_width)
         pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(pen)
@@ -91,6 +96,9 @@ class RectangleItem(CanvasItem):
         # Extract and validate stroke width (must be positive, clamped to reasonable range)
         stroke_width = max(0.1, min(100.0, float(data.get("strokeWidth", 1))))
         
+        # Extract and validate stroke opacity (must be in range 0.0-1.0)
+        stroke_opacity = max(0.0, min(1.0, float(data.get("strokeOpacity", 1.0))))
+        
         # Extract and validate fill opacity (must be in range 0.0-1.0)
         fill_opacity = max(0.0, min(1.0, float(data.get("fillOpacity", 0.0))))
         
@@ -102,7 +110,8 @@ class RectangleItem(CanvasItem):
             stroke_width=stroke_width,
             stroke_color=data.get("strokeColor", "#ffffff"),
             fill_color=data.get("fillColor", "#ffffff"),
-            fill_opacity=fill_opacity
+            fill_opacity=fill_opacity,
+            stroke_opacity=stroke_opacity
         )
 
 
@@ -111,7 +120,8 @@ class EllipseItem(CanvasItem):
     
     def __init__(self, center_x: float, center_y: float, radius_x: float, radius_y: float, 
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
-                 fill_color: str = "#ffffff", fill_opacity: float = 0.0) -> None:
+                 fill_color: str = "#ffffff", fill_opacity: float = 0.0,
+                 stroke_opacity: float = 1.0) -> None:
         self.center_x = center_x
         self.center_y = center_y
         # Validate radii (must be non-negative)
@@ -120,6 +130,8 @@ class EllipseItem(CanvasItem):
         # Validate stroke width (must be positive, clamped to reasonable range)
         self.stroke_width = max(0.1, min(100.0, stroke_width))
         self.stroke_color = stroke_color
+        # Validate stroke opacity (must be in range 0.0-1.0)
+        self.stroke_opacity = max(0.0, min(1.0, stroke_opacity))
         self.fill_color = fill_color
         # Validate fill opacity (must be in range 0.0-1.0)
         self.fill_opacity = max(0.0, min(1.0, fill_opacity))
@@ -137,7 +149,9 @@ class EllipseItem(CanvasItem):
         scaled_stroke_width = self.stroke_width / zoom_level
         
         # Set up pen for stroke
-        pen = QPen(QColor(self.stroke_color))
+        stroke_qcolor = QColor(self.stroke_color)
+        stroke_qcolor.setAlphaF(self.stroke_opacity)
+        pen = QPen(stroke_qcolor)
         pen.setWidthF(scaled_stroke_width)
         painter.setPen(pen)
         
@@ -165,6 +179,9 @@ class EllipseItem(CanvasItem):
         # Extract and validate stroke width (must be positive, clamped to reasonable range)
         stroke_width = max(0.1, min(100.0, float(data.get("strokeWidth", 1))))
         
+        # Extract and validate stroke opacity (must be in range 0.0-1.0)
+        stroke_opacity = max(0.0, min(1.0, float(data.get("strokeOpacity", 1.0))))
+        
         # Extract and validate fill opacity (must be in range 0.0-1.0)
         fill_opacity = max(0.0, min(1.0, float(data.get("fillOpacity", 0.0))))
         
@@ -176,6 +193,7 @@ class EllipseItem(CanvasItem):
             stroke_width=stroke_width,
             stroke_color=data.get("strokeColor", "#ffffff"),
             fill_color=data.get("fillColor", "#ffffff"),
-            fill_opacity=fill_opacity
+            fill_opacity=fill_opacity,
+            stroke_opacity=stroke_opacity
         )
 

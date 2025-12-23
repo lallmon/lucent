@@ -87,6 +87,60 @@ class CanvasModel(QObject):
         self._items.clear()
         self.itemsCleared.emit()
     
+    @Slot(int, dict)
+    def updateItem(self, index: int, properties: Dict[str, Any]) -> None:
+        """
+        Update properties of an existing item.
+        
+        Args:
+            index: Index of the item to update
+            properties: Dictionary of properties to update
+        
+        Emits:
+            itemModified: Signal with the index of the modified item
+        """
+        if not (0 <= index < len(self._items)):
+            print(f"Warning: Cannot update item at invalid index {index}")
+            return
+        
+        item = self._items[index]
+        
+        try:
+            if isinstance(item, RectangleItem):
+                if "x" in properties:
+                    item.x = float(properties["x"])
+                if "y" in properties:
+                    item.y = float(properties["y"])
+                if "width" in properties:
+                    item.width = max(0.0, float(properties["width"]))
+                if "height" in properties:
+                    item.height = max(0.0, float(properties["height"]))
+            elif isinstance(item, EllipseItem):
+                if "centerX" in properties:
+                    item.center_x = float(properties["centerX"])
+                if "centerY" in properties:
+                    item.center_y = float(properties["centerY"])
+                if "radiusX" in properties:
+                    item.radius_x = max(0.0, float(properties["radiusX"]))
+                if "radiusY" in properties:
+                    item.radius_y = max(0.0, float(properties["radiusY"]))
+            
+            if "strokeWidth" in properties:
+                item.stroke_width = max(0.1, min(100.0, float(properties["strokeWidth"])))
+            if "strokeColor" in properties:
+                item.stroke_color = str(properties["strokeColor"])
+            if "strokeOpacity" in properties:
+                item.stroke_opacity = max(0.0, min(1.0, float(properties["strokeOpacity"])))
+            if "fillColor" in properties:
+                item.fill_color = str(properties["fillColor"])
+            if "fillOpacity" in properties:
+                item.fill_opacity = max(0.0, min(1.0, float(properties["fillOpacity"])))
+            
+            self.itemModified.emit(index)
+            
+        except (ValueError, TypeError) as e:
+            print(f"Warning: Failed to update item: {type(e).__name__}: {e}")
+    
     @Slot(result=int)
     def count(self) -> int:
         """
@@ -151,6 +205,7 @@ class CanvasModel(QObject):
                 "height": item.height,
                 "strokeWidth": item.stroke_width,
                 "strokeColor": item.stroke_color,
+                "strokeOpacity": item.stroke_opacity,
                 "fillColor": item.fill_color,
                 "fillOpacity": item.fill_opacity
             }
@@ -163,6 +218,7 @@ class CanvasModel(QObject):
                 "radiusY": item.radius_y,
                 "strokeWidth": item.stroke_width,
                 "strokeColor": item.stroke_color,
+                "strokeOpacity": item.stroke_opacity,
                 "fillColor": item.fill_color,
                 "fillOpacity": item.fill_opacity
             }

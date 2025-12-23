@@ -25,14 +25,14 @@ if __name__ == "__main__":
     
     app = QGuiApplication(sys.argv)
     
-    qmlRegisterType(CanvasRenderer, "DesignVibe", 1, 0, "CanvasRenderer")
+    qmlRegisterType(CanvasRenderer, "CanvasRendering", 1, 0, "CanvasRenderer")
     
     engine = QQmlApplicationEngine()
     
     # Create and register canvas model as global singleton
     canvas_model = CanvasModel()
     engine.rootContext().setContextProperty("canvasModel", canvas_model)
-    qml_file = Path(__file__).resolve().parent / "main.qml"
+    qml_file = Path(__file__).resolve().parent / "App.qml"
     engine.load(qml_file)
     if not engine.rootObjects():
         sys.exit(-1)
