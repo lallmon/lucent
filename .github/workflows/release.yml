@@ -106,24 +106,11 @@ jobs:
             exit 1
           fi
       
-      - name: Create AppImage (Linux)
+      - name: Package Linux executable
         if: matrix.os == 'ubuntu-latest'
         run: |
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
-          
-          mkdir -p AppDir/usr/bin
-          cp DesignVibe.bin AppDir/usr/bin/DesignVibe
-          chmod +x AppDir/usr/bin/DesignVibe
-          
-          ./linuxdeploy-x86_64.AppImage \
-            --appdir AppDir \
-            --executable AppDir/usr/bin/DesignVibe \
-            --desktop-file DesignVibe.desktop \
-            --icon-file assets/appIcon.png \
-            --output appimage
-          
-          mv DesignVibe-*.AppImage "DesignVibe-${SAFE_REF_NAME}-x86_64.AppImage"
+          mv DesignVibe.bin "DesignVibe-${SAFE_REF_NAME}-Linux-x86_64"
+          chmod +x "DesignVibe-${SAFE_REF_NAME}-Linux-x86_64"
       
       - name: Create DMG (macOS)
         if: matrix.os == 'macos-latest'
@@ -142,7 +129,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-build
+          name: DesignVibe-${{ env.SAFE_REF_NAME }}-${{ matrix.platform }}
           path: DesignVibe-*
   
   release:
@@ -178,7 +165,7 @@ jobs:
           echo "" >> release_notes.md
           echo "## Downloads" >> release_notes.md
           echo "" >> release_notes.md
-          echo "- **Linux**: DesignVibe-${{ github.ref_name }}-x86_64.AppImage" >> release_notes.md
+          echo "- **Linux**: DesignVibe-${{ github.ref_name }}-Linux-x86_64" >> release_notes.md
           echo "- **macOS**: DesignVibe-${{ github.ref_name }}-macOS.dmg" >> release_notes.md
           echo "- **Windows**: DesignVibe-${{ github.ref_name }}-Windows.exe" >> release_notes.md
       
@@ -187,9 +174,9 @@ jobs:
         with:
           body_path: release_notes.md
           files: |
-            Linux-build/*
-            macOS-build/*
-            Windows-build/*
+            DesignVibe-*-Linux/*
+            DesignVibe-*-macOS/*
+            DesignVibe-*-Windows/*
           draft: false
           prerelease: false
         env:
