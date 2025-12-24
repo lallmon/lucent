@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 jobs:
   build:
@@ -14,15 +15,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: Linux
-            artifact: DesignVibe-${{ github.ref_name }}-x86_64.AppImage
+          # Temporarily testing macOS only - re-enable others once working
+          # - os: ubuntu-latest
+          #   platform: Linux
+          #   artifact: DesignVibe-${{ github.ref_name }}-x86_64.AppImage
           - os: macos-latest
             platform: macOS
             artifact: DesignVibe-${{ github.ref_name }}-macOS.dmg
-          - os: windows-latest
-            platform: Windows
-            artifact: DesignVibe-${{ github.ref_name }}-Windows.exe
+          # - os: windows-latest
+          #   platform: Windows
+          #   artifact: DesignVibe-${{ github.ref_name }}-Windows.exe
     
     steps:
       - name: Checkout code
