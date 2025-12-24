@@ -129,19 +129,8 @@ jobs:
       - name: Verify build output
         shell: bash
         run: |
-          echo "=== Looking for build output ==="
-          ls -la
-          # Check for platform-specific output
-          if [ -d "DesignVibe.app" ]; then
-            echo "Found macOS app bundle: DesignVibe.app"
-            ls -la DesignVibe.app/
-          elif [ -f "DesignVibe.exe" ]; then
-            echo "Found Windows executable: DesignVibe.exe"
-          elif [ -f "DesignVibe.bin" ]; then
-            echo "Found Linux executable: DesignVibe.bin"
-          else
-            echo "ERROR: No build output found"
-            find . -maxdepth 1 \( -name "*.app" -o -name "*.exe" -o -name "*.bin" \) 2>/dev/null
+          if [ ! -d "DesignVibe.app" ] && [ ! -f "DesignVibe.exe" ] && [ ! -f "DesignVibe.bin" ]; then
+            echo "ERROR: Build output not found"
             exit 1
           fi
       
