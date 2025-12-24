@@ -9,6 +9,7 @@ jobs:
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
@@ -66,9 +67,23 @@ jobs:
           
           echo "Building version: $VERSION_NUMBER"
       
+      - name: Setup ccache (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          ccache --set-config=max_size=500M
+          ccache --zero-stats
+      
       - name: Build with pyside6-deploy
+        env:
+          CC: ${{ matrix.os == 'ubuntu-latest' && 'ccache gcc' || 'gcc' }}
+          CXX: ${{ matrix.os == 'ubuntu-latest' && 'ccache g++' || 'g++' }}
         run: |
           pyside6-deploy -c pysidedeploy.spec --force
+      
+      - name: Show ccache stats (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          ccache --show-stats
       
       - name: Create AppImage (Linux)
         if: matrix.os == 'ubuntu-latest'

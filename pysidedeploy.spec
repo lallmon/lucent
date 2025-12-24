@@ -18,6 +18,9 @@ plugins = qml
 excluded_qml_plugins = QtCharts,QtSensors,QtWebEngine
 modules = Core,DBus,Gui,Network,OpenGL,Qml,QmlMeta,QmlModels,QmlWorkerScript,Quick,QuickControls2,QuickTemplates2
 
+[nuitka]
+extra_args = --show-progress,--show-memory,--assume-yes-for-downloads
+
 [linux]
 appimage = true
 
