@@ -89,6 +89,9 @@ jobs:
         if: matrix.os != 'ubuntu-latest'
         run: |
           pyside6-deploy -c pysidedeploy.spec --force
+          echo "=== Immediately after pyside6-deploy ==="
+          ls -la
+          ls -la deployment/ || echo "deployment/ not found immediately after build"
       
       - name: Verify build output
         shell: bash
@@ -100,12 +103,18 @@ jobs:
           echo "=== Looking for deployment directory ==="
           if [ -d "deployment" ]; then
             echo "deployment/ exists:"
-            ls -la deployment/
+            ls -laR deployment/
           else
-            echo "deployment/ not found"
-            echo "=== Searching for DesignVibe files anywhere ==="
-            find . -name "DesignVibe*" -o -name "main*" 2>/dev/null | head -20
-            echo "ERROR: deployment directory not created - build failed"
+            echo "deployment/ not found in current dir"
+          fi
+          echo "=== Searching for .app bundles and executables ==="
+          find /Users/runner/work -name "*.app" -o -name "*.exe" -o -name "*.bin" 2>/dev/null | head -30
+          echo "=== Searching for DesignVibe anywhere ==="
+          find /Users/runner/work -name "DesignVibe*" 2>/dev/null | head -20
+          echo "=== Check if deployment exists anywhere ==="
+          find /Users/runner/work -type d -name "deployment" 2>/dev/null
+          if [ ! -d "deployment" ] || [ -z "$(ls -A deployment 2>/dev/null)" ]; then
+            echo "ERROR: No build output found"
             exit 1
           fi
       
