@@ -15,10 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: ubuntu-latest
-          #   platform: Linux
-          # - os: macos-latest
-          #   platform: macOS
+          - os: ubuntu-latest
+            platform: Linux
+          - os: macos-latest
+            platform: macOS
           - os: windows-latest
             platform: Windows
     
@@ -51,15 +51,35 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: echo "/usr/lib/ccache" >> $GITHUB_PATH
       
-      - name: Cache Nuitka builds
+      - name: Setup ccache (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install ccache
+          echo "$(brew --prefix ccache)/libexec" >> $GITHUB_PATH
+      
+      - name: Cache Nuitka builds (Linux)
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/Nuitka
-            deployment/*.build
-          key: nuitka-${{ runner.os }}-${{ hashFiles('main.py', 'canvas_*.py', 'pysidedeploy.spec') }}
-          restore-keys: |
-            nuitka-${{ runner.os }}-
+          path: ~/.cache/Nuitka
+          key: nuitka-linux-${{ hashFiles('main.py', 'canvas_*.py', 'pysidedeploy.spec') }}
+          restore-keys: nuitka-linux-
+      
+      - name: Cache Nuitka builds (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Nuitka
+          key: nuitka-macos-${{ hashFiles('main.py', 'canvas_*.py', 'pysidedeploy.spec') }}
+          restore-keys: nuitka-macos-
+      
+      - name: Cache Nuitka builds (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Nuitka
+          key: nuitka-windows-${{ hashFiles('main.py', 'canvas_*.py', 'pysidedeploy.spec') }}
+          restore-keys: nuitka-windows-
       
       - name: Install Python dependencies
         run: |
