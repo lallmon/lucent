@@ -106,6 +106,7 @@ coverage.xml
 .vscode/
 .idea/
 .qtcreator/
+*.code-workspace
 *.swo
 .project
 .pydevproject
