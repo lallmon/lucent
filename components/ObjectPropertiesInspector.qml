@@ -215,6 +215,7 @@ ScrollView {
                             Layout.preferredHeight: 16
                             onClicked: {
                                 root.originalStrokeColor = root.selectedItem.strokeColor
+                                canvasModel.beginTransaction()
                                 strokeColorDialog.open()
                             }
                             background: Rectangle {
@@ -243,8 +244,9 @@ ScrollView {
                             Layout.preferredHeight: DV.Theme.sizes.sliderHeight
                             implicitHeight: DV.Theme.sizes.sliderHeight
                             from: 0; to: 100; stepSize: 1; value: 100
-                            
-                            onValueChanged: root.updateProperty("strokeOpacity", value / 100.0)
+
+                            onPressedChanged: pressed ? canvasModel.beginTransaction() : canvasModel.endTransaction()
+                            onValueChanged: if (pressed) root.updateProperty("strokeOpacity", value / 100.0)
                             Component.onCompleted: value = root.selectedItem && root.selectedItem.strokeOpacity !== undefined ? Math.round(root.selectedItem.strokeOpacity * 100) : 100
                             
                             Binding {
@@ -309,6 +311,7 @@ ScrollView {
                             Layout.preferredHeight: 16
                             onClicked: {
                                 root.originalFillColor = root.selectedItem.fillColor
+                                canvasModel.beginTransaction()
                                 fillColorDialog.open()
                             }
                             background: Rectangle {
@@ -337,8 +340,9 @@ ScrollView {
                             Layout.preferredHeight: DV.Theme.sizes.sliderHeight
                             implicitHeight: DV.Theme.sizes.sliderHeight
                             from: 0; to: 100; stepSize: 1; value: 0
-                            
-                            onValueChanged: root.updateProperty("fillOpacity", value / 100.0)
+
+                            onPressedChanged: pressed ? canvasModel.beginTransaction() : canvasModel.endTransaction()
+                            onValueChanged: if (pressed) root.updateProperty("fillOpacity", value / 100.0)
                             Component.onCompleted: value = root.selectedItem ? Math.round(root.selectedItem.fillOpacity * 100) : 0
                             
                             Binding {
@@ -391,7 +395,11 @@ ScrollView {
                     title: qsTr("Choose Stroke Color")
                     selectedColor: root.selectedItem ? root.selectedItem.strokeColor : "#ffffff"
                     onSelectedColorChanged: root.updateProperty("strokeColor", selectedColor.toString())
-                    onRejected: root.updateProperty("strokeColor", root.originalStrokeColor)
+                    onAccepted: canvasModel.endTransaction()
+                    onRejected: {
+                        root.updateProperty("strokeColor", root.originalStrokeColor)
+                        canvasModel.endTransaction()
+                    }
                 }
 
                 ColorDialog {
@@ -399,7 +407,11 @@ ScrollView {
                     title: qsTr("Choose Fill Color")
                     selectedColor: root.selectedItem ? root.selectedItem.fillColor : "#ffffff"
                     onSelectedColorChanged: root.updateProperty("fillColor", selectedColor.toString())
-                    onRejected: root.updateProperty("fillColor", root.originalFillColor)
+                    onAccepted: canvasModel.endTransaction()
+                    onRejected: {
+                        root.updateProperty("fillColor", root.originalFillColor)
+                        canvasModel.endTransaction()
+                    }
                 }
             }
         }

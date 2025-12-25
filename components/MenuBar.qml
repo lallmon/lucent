@@ -16,7 +16,23 @@ MenuBar {
             onTriggered: Qt.quit()
         }
     }
-    
+
+    Menu {
+        title: qsTr("&Edit")
+        Action {
+            text: qsTr("&Undo (Ctrl+Z)")
+            shortcut: StandardKey.Undo
+            enabled: canvasModel ? canvasModel.canUndo : false
+            onTriggered: if (canvasModel) canvasModel.undo()
+        }
+        Action {
+            text: qsTr("&Redo (Ctrl+Shift+Z)")
+            shortcut: StandardKey.Redo
+            enabled: canvasModel ? canvasModel.canRedo : false
+            onTriggered: if (canvasModel) canvasModel.redo()
+        }
+    }
+
     Menu {
         title: qsTr("&View")
         Action {
