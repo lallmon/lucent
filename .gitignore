@@ -106,6 +106,7 @@ coverage.xml
 .vscode/
 .idea/
 .qtcreator/
+.cursor/
 *.code-workspace
 *.swo
 .project
