@@ -75,6 +75,7 @@ Item {
         
         if (isSelecting && button === Qt.LeftButton) {
             if (isDraggingObject) {
+                canvasModel.endTransaction();
                 isDraggingObject = false;
                 isSelecting = false;
                 cursorShapeChanged(Qt.OpenHandCursor);
@@ -137,6 +138,7 @@ Item {
             
             if (!isDraggingObject && (dx >= clickThreshold || dy >= clickThreshold)) {
                 isDraggingObject = true;
+                canvasModel.beginTransaction();
                 cursorShapeChanged(Qt.ClosedHandCursor);
             }
             

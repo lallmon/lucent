@@ -400,3 +400,267 @@ class TestCanvasModelQueries:
         items = canvas_model.getItemsForHitTest()
         assert items == []
 
+
+class TestCanvasModelUndo:
+    """Tests for undo functionality in CanvasModel."""
+
+    def test_can_undo_empty_stack(self, canvas_model):
+        """Test canUndo returns False when undo stack is empty."""
+        assert canvas_model.canUndo is False
+
+    def test_undo_empty_stack_returns_false(self, canvas_model):
+        """Test undo returns False when nothing to undo."""
+        assert canvas_model.undo() is False
+
+    def test_undo_add_item(self, canvas_model, qtbot):
+        """Test undoing addItem removes the item."""
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50})
+        assert canvas_model.count() == 1
+        assert canvas_model.canUndo is True
+
+        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000):
+            result = canvas_model.undo()
+
+        assert result is True
+        assert canvas_model.count() == 0
+        assert canvas_model.canUndo is False
+
+    def test_undo_remove_item(self, canvas_model, qtbot):
+        """Test undoing removeItem restores the item."""
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50})
+        canvas_model.removeItem(0)
+        assert canvas_model.count() == 0
+
+        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
+            result = canvas_model.undo()
+
+        assert result is True
+        assert canvas_model.count() == 1
+        items = canvas_model.getItems()
+        assert items[0].x == 10
+        assert items[0].width == 100
+
+    def test_undo_update_item(self, canvas_model, qtbot):
+        """Test undoing updateItem restores previous properties."""
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50})
+        canvas_model.updateItem(0, {"x": 50, "y": 75})
+        
+        items = canvas_model.getItems()
+        assert items[0].x == 50
+        assert items[0].y == 75
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
+            result = canvas_model.undo()
+
+        assert result is True
+        items = canvas_model.getItems()
+        assert items[0].x == 10
+        assert items[0].y == 20
+
+    def test_undo_clear(self, canvas_model, qtbot):
+        """Test undoing clear restores all items."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 20, "centerY": 20, "radiusX": 5, "radiusY": 5})
+        canvas_model.clear()
+        assert canvas_model.count() == 0
+
+        result = canvas_model.undo()
+
+        assert result is True
+        assert canvas_model.count() == 2
+        items = canvas_model.getItems()
+        assert isinstance(items[0], RectangleItem)
+        assert isinstance(items[1], EllipseItem)
+
+    def test_multiple_undos(self, canvas_model):
+        """Test multiple sequential undos work correctly."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 20, "centerY": 20, "radiusX": 5, "radiusY": 5})
+        assert canvas_model.count() == 2
+
+        canvas_model.undo()
+        assert canvas_model.count() == 1
+        assert isinstance(canvas_model.getItems()[0], RectangleItem)
+
+        canvas_model.undo()
+        assert canvas_model.count() == 0
+        assert canvas_model.canUndo is False
+
+    def test_undo_stack_changed_signal(self, canvas_model, qtbot):
+        """Test undoStackChanged signal is emitted on undo stack changes."""
+        with qtbot.waitSignal(canvas_model.undoStackChanged, timeout=1000):
+            canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+
+        with qtbot.waitSignal(canvas_model.undoStackChanged, timeout=1000):
+            canvas_model.undo()
+
+
+class TestCanvasModelTransactions:
+    """Tests for transaction coalescing in CanvasModel."""
+
+    def test_transaction_coalesces_multiple_updates(self, canvas_model):
+        """Test that updates within a transaction create a single undo entry."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        initial_undo_count = len(canvas_model._undo_stack)
+
+        canvas_model.beginTransaction()
+        canvas_model.updateItem(0, {"x": 10})
+        canvas_model.updateItem(0, {"x": 20})
+        canvas_model.updateItem(0, {"x": 30})
+        canvas_model.endTransaction()
+
+        assert len(canvas_model._undo_stack) == initial_undo_count + 1
+        assert canvas_model.getItems()[0].x == 30
+
+    def test_undo_transaction_restores_original_state(self, canvas_model):
+        """Test that undoing a transaction restores the pre-transaction state."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+
+        canvas_model.beginTransaction()
+        canvas_model.updateItem(0, {"x": 50, "y": 50})
+        canvas_model.updateItem(0, {"x": 100, "y": 100})
+        canvas_model.updateItem(0, {"x": 150, "y": 150})
+        canvas_model.endTransaction()
+
+        canvas_model.undo()
+
+        items = canvas_model.getItems()
+        assert items[0].x == 0
+        assert items[0].y == 0
+
+    def test_empty_transaction_creates_no_undo(self, canvas_model):
+        """Test that a transaction with no changes creates no undo entry."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        initial_undo_count = len(canvas_model._undo_stack)
+
+        canvas_model.beginTransaction()
+        canvas_model.endTransaction()
+
+        assert len(canvas_model._undo_stack) == initial_undo_count
+
+    def test_transaction_tracks_multiple_items(self, canvas_model):
+        """Test that transactions can track changes to multiple items."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        canvas_model.addItem({"type": "ellipse", "centerX": 50, "centerY": 50, "radiusX": 25, "radiusY": 25})
+
+        canvas_model.beginTransaction()
+        canvas_model.updateItem(0, {"x": 100})
+        canvas_model.updateItem(1, {"centerX": 200})
+        canvas_model.endTransaction()
+
+        canvas_model.undo()
+
+        assert canvas_model.getItems()[0].x == 0
+        assert canvas_model.getItems()[1].center_x == 50
+
+    def test_nested_begin_transaction_ignored(self, canvas_model):
+        """Test that calling beginTransaction while active is safely ignored."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+
+        canvas_model.beginTransaction()
+        canvas_model.updateItem(0, {"x": 50})
+        canvas_model.beginTransaction()
+        canvas_model.updateItem(0, {"x": 100})
+        canvas_model.endTransaction()
+
+        canvas_model.undo()
+        assert canvas_model.getItems()[0].x == 0
+
+
+class TestCanvasModelRedo:
+    """Tests for redo functionality in CanvasModel."""
+
+    def test_can_redo_empty_stack(self, canvas_model):
+        """Test canRedo returns False when redo stack is empty."""
+        assert canvas_model.canRedo is False
+
+    def test_redo_empty_stack_returns_false(self, canvas_model):
+        """Test redo returns False when nothing to redo."""
+        assert canvas_model.redo() is False
+
+    def test_undo_enables_redo(self, canvas_model):
+        """Test that performing undo enables redo."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        assert canvas_model.canRedo is False
+
+        canvas_model.undo()
+
+        assert canvas_model.canRedo is True
+
+    def test_redo_add_item(self, canvas_model, qtbot):
+        """Test redoing an undone addItem."""
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50})
+        canvas_model.undo()
+        assert canvas_model.count() == 0
+
+        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
+            result = canvas_model.redo()
+
+        assert result is True
+        assert canvas_model.count() == 1
+        assert canvas_model.getItems()[0].x == 10
+
+    def test_redo_remove_item(self, canvas_model, qtbot):
+        """Test redoing an undone removeItem."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        canvas_model.removeItem(0)
+        canvas_model.undo()
+        assert canvas_model.count() == 1
+
+        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000):
+            result = canvas_model.redo()
+
+        assert result is True
+        assert canvas_model.count() == 0
+
+    def test_redo_update_item(self, canvas_model, qtbot):
+        """Test redoing an undone updateItem."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        canvas_model.updateItem(0, {"x": 50, "y": 75})
+        canvas_model.undo()
+        assert canvas_model.getItems()[0].x == 0
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
+            result = canvas_model.redo()
+
+        assert result is True
+        assert canvas_model.getItems()[0].x == 50
+        assert canvas_model.getItems()[0].y == 75
+
+    def test_new_action_clears_redo_stack(self, canvas_model):
+        """Test that performing a new action clears the redo stack."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        canvas_model.undo()
+        assert canvas_model.canRedo is True
+
+        canvas_model.addItem({"type": "ellipse", "centerX": 50, "centerY": 50, "radiusX": 25, "radiusY": 25})
+
+        assert canvas_model.canRedo is False
+
+    def test_multiple_undo_redo_cycle(self, canvas_model):
+        """Test multiple undo/redo operations work correctly."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+        canvas_model.addItem({"type": "ellipse", "centerX": 50, "centerY": 50, "radiusX": 25, "radiusY": 25})
+        assert canvas_model.count() == 2
+
+        canvas_model.undo()
+        canvas_model.undo()
+        assert canvas_model.count() == 0
+
+        canvas_model.redo()
+        assert canvas_model.count() == 1
+        assert isinstance(canvas_model.getItems()[0], RectangleItem)
+
+        canvas_model.redo()
+        assert canvas_model.count() == 2
+
+    def test_redo_stack_changed_signal(self, canvas_model, qtbot):
+        """Test redoStackChanged signal is emitted appropriately."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100})
+
+        with qtbot.waitSignal(canvas_model.redoStackChanged, timeout=1000):
+            canvas_model.undo()
+
+        with qtbot.waitSignal(canvas_model.redoStackChanged, timeout=1000):
+            canvas_model.redo()
+
