@@ -183,7 +183,9 @@ class TestCanvasModelUpdate:
         with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
             canvas_model.updateItem(0, {"x": 50, "y": 75})
         
-        assert blocker.args == [0]
+        assert blocker.args[0] == 0  # Index
+        assert blocker.args[1]["x"] == 50  # Updated data
+        assert blocker.args[1]["y"] == 75
         
         items = canvas_model.getItems()
         assert items[0].x == 50

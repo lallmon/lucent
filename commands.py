@@ -128,7 +128,7 @@ class UpdateItemCommand(Command):
         self._model._items[self._index] = _create_item(props)
         index = self._model.index(self._index, 0)
         self._model.dataChanged.emit(index, index, [])
-        self._model.itemModified.emit(self._index)
+        self._model.itemModified.emit(self._index, props)
 
 
 class ClearCommand(Command):

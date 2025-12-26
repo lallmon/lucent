@@ -22,7 +22,7 @@ class CanvasModel(QAbstractListModel):
     itemAdded = Signal(int)
     itemRemoved = Signal(int)
     itemsCleared = Signal()
-    itemModified = Signal(int)
+    itemModified = Signal(int, 'QVariant')  # index and item data
     itemsReordered = Signal()
     undoStackChanged = Signal()
     redoStackChanged = Signal()
@@ -205,7 +205,7 @@ class CanvasModel(QAbstractListModel):
 
             model_index = self.index(index, 0)
             self.dataChanged.emit(model_index, model_index, [])
-            self.itemModified.emit(index)
+            self.itemModified.emit(index, new_props)
 
         except (ValueError, TypeError) as e:
             print(f"Warning: Failed to update item: {type(e).__name__}: {e}")
