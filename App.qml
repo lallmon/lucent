@@ -55,6 +55,12 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 orientation: Qt.Horizontal
 
+                handle: Rectangle {
+                    implicitWidth: 6
+                    implicitHeight: 6
+                    color: SplitHandle.hovered ? Theme.colors.borderDefault : Theme.colors.borderSubtle
+                }
+
                 // Main Viewport with Canvas
                 Viewport {
                     id: viewport
@@ -77,7 +83,7 @@ ApplicationWindow {
 
                 RightPanel {
                     id: rightPanel
-                    SplitView.preferredWidth: 220
+                    SplitView.preferredWidth: 280
                     SplitView.minimumWidth: 128
                     SplitView.maximumWidth: 400
                     SplitView.fillHeight: true

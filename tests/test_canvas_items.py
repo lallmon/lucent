@@ -344,3 +344,51 @@ class TestCanvasCoordinates:
         assert CANVAS_OFFSET_X == 5000
         assert CANVAS_OFFSET_Y == 5000
 
+
+class TestCanvasItemName:
+    """Tests for name property on canvas items."""
+
+    def test_rectangle_has_name_property(self):
+        """Rectangle should have a name property."""
+        rect = RectangleItem(x=0, y=0, width=10, height=10, name="Rectangle 1")
+        assert rect.name == "Rectangle 1"
+
+    def test_rectangle_name_defaults_to_empty(self):
+        """Rectangle name should default to empty string."""
+        rect = RectangleItem(x=0, y=0, width=10, height=10)
+        assert rect.name == ""
+
+    def test_ellipse_has_name_property(self):
+        """Ellipse should have a name property."""
+        ellipse = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10, name="Ellipse 1")
+        assert ellipse.name == "Ellipse 1"
+
+    def test_ellipse_name_defaults_to_empty(self):
+        """Ellipse name should default to empty string."""
+        ellipse = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10)
+        assert ellipse.name == ""
+
+    def test_rectangle_from_dict_includes_name(self):
+        """RectangleItem.from_dict should parse name field."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "My Rect"}
+        rect = RectangleItem.from_dict(data)
+        assert rect.name == "My Rect"
+
+    def test_rectangle_from_dict_name_defaults_to_empty(self):
+        """RectangleItem.from_dict should default name to empty."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        rect = RectangleItem.from_dict(data)
+        assert rect.name == ""
+
+    def test_ellipse_from_dict_includes_name(self):
+        """EllipseItem.from_dict should parse name field."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10, "name": "My Ellipse"}
+        ellipse = EllipseItem.from_dict(data)
+        assert ellipse.name == "My Ellipse"
+
+    def test_ellipse_from_dict_name_defaults_to_empty(self):
+        """EllipseItem.from_dict should default name to empty."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10}
+        ellipse = EllipseItem.from_dict(data)
+        assert ellipse.name == ""
+

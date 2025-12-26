@@ -277,3 +277,62 @@ class TestTransactionCommand:
         transaction = TransactionCommand([])
         assert transaction.description
 
+
+class TestMoveItemCommand:
+    """Tests for MoveItemCommand."""
+
+    def test_execute_moves_item_forward(self, canvas_model):
+        """Test moving item to higher index."""
+        canvas_model._items = [
+            RectangleItem(0, 0, 10, 10, name="Rect 1"),
+            RectangleItem(10, 0, 10, 10, name="Rect 2"),
+            RectangleItem(20, 0, 10, 10, name="Rect 3"),
+        ]
+        from commands import MoveItemCommand
+        cmd = MoveItemCommand(canvas_model, 0, 2)
+        
+        cmd.execute()
+        
+        assert canvas_model.getItems()[0].name == "Rect 2"
+        assert canvas_model.getItems()[1].name == "Rect 3"
+        assert canvas_model.getItems()[2].name == "Rect 1"
+
+    def test_execute_moves_item_backward(self, canvas_model):
+        """Test moving item to lower index."""
+        canvas_model._items = [
+            RectangleItem(0, 0, 10, 10, name="Rect 1"),
+            RectangleItem(10, 0, 10, 10, name="Rect 2"),
+            RectangleItem(20, 0, 10, 10, name="Rect 3"),
+        ]
+        from commands import MoveItemCommand
+        cmd = MoveItemCommand(canvas_model, 2, 0)
+        
+        cmd.execute()
+        
+        assert canvas_model.getItems()[0].name == "Rect 3"
+        assert canvas_model.getItems()[1].name == "Rect 1"
+        assert canvas_model.getItems()[2].name == "Rect 2"
+
+    def test_undo_restores_original_order(self, canvas_model):
+        """Test undo restores original item order."""
+        canvas_model._items = [
+            RectangleItem(0, 0, 10, 10, name="Rect 1"),
+            RectangleItem(10, 0, 10, 10, name="Rect 2"),
+            RectangleItem(20, 0, 10, 10, name="Rect 3"),
+        ]
+        from commands import MoveItemCommand
+        cmd = MoveItemCommand(canvas_model, 0, 2)
+        cmd.execute()
+        
+        cmd.undo()
+        
+        assert canvas_model.getItems()[0].name == "Rect 1"
+        assert canvas_model.getItems()[1].name == "Rect 2"
+        assert canvas_model.getItems()[2].name == "Rect 3"
+
+    def test_has_description(self, canvas_model):
+        """Test command has a meaningful description."""
+        from commands import MoveItemCommand
+        cmd = MoveItemCommand(canvas_model, 0, 2)
+        assert cmd.description
+

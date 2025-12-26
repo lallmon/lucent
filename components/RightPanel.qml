@@ -1,15 +1,45 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "." as DV
 
-// Right panel containing object properties and other inspectors
 Pane {
     id: root
-    padding: DV.Theme.sizes.rightPanelPadding
-    
-    contentItem: ObjectPropertiesInspector {
+    padding: 0
+
+    ColumnLayout {
         anchors.fill: parent
-        selectedItem: DV.SelectionManager.selectedItem
+        spacing: 0
+
+        // Properties section
+        Pane {
+            Layout.fillWidth: true
+            Layout.preferredHeight: parent.height * 0.35
+            Layout.minimumHeight: 150
+            padding: DV.Theme.sizes.rightPanelPadding
+
+            ObjectPropertiesInspector {
+                anchors.fill: parent
+                selectedItem: DV.SelectionManager.selectedItem
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: DV.Theme.colors.borderSubtle
+        }
+
+        // Layers section
+        Pane {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 150
+            padding: DV.Theme.sizes.rightPanelPadding
+
+            LayerPanel {
+                anchors.fill: parent
+            }
+        }
     }
 }
-

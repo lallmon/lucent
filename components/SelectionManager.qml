@@ -7,9 +7,9 @@ QtObject {
     property var selectedItem: null
     
     Component.onCompleted: {
-        canvasModel.itemModified.connect(function(index) {
+        canvasModel.itemModified.connect(function(index, data) {
             if (index === selectedItemIndex) {
-                selectedItem = canvasModel.getItemData(index)
+                selectedItem = data
             }
         })
     }

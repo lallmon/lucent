@@ -41,6 +41,7 @@ class CanvasRenderer(QQuickPaintedItem):
             model.itemRemoved.connect(self.update)
             model.itemsCleared.connect(self.update)
             model.itemModified.connect(self.update)
+            model.itemsReordered.connect(self.update)
             # Initial render
             self.update()
         

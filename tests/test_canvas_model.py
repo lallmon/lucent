@@ -183,7 +183,9 @@ class TestCanvasModelUpdate:
         with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
             canvas_model.updateItem(0, {"x": 50, "y": 75})
         
-        assert blocker.args == [0]
+        assert blocker.args[0] == 0  # Index
+        assert blocker.args[1]["x"] == 50  # Updated data
+        assert blocker.args[1]["y"] == 75
         
         items = canvas_model.getItems()
         assert items[0].x == 50
@@ -699,4 +701,247 @@ class TestCanvasModelRedo:
 
         with qtbot.waitSignal(canvas_model.redoStackChanged, timeout=1000):
             canvas_model.redo()
+
+
+class TestCanvasModelAutoNames:
+    """Tests for auto-generated item names."""
+
+    def test_add_rectangle_generates_name(self, canvas_model):
+        """First rectangle should be named 'Rectangle 1'."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        item = canvas_model.getItems()[0]
+        assert item.name == "Rectangle 1"
+
+    def test_add_ellipse_generates_name(self, canvas_model):
+        """First ellipse should be named 'Ellipse 1'."""
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        item = canvas_model.getItems()[0]
+        assert item.name == "Ellipse 1"
+
+    def test_add_multiple_rectangles_increments_counter(self, canvas_model):
+        """Multiple rectangles should get incrementing numbers."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 40, "y": 0, "width": 10, "height": 10})
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 1"
+        assert items[1].name == "Rectangle 2"
+        assert items[2].name == "Rectangle 3"
+
+    def test_add_mixed_types_separate_counters(self, canvas_model):
+        """Different types should have separate counters."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 20, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 1"
+        assert items[1].name == "Ellipse 1"
+        assert items[2].name == "Rectangle 2"
+        assert items[3].name == "Ellipse 2"
+
+    def test_provided_name_not_overwritten(self, canvas_model):
+        """If item data includes a name, it should be preserved."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "My Custom Rect"})
+        item = canvas_model.getItems()[0]
+        assert item.name == "My Custom Rect"
+
+    def test_name_preserved_in_getItemData(self, canvas_model):
+        """getItemData should return the item name."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        data = canvas_model.getItemData(0)
+        assert data["name"] == "Rectangle 1"
+
+    def test_clear_resets_type_counters(self, canvas_model):
+        """Clear should reset type counters so new items start from 1."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        assert canvas_model.getItems()[1].name == "Rectangle 2"
+
+        canvas_model.clear()
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+
+        assert canvas_model.getItems()[0].name == "Rectangle 1"
+
+
+class TestCanvasModelMoveItem:
+    """Tests for moveItem reordering functionality."""
+
+    def test_move_item_forward(self, canvas_model):
+        """Move item from index 0 to index 2."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        canvas_model.moveItem(0, 2)
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 2"
+        assert items[1].name == "Rectangle 3"
+        assert items[2].name == "Rectangle 1"
+
+    def test_move_item_backward(self, canvas_model):
+        """Move item from index 2 to index 0."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        canvas_model.moveItem(2, 0)
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 3"
+        assert items[1].name == "Rectangle 1"
+        assert items[2].name == "Rectangle 2"
+
+    def test_move_item_same_index_no_op(self, canvas_model, qtbot):
+        """Moving item to same index should be a no-op."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        
+        initial_undo_count = len(canvas_model._undo_stack)
+        canvas_model.moveItem(1, 1)
+        
+        assert len(canvas_model._undo_stack) == initial_undo_count
+
+    def test_move_item_invalid_from_index(self, canvas_model):
+        """Invalid from index should do nothing."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        initial_undo_count = len(canvas_model._undo_stack)
+        canvas_model.moveItem(-1, 0)
+        canvas_model.moveItem(5, 0)
+        
+        assert len(canvas_model._undo_stack) == initial_undo_count
+
+    def test_move_item_invalid_to_index(self, canvas_model):
+        """Invalid to index should do nothing."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        initial_undo_count = len(canvas_model._undo_stack)
+        canvas_model.moveItem(0, -1)
+        canvas_model.moveItem(0, 5)
+        
+        assert len(canvas_model._undo_stack) == initial_undo_count
+
+    def test_move_item_emits_signal(self, canvas_model, qtbot):
+        """moveItem should emit itemsReordered signal."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        
+        with qtbot.waitSignal(canvas_model.itemsReordered, timeout=1000):
+            canvas_model.moveItem(0, 1)
+
+    def test_move_item_undo(self, canvas_model):
+        """Undo should restore original order."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        canvas_model.moveItem(0, 2)
+        canvas_model.undo()
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 1"
+        assert items[1].name == "Rectangle 2"
+        assert items[2].name == "Rectangle 3"
+
+    def test_move_item_redo(self, canvas_model):
+        """Redo should restore moved order."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        canvas_model.moveItem(0, 2)
+        canvas_model.undo()
+        canvas_model.redo()
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Rectangle 2"
+        assert items[1].name == "Rectangle 3"
+        assert items[2].name == "Rectangle 1"
+
+
+class TestCanvasModelListModel:
+    """Tests for QAbstractListModel behavior."""
+
+    def test_row_count_matches_item_count(self, canvas_model):
+        """rowCount should match number of items."""
+        from PySide6.QtCore import QModelIndex
+        assert canvas_model.rowCount(QModelIndex()) == 0
+
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        assert canvas_model.rowCount(QModelIndex()) == 1
+
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        assert canvas_model.rowCount(QModelIndex()) == 2
+
+    def test_data_returns_name_role(self, canvas_model):
+        """data() should return item name for NameRole."""
+        from PySide6.QtCore import Qt
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        index = canvas_model.index(0, 0)
+        name = canvas_model.data(index, canvas_model.NameRole)
+        assert name == "Rectangle 1"
+
+    def test_data_returns_type_role(self, canvas_model):
+        """data() should return item type for TypeRole."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        index = canvas_model.index(0, 0)
+        item_type = canvas_model.data(index, canvas_model.TypeRole)
+        assert item_type == "rectangle"
+
+    def test_role_names_exposed(self, canvas_model):
+        """roleNames should map roles to QML property names."""
+        role_names = canvas_model.roleNames()
+        
+        assert canvas_model.NameRole in role_names
+        assert canvas_model.TypeRole in role_names
+        assert role_names[canvas_model.NameRole] == b"name"
+        assert role_names[canvas_model.TypeRole] == b"itemType"
+
+    def test_add_item_emits_rows_inserted(self, canvas_model, qtbot):
+        """addItem should emit rowsInserted signal."""
+        with qtbot.waitSignal(canvas_model.rowsInserted, timeout=1000) as blocker:
+            canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        parent, first, last = blocker.args
+        assert first == 0
+        assert last == 0
+
+    def test_remove_item_emits_rows_removed(self, canvas_model, qtbot):
+        """removeItem should emit rowsRemoved signal."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        with qtbot.waitSignal(canvas_model.rowsRemoved, timeout=1000) as blocker:
+            canvas_model.removeItem(0)
+        
+        parent, first, last = blocker.args
+        assert first == 0
+        assert last == 0
+
+    def test_move_item_emits_rows_moved(self, canvas_model, qtbot):
+        """moveItem should emit rowsMoved signal."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        with qtbot.waitSignal(canvas_model.rowsMoved, timeout=1000):
+            canvas_model.moveItem(0, 2)
+
+    def test_clear_emits_model_reset(self, canvas_model, qtbot):
+        """clear should emit modelReset signal."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        
+        with qtbot.waitSignal(canvas_model.modelReset, timeout=1000):
+            canvas_model.clear()
+
+    def test_data_changed_on_update(self, canvas_model, qtbot):
+        """updateItem should emit dataChanged signal."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        with qtbot.waitSignal(canvas_model.dataChanged, timeout=1000):
+            canvas_model.updateItem(0, {"x": 50})
 

@@ -42,7 +42,8 @@ class RectangleItem(CanvasItem):
     def __init__(self, x: float, y: float, width: float, height: float, 
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
                  fill_color: str = "#ffffff", fill_opacity: float = 0.0,
-                 stroke_opacity: float = 1.0) -> None:
+                 stroke_opacity: float = 1.0, name: str = "") -> None:
+        self.name = name
         self.x = x
         self.y = y
         # Validate dimensions (must be non-negative)
@@ -111,7 +112,8 @@ class RectangleItem(CanvasItem):
             stroke_color=data.get("strokeColor", "#ffffff"),
             fill_color=data.get("fillColor", "#ffffff"),
             fill_opacity=fill_opacity,
-            stroke_opacity=stroke_opacity
+            stroke_opacity=stroke_opacity,
+            name=data.get("name", "")
         )
 
 
@@ -121,7 +123,8 @@ class EllipseItem(CanvasItem):
     def __init__(self, center_x: float, center_y: float, radius_x: float, radius_y: float, 
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
                  fill_color: str = "#ffffff", fill_opacity: float = 0.0,
-                 stroke_opacity: float = 1.0) -> None:
+                 stroke_opacity: float = 1.0, name: str = "") -> None:
+        self.name = name
         self.center_x = center_x
         self.center_y = center_y
         # Validate radii (must be non-negative)
@@ -194,6 +197,7 @@ class EllipseItem(CanvasItem):
             stroke_color=data.get("strokeColor", "#ffffff"),
             fill_color=data.get("fillColor", "#ffffff"),
             fill_opacity=fill_opacity,
-            stroke_opacity=stroke_opacity
+            stroke_opacity=stroke_opacity,
+            name=data.get("name", "")
         )
 
