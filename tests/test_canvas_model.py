@@ -1409,6 +1409,56 @@ class TestCanvasModelLayerDeletion:
         assert isinstance(items[0], RectangleItem)
         assert items[0].parent_id is None
 
+
+class TestCanvasModelShapeDeletion:
+    """Tests for deleting non-layer items."""
+
+    def test_delete_shape_removes_only_that_shape(self, canvas_model, qtbot):
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5})
+        assert canvas_model.count() == 2
+
+        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000) as blocker:
+            canvas_model.removeItem(0)
+
+        assert blocker.args == [0]
+        assert canvas_model.count() == 1
+        remaining = canvas_model.getItems()[0]
+        assert isinstance(remaining, EllipseItem)
+
+    def test_delete_shape_updates_selection(self, canvas_model):
+        selection = {"index": -1, "item": None}
+
+        def on_modified(index, data):
+            if index == selection["index"]:
+                selection["item"] = data
+
+        def on_removed(index):
+            if index == selection["index"]:
+                selection["index"] = -1
+                selection["item"] = None
+            elif index < selection["index"]:
+                selection["index"] -= 1
+
+        def on_cleared():
+            selection["index"] = -1
+            selection["item"] = None
+
+        canvas_model.itemModified.connect(on_modified)
+        canvas_model.itemRemoved.connect(on_removed)
+        canvas_model.itemsCleared.connect(on_cleared)
+
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5})
+
+        selection["index"] = 1
+        selection["item"] = canvas_model.getItemData(1)
+
+        canvas_model.removeItem(1)
+
+        assert selection["index"] == -1
+        assert selection["item"] is None
+
     def test_undo_delete_layer_restores_parent_relationships(self, canvas_model):
         """Undo of layer deletion should restore children's parent_id."""
         canvas_model.addLayer()
