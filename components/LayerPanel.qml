@@ -14,11 +14,11 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 8
+        spacing: 0
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 4
+            spacing: 0
 
             Label {
                 text: qsTr("Layers")
@@ -63,6 +63,7 @@ Item {
             id: layerContainer
             Layout.fillWidth: true
             Layout.fillHeight: true
+            width: root.width
             clip: true
 
             property int itemHeight: 28
@@ -70,7 +71,8 @@ Item {
 
             Column {
                 id: layerColumn
-                width: parent.width
+                anchors.left: parent.left
+                anchors.right: parent.right
                 spacing: layerContainer.itemSpacing
 
                 Repeater {
@@ -79,7 +81,8 @@ Item {
 
                     delegate: Item {
                         id: delegateRoot
-                        width: layerColumn.width
+                        anchors.left: parent.left
+                        anchors.right: parent.right
                         height: layerContainer.itemHeight
 
                         // Model role properties (auto-bound from QAbstractListModel)
@@ -119,6 +122,16 @@ Item {
                                  : "transparent"
                             border.width: delegateRoot.isDropTarget ? 2 : 0
                             border.color: DV.Theme.colors.accent
+
+                            Rectangle {
+                                // Top separator between items
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                height: 1
+                                color: DV.Theme.colors.borderSubtle
+                                visible: delegateRoot.index > 0  // hide on first visual item
+                            }
 
                             RowLayout {
                                 anchors.fill: parent
