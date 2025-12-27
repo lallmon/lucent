@@ -178,16 +178,9 @@ class CanvasModel(QAbstractListModel):
         
         item = self._items[from_index]
         
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"H1","location":"canvas_model.py:moveItem","message":"moveItem called","data":{"from_index":from_index,"to_index":to_index,"item_type":type(item).__name__,"item_name":getattr(item,'name',''),"is_layer":isinstance(item,LayerItem),"items_before":[{"i":i,"type":type(it).__name__,"name":getattr(it,'name',''),"parent_id":getattr(it,'parent_id',None)} for i,it in enumerate(self._items)]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
-        
         # Check if moving a layer - need to move children too
         if isinstance(item, LayerItem):
             children_indices = self._getLayerChildrenIndices(item.id)
-            # #region agent log
-            import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"H2","location":"canvas_model.py:moveItem:layer","message":"Moving layer with children","data":{"layer_id":item.id,"children_indices":children_indices},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-            # #endregion
             if children_indices:
                 self._moveLayerWithChildren(from_index, to_index, children_indices)
                 return
@@ -263,10 +256,6 @@ class CanvasModel(QAbstractListModel):
         This maintains the parent-child visual grouping by extracting the layer
         and all its children, then reinserting them at the target position.
         """
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"H2","location":"canvas_model.py:_moveLayerWithChildren","message":"Moving layer group","data":{"layer_from":layer_from,"layer_to":layer_to,"children_indices":children_indices,"items_before":[{"i":i,"type":type(it).__name__,"name":getattr(it,'name','')} for i,it in enumerate(self._items)]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
-        
         # Collect all indices to move (layer + children), sorted descending for safe removal
         all_indices = sorted([layer_from] + children_indices, reverse=True)
         
@@ -301,10 +290,6 @@ class CanvasModel(QAbstractListModel):
         self.beginResetModel()
         self.endResetModel()
         self.itemsReordered.emit()
-        
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"H2","location":"canvas_model.py:_moveLayerWithChildren:done","message":"Layer group move complete","data":{"insert_at":insert_at,"items_after":[{"i":i,"type":type(it).__name__,"name":getattr(it,'name',''),"parent_id":getattr(it,'parent_id',None)} for i,it in enumerate(self._items)]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
 
     @Slot(int, str)
     def reparentItem(self, item_index: int, parent_id: str) -> None:
@@ -317,9 +302,6 @@ class CanvasModel(QAbstractListModel):
             item_index: Index of the shape item to reparent
             parent_id: ID of the layer to set as parent, or empty string to unparent
         """
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"REPARENT","location":"canvas_model.py:reparentItem","message":"reparentItem called","data":{"item_index":item_index,"parent_id":parent_id,"items":[{"i":i,"type":type(it).__name__,"name":getattr(it,'name',''),"parent_id":getattr(it,'parent_id',None)} for i,it in enumerate(self._items)]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
         if not (0 <= item_index < len(self._items)):
             return
         

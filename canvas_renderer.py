@@ -54,9 +54,6 @@ class CanvasRenderer(QQuickPaintedItem):
         - When a layer is encountered, its children are rendered immediately after it
         - This groups children visually with their parent layer in Z-order
         """
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"PAINT","location":"canvas_renderer.py:paint","message":"paint called","data":{"has_model":self._model is not None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
         if not self._model:
             return
             
@@ -65,21 +62,20 @@ class CanvasRenderer(QQuickPaintedItem):
         # Get ordered items respecting parent-child grouping
         ordered_items = self._get_render_order()
         
-        # #region agent log
-        import json; open('/home/lka/Git/DesignVibe/.cursor/debug.log','a').write(json.dumps({"hypothesisId":"PAINT","location":"canvas_renderer.py:paint:order","message":"render order","data":{"items":[{"name":getattr(it,'name',''),"type":type(it).__name__,"parent_id":getattr(it,'parent_id',None)} for it in ordered_items]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session"})+'\n')
-        # #endregion
-        
         # Render each item
         for item in ordered_items:
             item.paint(painter, self._zoom_level)
     
     def _get_render_order(self) -> List['CanvasItem']:
-        """Get items in render order - simply use model order.
+        """Get items in render order - REVERSED from model order.
         
-        The model maintains the correct z-order:
-        - Items lower in index render first (bottom)
-        - Items higher in index render later (top)
-        - Layers are skipped (they're organizational, not visual)
+        Z-order convention (matching typical design tools):
+        - Items at TOP of layer panel (lower index) are ON TOP visually
+        - Items at BOTTOM of layer panel (higher index) are BEHIND
+        
+        So we render in REVERSE model order:
+        - Higher indices render first (behind/bottom)
+        - Lower indices render last (in front/top)
         
         Returns:
             List of CanvasItem in the order they should be painted (bottom to top)
@@ -89,8 +85,8 @@ class CanvasRenderer(QQuickPaintedItem):
         items = self._model.getItems()
         result: List['CanvasItem'] = []
         
-        # Render items in model order, skipping layers (they're organizational only)
-        for item in items:
+        # Render items in REVERSE model order, skipping layers
+        for item in reversed(items):
             if isinstance(item, (RectangleItem, EllipseItem)):
                 result.append(item)
         

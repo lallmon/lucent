@@ -166,10 +166,6 @@ Item {
                                                         let rowCount = layerRepeater.count
                                                         targetModelIndex = Math.max(0, Math.min(rowCount - 1, targetModelIndex))
                                                         
-                                                        // #region agent log
-                                                        console.log("[DEBUG-DROP] draggedIndex=" + root.draggedIndex + " targetModelIndex=" + targetModelIndex + " dropTargetLayerId=" + root.dropTargetLayerId + " draggedItemType=" + root.draggedItemType + " draggedParentId=" + root.draggedItemParentId + " targetParentId=" + root.dropTargetParentId)
-                                                        // #endregion
-                                                        
                                                         // Determine the action based on drag context
                                                         if (root.dropTargetLayerId !== "" && root.draggedItemType !== "layer") {
                                                             // Check if dropping onto the SAME parent layer (sibling reorder, not reparent)
@@ -238,9 +234,6 @@ Item {
 
                                             // Get the item at target position
                                             let targetItem = layerRepeater.itemAt(targetListIndex)
-                                            // #region agent log
-                                            console.log("[DEBUG-TARGET] targetListIndex=" + targetListIndex + " targetItem=" + (targetItem ? targetItem.name + "/" + targetItem.itemType : "null") + " isLayer=" + (targetItem ? targetItem.isLayer : "n/a"))
-                                            // #endregion
                                             if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer") {
                                                 root.dropTargetLayerId = targetItem.itemId
                                                 root.dropTargetParentId = null

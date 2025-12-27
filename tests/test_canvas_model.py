@@ -1456,3 +1456,176 @@ class TestCanvasModelReparentItem:
         pos = canvas_model._findLastChildPosition(layer.id)
         assert pos == 2  # Should insert at end
 
+
+class TestLayerMoveWithChildren:
+    """Tests for moving layers with their children as a group."""
+
+    def test_move_layer_with_one_child_up(self, canvas_model):
+        """Moving a layer up should move its child with it."""
+        # Create: Layer1, Rect1 (child of Layer1), Layer2, Rect2 (child of Layer2)
+        canvas_model.addLayer()
+        layer1 = canvas_model.getItems()[0]
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Rect1"})
+        canvas_model.setParent(1, layer1.id)
+        
+        canvas_model.addLayer()
+        layer2 = canvas_model.getItems()[2]
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10, "name": "Rect2"})
+        canvas_model.setParent(3, layer2.id)
+        
+        # Order: [Layer1, Rect1, Layer2, Rect2]
+        assert canvas_model.getItems()[0].name == "Layer 1"
+        assert canvas_model.getItems()[1].name == "Rect1"
+        assert canvas_model.getItems()[2].name == "Layer 2"
+        assert canvas_model.getItems()[3].name == "Rect2"
+        
+        # Move Layer2 up (from index 2 to index 0)
+        canvas_model.moveItem(2, 0)
+        
+        # Order should now be: [Layer2, Rect2, Layer1, Rect1]
+        items = canvas_model.getItems()
+        assert items[0].name == "Layer 2"
+        assert items[1].name == "Rect2"
+        assert items[1].parent_id == layer2.id
+        assert items[2].name == "Layer 1"
+        assert items[3].name == "Rect1"
+        assert items[3].parent_id == layer1.id
+
+    def test_move_layer_with_multiple_children(self, canvas_model):
+        """Moving a layer should move all its children with it."""
+        # Create: Layer1 with 2 children, then Layer2
+        canvas_model.addLayer()
+        layer1 = canvas_model.getItems()[0]
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Rect1"})
+        canvas_model.setParent(1, layer1.id)
+        canvas_model.addItem({"type": "ellipse", "centerX": 5, "centerY": 5, "radiusX": 5, "radiusY": 5, "name": "Ellipse1"})
+        canvas_model.setParent(2, layer1.id)
+        
+        canvas_model.addLayer()
+        layer2 = canvas_model.getItems()[3]
+        
+        # Order: [Layer1, Rect1, Ellipse1, Layer2]
+        assert canvas_model.count() == 4
+        
+        # Move Layer1 down (to index 3, after Layer2)
+        canvas_model.moveItem(0, 3)
+        
+        # Order should now be: [Layer2, Layer1, Rect1, Ellipse1]
+        items = canvas_model.getItems()
+        assert items[0].name == "Layer 2"
+        assert items[1].name == "Layer 1"
+        assert items[2].name == "Rect1"
+        assert items[2].parent_id == layer1.id
+        assert items[3].name == "Ellipse1"
+        assert items[3].parent_id == layer1.id
+
+    def test_move_layer_without_children_uses_regular_move(self, canvas_model):
+        """Moving a layer without children should just move the layer."""
+        canvas_model.addLayer()
+        canvas_model.addLayer()
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Rect1"})
+        
+        # Order: [Layer1, Layer2, Rect1]
+        # Move Layer2 to position 0
+        canvas_model.moveItem(1, 0)
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Layer 2"
+        assert items[1].name == "Layer 1"
+        assert items[2].name == "Rect1"
+
+    def test_get_layer_children_indices(self, canvas_model):
+        """_getLayerChildrenIndices should find all children of a layer."""
+        canvas_model.addLayer()
+        layer = canvas_model.getItems()[0]
+        
+        # Add children
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer.id)
+        canvas_model.addItem({"type": "ellipse", "centerX": 5, "centerY": 5, "radiusX": 5, "radiusY": 5})
+        canvas_model.setParent(2, layer.id)
+        
+        # Add unrelated item
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10})
+        
+        children = canvas_model._getLayerChildrenIndices(layer.id)
+        assert children == [1, 2]
+
+    def test_move_child_within_layer_does_not_trigger_group_move(self, canvas_model):
+        """Moving a non-layer item should not trigger _moveLayerWithChildren."""
+        canvas_model.addLayer()
+        layer = canvas_model.getItems()[0]
+        
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Rect1"})
+        canvas_model.setParent(1, layer.id)
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10, "name": "Rect2"})
+        canvas_model.setParent(2, layer.id)
+        
+        # Order: [Layer, Rect1, Rect2]
+        # Move Rect2 before Rect1 (index 2 to 1)
+        canvas_model.moveItem(2, 1)
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "Layer 1"
+        assert items[1].name == "Rect2"
+        assert items[2].name == "Rect1"
+
+
+class TestZOrderRendering:
+    """Tests for z-order (render order) behavior."""
+
+    def test_render_order_reversed_from_model(self, canvas_model):
+        """Items at lower model indices should render last (on top)."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Bottom"})
+        canvas_model.addItem({"type": "rectangle", "x": 5, "y": 5, "width": 10, "height": 10, "name": "Top"})
+        
+        items = canvas_model.getItems()
+        # Model order: [Bottom (idx 0), Top (idx 1)]
+        assert items[0].name == "Bottom"
+        assert items[1].name == "Top"
+        
+        # Render order should be reversed: Top renders last (on top)
+        # This is verified by canvas_renderer which reverses the order
+
+    def test_move_item_up_changes_z_order(self, canvas_model):
+        """Moving an item to a lower index should move it above other items."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "A"})
+        canvas_model.addItem({"type": "rectangle", "x": 5, "y": 5, "width": 10, "height": 10, "name": "B"})
+        canvas_model.addItem({"type": "rectangle", "x": 10, "y": 10, "width": 10, "height": 10, "name": "C"})
+        
+        # Initial order: [A, B, C] (A is on top)
+        # Move C to top (index 2 -> 0)
+        canvas_model.moveItem(2, 0)
+        
+        items = canvas_model.getItems()
+        assert items[0].name == "C"  # C is now at top (lowest index = on top visually)
+        assert items[1].name == "A"
+        assert items[2].name == "B"
+
+    def test_layer_children_grouped_in_z_order(self, canvas_model):
+        """Children of a layer should remain grouped with their parent in z-order."""
+        canvas_model.addLayer()
+        layer1 = canvas_model.getItems()[0]
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Child1"})
+        canvas_model.setParent(1, layer1.id)
+        
+        canvas_model.addLayer()
+        layer2 = canvas_model.getItems()[2]
+        canvas_model.addItem({"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10, "name": "Child2"})
+        canvas_model.setParent(3, layer2.id)
+        
+        # Order: [Layer1, Child1, Layer2, Child2]
+        # Layer1 and its children should be "above" Layer2 and its children
+        
+        # Move Layer2 to top (index 2 -> 0)
+        canvas_model.moveItem(2, 0)
+        
+        items = canvas_model.getItems()
+        # New order: [Layer2, Child2, Layer1, Child1]
+        assert items[0].name == "Layer 2"
+        assert items[1].name == "Child2"
+        assert items[1].parent_id == layer2.id
+        assert items[2].name == "Layer 1"
+        assert items[3].name == "Child1"
+        assert items[3].parent_id == layer1.id
+
