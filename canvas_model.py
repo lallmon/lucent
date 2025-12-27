@@ -27,6 +27,8 @@ class CanvasModel(QAbstractListModel):
     IndexRole = Qt.UserRole + 3
     ItemIdRole = Qt.UserRole + 4      # Unique ID for layers
     ParentIdRole = Qt.UserRole + 5    # Parent layer ID for shapes
+    VisibleRole = Qt.UserRole + 6
+    EffectiveVisibleRole = Qt.UserRole + 7
 
     # Legacy signals (kept for backward compatibility with CanvasRenderer)
     itemAdded = Signal(int)
@@ -81,6 +83,10 @@ class CanvasModel(QAbstractListModel):
             if isinstance(item, (RectangleItem, EllipseItem)):
                 return item.parent_id
             return None
+        elif role == self.VisibleRole:
+            return getattr(item, "visible", True)
+        elif role == self.EffectiveVisibleRole:
+            return self._is_effectively_visible(index.row())
         return None
 
     def roleNames(self) -> Dict[int, bytes]:
@@ -90,6 +96,8 @@ class CanvasModel(QAbstractListModel):
             self.IndexRole: b"itemIndex",
             self.ItemIdRole: b"itemId",
             self.ParentIdRole: b"parentId",
+            self.VisibleRole: b"modelVisible",
+            self.EffectiveVisibleRole: b"modelEffectiveVisible",
         }
 
     def _execute_command(self, command: Command, record: bool = True) -> None:
@@ -131,6 +139,27 @@ class CanvasModel(QAbstractListModel):
         type_name = item_type.capitalize()
         self._type_counters[item_type] = self._type_counters.get(item_type, 0) + 1
         return f"{type_name} {self._type_counters[item_type]}"
+
+    def _is_effectively_visible(self, index: int) -> bool:
+        if not (0 <= index < len(self._items)):
+            return False
+        item = self._items[index]
+        visible = getattr(item, "visible", True)
+        if not visible:
+            return False
+        # Shapes respect parent layer visibility
+        if isinstance(item, (RectangleItem, EllipseItem)):
+            parent_id = item.parent_id
+            if parent_id:
+                parent_visible = self._is_layer_visible(parent_id)
+                return parent_visible and visible
+        return visible
+
+    def _is_layer_visible(self, layer_id: str) -> bool:
+        for candidate in self._items:
+            if isinstance(candidate, LayerItem) and candidate.id == layer_id:
+                return getattr(candidate, "visible", True)
+        return True
 
     @Slot(dict)
     def addItem(self, item_data: Dict[str, Any]) -> None:
@@ -412,6 +441,15 @@ class CanvasModel(QAbstractListModel):
 
         self.updateItem(index, {"name": new_name})
 
+    @Slot(int)
+    def toggleVisibility(self, index: int) -> None:
+        """Toggle visibility for an item with undo/redo support."""
+        if not (0 <= index < len(self._items)):
+            return
+        item = self._items[index]
+        current_visible = getattr(item, "visible", True)
+        self.updateItem(index, {"visible": not current_visible})
+
     @Slot(result=int)
     def count(self) -> int:
         return len(self._items)
@@ -445,7 +483,11 @@ class CanvasModel(QAbstractListModel):
 
     @Slot(result='QVariantList')
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:
-        return [self._itemToDict(item) for item in self._items]
+        visible_items: List[Dict[str, Any]] = []
+        for idx, item in enumerate(self._items):
+            if self._is_effectively_visible(idx):
+                visible_items.append(self._itemToDict(item))
+        return visible_items
 
     def getRenderItems(self) -> List[CanvasItem]:
         """Return items in render order (front to back) skipping layers.
@@ -464,17 +506,15 @@ class CanvasModel(QAbstractListModel):
                 # reverse within group so later siblings are on top
                 groups.append(list(reversed(current_group)))
 
-        current_layer_id = None
-
-        for item in self._items:
+        for idx, item in enumerate(self._items):
             if isinstance(item, LayerItem):
                 flush_group()
                 current_group = []
-                current_layer_id = item.id
                 continue
 
             if isinstance(item, (RectangleItem, EllipseItem)):
-                # If parent matches current layer or no parent (top-level), append
+                if not self._is_effectively_visible(idx):
+                    continue
                 current_group.append(item)
                 continue
 

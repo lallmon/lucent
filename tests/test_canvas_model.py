@@ -1459,6 +1459,81 @@ class TestCanvasModelShapeDeletion:
         assert selection["index"] == -1
         assert selection["item"] is None
 
+
+class TestCanvasModelVisibility:
+    """Tests for visibility toggling and cascading."""
+
+    def test_items_default_visible(self, canvas_model):
+        canvas_model.addLayer()
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        assert canvas_model.getItems()[0].visible is True
+        assert canvas_model.getItems()[1].visible is True
+
+    def test_roles_include_visibility(self, canvas_model):
+        role_names = canvas_model.roleNames()
+        assert canvas_model.VisibleRole in role_names
+        assert canvas_model.EffectiveVisibleRole in role_names
+        assert role_names[canvas_model.VisibleRole] == b"modelVisible"
+        assert role_names[canvas_model.EffectiveVisibleRole] == b"modelEffectiveVisible"
+
+    def test_toggle_shape_visibility(self, canvas_model, qtbot):
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
+            canvas_model.toggleVisibility(0)
+
+        assert blocker.args[0] == 0
+        assert blocker.args[1]["visible"] is False
+        assert canvas_model.getItems()[0].visible is False
+
+        canvas_model.undo()
+        assert canvas_model.getItems()[0].visible is True
+
+        canvas_model.redo()
+        assert canvas_model.getItems()[0].visible is False
+
+    def test_toggle_layer_hides_children_effectively(self, canvas_model):
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        # initial render includes child
+        assert len(canvas_model.getRenderItems()) == 1
+
+        canvas_model.toggleVisibility(0)
+        # Layer visible flag false, child remains true but should not render
+        assert canvas_model.getItems()[0].visible is False
+        assert canvas_model.getItems()[1].visible is True
+        assert len(canvas_model.getRenderItems()) == 0
+
+        # Undo restores visibility and render
+        canvas_model.undo()
+        assert canvas_model.getItems()[0].visible is True
+        assert len(canvas_model.getRenderItems()) == 1
+        hit = canvas_model.getItemsForHitTest()
+        assert len(hit) == 2
+
+    def test_invalid_toggle_is_noop(self, canvas_model):
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        initial_can_undo = canvas_model.canUndo
+        canvas_model.toggleVisibility(-1)
+        canvas_model.toggleVisibility(5)
+        assert canvas_model.canUndo == initial_can_undo
+
+    def test_parent_hidden_effective_visibility_false_for_child(self, canvas_model):
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        canvas_model.toggleVisibility(0)  # hide layer
+
+        idx_child = canvas_model.index(1, 0)
+        assert canvas_model.data(idx_child, canvas_model.VisibleRole) is True
+        assert canvas_model.data(idx_child, canvas_model.EffectiveVisibleRole) is False
+        assert canvas_model.getItemsForHitTest() == []  # hidden via parent
+
     def test_undo_delete_layer_restores_parent_relationships(self, canvas_model):
         """Undo of layer deletion should restore children's parent_id."""
         canvas_model.addLayer()

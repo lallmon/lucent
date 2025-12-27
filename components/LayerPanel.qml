@@ -92,6 +92,8 @@ Item {
                         required property int itemIndex
                         required property var itemId      // Layer's unique ID (null for shapes)
                         required property var parentId    // Parent layer ID (null for top-level items)
+                        required property bool modelVisible
+                        required property bool modelEffectiveVisible
 
                         // Use layerRepeater.count (reactive property) not canvasModel.rowCount() (method)
                         // Methods don't trigger binding updates; properties do
@@ -354,6 +356,37 @@ Item {
                                             }
                                         }
                                         onTextChanged: nameEditor.draftName = text
+                                    }
+                                }
+
+                                Item {
+                                    id: visibilityButton
+                                    Layout.preferredWidth: 28
+                                    Layout.fillHeight: true
+
+                                    HoverHandler { id: visibilityHover }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.LeftButton
+                                        preventStealing: true
+                                        onClicked: {
+                                            canvasModel.toggleVisibility(delegateRoot.index)
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        color: visibilityHover.hovered ? DV.Theme.colors.panelHover : "transparent"
+                                        radius: DV.Theme.sizes.radiusSm
+
+                                        DV.PhIcon {
+                                            anchors.centerIn: parent
+                                            name: delegateRoot.modelEffectiveVisible ? "eye" : "eye-closed"
+                                            size: 16
+                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                        }
                                     }
                                 }
 

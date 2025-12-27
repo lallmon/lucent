@@ -45,9 +45,10 @@ class RectangleItem(CanvasItem):
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
                  fill_color: str = "#ffffff", fill_opacity: float = 0.0,
                  stroke_opacity: float = 1.0, name: str = "",
-                 parent_id: Optional[str] = None) -> None:
+                 parent_id: Optional[str] = None, visible: bool = True) -> None:
         self.name = name
         self.parent_id = parent_id  # ID of parent layer, or None if top-level
+        self.visible = bool(visible)
         self.x = x
         self.y = y
         # Validate dimensions (must be non-negative)
@@ -118,7 +119,8 @@ class RectangleItem(CanvasItem):
             fill_opacity=fill_opacity,
             stroke_opacity=stroke_opacity,
             name=data.get("name", ""),
-            parent_id=data.get("parentId")
+            parent_id=data.get("parentId"),
+            visible=data.get("visible", True)
         )
 
 
@@ -129,9 +131,10 @@ class EllipseItem(CanvasItem):
                  stroke_width: float = 1, stroke_color: str = "#ffffff", 
                  fill_color: str = "#ffffff", fill_opacity: float = 0.0,
                  stroke_opacity: float = 1.0, name: str = "",
-                 parent_id: Optional[str] = None) -> None:
+                 parent_id: Optional[str] = None, visible: bool = True) -> None:
         self.name = name
         self.parent_id = parent_id  # ID of parent layer, or None if top-level
+        self.visible = bool(visible)
         self.center_x = center_x
         self.center_y = center_y
         # Validate radii (must be non-negative)
@@ -206,7 +209,8 @@ class EllipseItem(CanvasItem):
             fill_opacity=fill_opacity,
             stroke_opacity=stroke_opacity,
             name=data.get("name", ""),
-            parent_id=data.get("parentId")
+            parent_id=data.get("parentId"),
+            visible=data.get("visible", True)
         )
 
 
@@ -218,8 +222,9 @@ class LayerItem(CanvasItem):
     Each layer has a unique ID that child items reference via parent_id.
     """
     
-    def __init__(self, name: str = "", layer_id: Optional[str] = None) -> None:
+    def __init__(self, name: str = "", layer_id: Optional[str] = None, visible: bool = True) -> None:
         self.name = name
+        self.visible = bool(visible)
         # Generate unique ID if not provided (for new layers)
         self.id = layer_id if layer_id else str(uuid.uuid4())
     
@@ -233,6 +238,7 @@ class LayerItem(CanvasItem):
         """Create LayerItem from QML data dictionary."""
         return LayerItem(
             name=data.get("name", ""),
-            layer_id=data.get("id")
+            layer_id=data.get("id"),
+            visible=data.get("visible", True)
         )
 

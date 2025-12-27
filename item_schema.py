@@ -63,11 +63,13 @@ def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
     fill_color = str(data.get("fillColor", "#ffffff"))
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
+    visible = bool(data.get("visible", True))
 
     return {
         "type": ItemType.RECTANGLE.value,
         "name": name,
         "parentId": parent_id,
+        "visible": visible,
         "x": x,
         "y": y,
         "width": width,
@@ -96,11 +98,13 @@ def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
     fill_color = str(data.get("fillColor", "#ffffff"))
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
+    visible = bool(data.get("visible", True))
 
     return {
         "type": ItemType.ELLIPSE.value,
         "name": name,
         "parentId": parent_id,
+        "visible": visible,
         "centerX": center_x,
         "centerY": center_y,
         "radiusX": radius_x,
@@ -116,10 +120,12 @@ def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
 def validate_layer(data: Dict[str, Any]) -> Dict[str, Any]:
     name = str(data.get("name", ""))
     layer_id = data.get("id") or None
+    visible = bool(data.get("visible", True))
     return {
         "type": ItemType.LAYER.value,
         "id": layer_id,
         "name": name,
+        "visible": visible,
     }
 
 
@@ -154,6 +160,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
             stroke_opacity=d["strokeOpacity"],
             name=d["name"],
             parent_id=d["parentId"],
+            visible=d.get("visible", True),
         )
     if t is ItemType.ELLIPSE:
         return EllipseItem(
@@ -168,9 +175,10 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
             stroke_opacity=d["strokeOpacity"],
             name=d["name"],
             parent_id=d["parentId"],
+            visible=d.get("visible", True),
         )
     if t is ItemType.LAYER:
-        return LayerItem(name=d["name"], layer_id=d.get("id"))
+        return LayerItem(name=d["name"], layer_id=d.get("id"), visible=d.get("visible", True))
     raise ItemSchemaError(f"Unsupported item type: {parsed.type}")
 
 
@@ -180,6 +188,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "type": ItemType.RECTANGLE.value,
             "name": item.name,
             "parentId": item.parent_id,
+            "visible": getattr(item, "visible", True),
             "x": item.x,
             "y": item.y,
             "width": item.width,
@@ -195,6 +204,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "type": ItemType.ELLIPSE.value,
             "name": item.name,
             "parentId": item.parent_id,
+            "visible": getattr(item, "visible", True),
             "centerX": item.center_x,
             "centerY": item.center_y,
             "radiusX": item.radius_x,
@@ -210,6 +220,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "type": ItemType.LAYER.value,
             "id": item.id,
             "name": item.name,
+            "visible": getattr(item, "visible", True),
         }
     raise ItemSchemaError(f"Cannot serialize unknown item type: {type(item).__name__}")
 
