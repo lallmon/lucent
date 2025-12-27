@@ -1370,10 +1370,10 @@ class TestCanvasModelParentChild:
 
 
 class TestCanvasModelLayerDeletion:
-    """Tests for orphaning children when layers are deleted."""
+    """Tests for layer deletion behavior (children removed with layer)."""
 
-    def test_delete_layer_orphans_children(self, canvas_model):
-        """Deleting a layer should set children's parent_id to None."""
+    def test_delete_layer_removes_children(self, canvas_model):
+        """Deleting a layer should remove its children."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
         canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
@@ -1385,12 +1385,11 @@ class TestCanvasModelLayerDeletion:
         # Delete the layer
         canvas_model.removeItem(0)
         
-        # Child should be orphaned
-        shape = canvas_model.getItems()[0]
-        assert shape.parent_id is None
+        # Layer and child removed
+        assert canvas_model.count() == 0
 
-    def test_delete_layer_orphans_multiple_children(self, canvas_model):
-        """Deleting a layer should orphan all its children."""
+    def test_delete_layer_with_multiple_children_removes_them(self, canvas_model):
+        """Deleting a layer should remove all its children, leaving other items intact."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
         
@@ -1405,9 +1404,10 @@ class TestCanvasModelLayerDeletion:
         canvas_model.removeItem(0)
         
         items = canvas_model.getItems()
+        # Only the previously top-level item should remain
+        assert len(items) == 1
+        assert isinstance(items[0], RectangleItem)
         assert items[0].parent_id is None
-        assert items[1].parent_id is None
-        assert items[2].parent_id is None
 
     def test_undo_delete_layer_restores_parent_relationships(self, canvas_model):
         """Undo of layer deletion should restore children's parent_id."""
