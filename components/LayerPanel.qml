@@ -7,10 +7,11 @@ Item {
     id: root
 
     property int draggedIndex: -1
-    property string draggedItemType: ""      // Type of item being dragged
-    property string dropTargetLayerId: ""    // Layer ID we're hovering over for drop
-    property var draggedItemParentId: null   // Parent ID of the item being dragged
-    property var dropTargetParentId: null    // Parent ID of the item we're hovering over
+    property string draggedItemType: ""
+    property string dropTargetLayerId: ""
+    property var draggedItemParentId: null
+    property var dropTargetParentId: null
+    property int dropInsertIndex: -1
     property real lastDragYInFlick: 0
 
     ColumnLayout {
@@ -77,7 +78,7 @@ Item {
                 anchors.fill: parent
                 // Ensure content area is at least viewport height so empty-state label can center vertically
                 contentHeight: Math.max(layerColumn.childrenRect.height, height)
-                property real autoScrollStep: 8    // Half the previous 16px step for slower auto-scroll
+                property real autoScrollStep: 8
                 interactive: root.draggedIndex < 0
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
@@ -138,13 +139,12 @@ Item {
                         property bool isSelected: index === DV.SelectionManager.selectedItemIndex
                         property bool isBeingDragged: root.draggedIndex === index
                         property real dragOffsetY: 0
-                        property bool hasParent: parentId !== null && parentId !== undefined && parentId !== ""
+                        property bool hasParent: !!parentId
                         property bool isLayer: itemType === "layer"
 
                         transform: Translate { y: delegateRoot.dragOffsetY }
                         z: isBeingDragged ? 100 : 0
 
-                        // Track if this layer is a valid drop target
                         property bool isDropTarget: delegateRoot.isLayer && 
                                                     root.draggedIndex >= 0 && 
                                                     root.draggedItemType !== "layer" &&
@@ -162,18 +162,19 @@ Item {
                             border.color: DV.Theme.colors.accent
 
                             Rectangle {
-                                // Top separator between items
+                                // Separator between items; thickens and highlights when this is the insertion target
+                                property bool isInsertTarget: delegateRoot.index === root.dropInsertIndex
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.top: parent.top
-                                height: 1
-                                color: DV.Theme.colors.borderSubtle
-                                visible: delegateRoot.index > 0  // hide on first visual item
+                                height: isInsertTarget ? 3 : 1
+                                color: isInsertTarget ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
+                                visible: delegateRoot.index > 0 || isInsertTarget
                             }
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: delegateRoot.hasParent ? 20 : 4  // Indent children
+                                anchors.leftMargin: delegateRoot.hasParent ? 20 : 4
                                 anchors.rightMargin: 8
                                 spacing: 4
 
@@ -182,7 +183,6 @@ Item {
                                     Layout.preferredWidth: 28
                                     Layout.fillHeight: true
 
-                                    // Icon indicating item type: stack for layers, specific tool icon for shapes
                                     DV.PhIcon {
                                         anchors.centerIn: parent
                                         name: {
@@ -204,7 +204,6 @@ Item {
                                         onActiveChanged: {
                                             try {
                                                 if (active) {
-                                                    // Use model index (not displayIndex) for model operations
                                                     root.draggedIndex = delegateRoot.index
                                                     root.draggedItemType = delegateRoot.itemType
                                                     root.draggedItemParentId = delegateRoot.parentId
@@ -255,6 +254,7 @@ Item {
                                                     root.dropTargetLayerId = ""
                                                     root.draggedItemParentId = null
                                                     root.dropTargetParentId = null
+                                                    root.dropInsertIndex = -1
                                                 }
                                             } catch (e) {
                                                 console.warn("LayerPanel drag error:", e)
@@ -268,6 +268,7 @@ Item {
                                                     root.dropTargetLayerId = ""
                                                     root.draggedItemParentId = null
                                                     root.dropTargetParentId = null
+                                                    root.dropInsertIndex = -1
                                                 }
                                             }
                                         }
@@ -293,14 +294,33 @@ Item {
                                             let rowCount = layerRepeater.count
                                             targetListIndex = Math.max(0, Math.min(rowCount - 1, targetListIndex))
 
-                                            // Get the item at target position
+                                            // Calculate fractional position within the target row
+                                            let exactOffset = delegateRoot.dragOffsetY / totalItemHeight
+                                            let fractionalPart = exactOffset - Math.floor(exactOffset)
+                                            let isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75
+
                                             let targetItem = layerRepeater.itemAt(targetListIndex)
-                                            if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer") {
+                                            if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer" && isLayerParentingZone) {
+                                                // Center of a layer - show as drop target for parenting
                                                 root.dropTargetLayerId = targetItem.itemId
                                                 root.dropTargetParentId = null
+                                                root.dropInsertIndex = -1
                                             } else {
+                                                // Edge zone - show insertion indicator
                                                 root.dropTargetLayerId = ""
                                                 root.dropTargetParentId = targetItem ? targetItem.parentId : null
+                                                // Insert indicator shows on the item below the insertion gap
+                                                if (fractionalPart >= 0.5) {
+                                                    // Dropping below target row, indicator on next item
+                                                    root.dropInsertIndex = Math.min(targetListIndex + 1, rowCount - 1)
+                                                } else {
+                                                    // Dropping above target row, indicator on target item
+                                                    root.dropInsertIndex = targetListIndex
+                                                }
+                                                // Hide indicator when dragging over self or adjacent position (no move would occur)
+                                                if (root.dropInsertIndex === root.draggedIndex || root.dropInsertIndex === root.draggedIndex + 1) {
+                                                    root.dropInsertIndex = -1
+                                                }
                                             }
                                         }
                                     }
