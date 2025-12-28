@@ -2,8 +2,8 @@
 import pytest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
-from canvas_model import CanvasModel
-from canvas_renderer import CanvasRenderer
+from designvibe.canvas_model import CanvasModel
+from designvibe.canvas_renderer import CanvasRenderer
 
 
 @pytest.fixture(scope="session")

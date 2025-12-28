@@ -22,9 +22,12 @@ There's plenty to do but the end goal is pretty clear for me, so if you want to 
 - Install Python 3.10
 - Create/activate the project venv: `python -m venv .venv && source .venv/bin/activate`
 - Install deps: `pip install -r requirements.txt -r requirements-dev.txt`
+- Install the app package (src layout): `pip install -e .`
 - Install hooks: `pre-commit install`
 
-Run `python main.py`
+Run the app: `python main.py`
+
+Run tests: `pytest -q`
 
 #### AI Contributions
 I have used AI on this project, so I am not against it, but you definitely need to wrangle that slop machine. LOL. Just straight vibe coding is definitely not something that will work in the long run.

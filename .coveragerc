@@ -2,6 +2,7 @@
 source = .
 omit = 
     */env/*
+    */.venv/*
     */tests/*
     */__pycache__/*
     */site-packages/*

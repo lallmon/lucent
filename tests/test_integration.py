@@ -1,8 +1,8 @@
 """Integration tests for CanvasRenderer and Python-Qt bridge."""
 import pytest
 from PySide6.QtCore import QObject
-from canvas_model import CanvasModel
-from canvas_renderer import CanvasRenderer
+from designvibe.canvas_model import CanvasModel
+from designvibe.canvas_renderer import CanvasRenderer
 
 
 class TestRendererModelIntegration:

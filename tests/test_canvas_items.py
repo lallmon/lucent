@@ -2,7 +2,7 @@
 import pytest
 from PySide6.QtGui import QPainter, QColor
 from PySide6.QtCore import QRectF
-from canvas_items import (
+from designvibe.canvas_items import (
     CanvasItem, RectangleItem, EllipseItem, LayerItem,
     CANVAS_OFFSET_X, CANVAS_OFFSET_Y
 )

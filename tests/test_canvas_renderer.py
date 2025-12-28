@@ -1,9 +1,9 @@
 """Unit tests for canvas_renderer module."""
 import pytest
 from unittest.mock import MagicMock, patch
-from canvas_renderer import CanvasRenderer
-from canvas_model import CanvasModel
-from canvas_items import RectangleItem, EllipseItem, LayerItem
+from designvibe.canvas_renderer import CanvasRenderer
+from designvibe.canvas_model import CanvasModel
+from designvibe.canvas_items import RectangleItem, EllipseItem, LayerItem
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtCore import QSize
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Callable, List, Optional
 
-from commands import Command, TransactionCommand
+from designvibe.commands import Command, TransactionCommand
 
 
 class HistoryManager:

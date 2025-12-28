@@ -12,8 +12,8 @@ from pathlib import Path
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import Qt
-from canvas_renderer import CanvasRenderer
-from canvas_model import CanvasModel
+from designvibe.canvas_renderer import CanvasRenderer
+from designvibe.canvas_model import CanvasModel
 
 # Version placeholder - replaced by GitHub Actions during release builds
 __version__ = "__VERSION__"

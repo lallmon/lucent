@@ -1,8 +1,8 @@
 """Tests for HistoryManager undo/redo orchestration."""
 import pytest
 
-from commands import Command, TransactionCommand
-from history_manager import HistoryManager
+from designvibe.commands import Command, TransactionCommand
+from designvibe.history_manager import HistoryManager
 
 
 class DummyCommand(Command):
