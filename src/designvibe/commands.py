@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Mapping
 from PySide6.QtCore import QModelIndex
 
 if TYPE_CHECKING:
-    from canvas_model import CanvasModel
+    from designvibe.canvas_model import CanvasModel
 
-from canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerItem
-from item_schema import parse_item, parse_item_data, item_to_dict, ItemSchemaError
+from designvibe.canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerItem
+from designvibe.item_schema import parse_item, parse_item_data, item_to_dict, ItemSchemaError
 
 
 def _create_item(item_data: Dict[str, Any]) -> CanvasItem:

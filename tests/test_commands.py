@@ -1,11 +1,11 @@
 """Unit tests for command classes."""
 import pytest
-from commands import (
+from designvibe.commands import (
     Command, AddItemCommand, RemoveItemCommand,
     UpdateItemCommand, ClearCommand, TransactionCommand
 )
-from canvas_items import RectangleItem, EllipseItem
-from item_schema import ItemSchemaError
+from designvibe.canvas_items import RectangleItem, EllipseItem
+from designvibe.item_schema import ItemSchemaError
 
 
 class TestCommandBase:
@@ -300,7 +300,7 @@ class TestMoveItemCommand:
             RectangleItem(10, 0, 10, 10, name="Rect 2"),
             RectangleItem(20, 0, 10, 10, name="Rect 3"),
         ]
-        from commands import MoveItemCommand
+        from designvibe.commands import MoveItemCommand
         cmd = MoveItemCommand(canvas_model, 0, 2)
         
         cmd.execute()
@@ -316,7 +316,7 @@ class TestMoveItemCommand:
             RectangleItem(10, 0, 10, 10, name="Rect 2"),
             RectangleItem(20, 0, 10, 10, name="Rect 3"),
         ]
-        from commands import MoveItemCommand
+        from designvibe.commands import MoveItemCommand
         cmd = MoveItemCommand(canvas_model, 2, 0)
         
         cmd.execute()
@@ -332,7 +332,7 @@ class TestMoveItemCommand:
             RectangleItem(10, 0, 10, 10, name="Rect 2"),
             RectangleItem(20, 0, 10, 10, name="Rect 3"),
         ]
-        from commands import MoveItemCommand
+        from designvibe.commands import MoveItemCommand
         cmd = MoveItemCommand(canvas_model, 0, 2)
         cmd.execute()
         
@@ -344,7 +344,7 @@ class TestMoveItemCommand:
 
     def test_has_description(self, canvas_model):
         """Test command has a meaningful description."""
-        from commands import MoveItemCommand
+        from designvibe.commands import MoveItemCommand
         cmd = MoveItemCommand(canvas_model, 0, 2)
         assert cmd.description
 

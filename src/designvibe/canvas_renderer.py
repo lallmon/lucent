@@ -10,8 +10,8 @@ from PySide6.QtQuick import QQuickPaintedItem
 from PySide6.QtGui import QPainter
 
 if TYPE_CHECKING:
-    from canvas_model import CanvasModel
-    from canvas_items import CanvasItem
+    from designvibe.canvas_model import CanvasModel
+    from designvibe.canvas_items import CanvasItem
 
 
 class CanvasRenderer(QQuickPaintedItem):
@@ -33,7 +33,7 @@ class CanvasRenderer(QQuickPaintedItem):
             model: CanvasModel instance to get items from
         """
         # Import here to avoid circular dependency
-        from canvas_model import CanvasModel
+        from designvibe.canvas_model import CanvasModel
         
         if isinstance(model, CanvasModel):
             self._model = model

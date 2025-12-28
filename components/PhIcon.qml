@@ -33,7 +33,7 @@ Item {
         opacity: colorOverlay.visible ? 0 : 1
         onStatusChanged: {
             if (status === Image.Error && root.name !== "") {
-                console.warn("PhIcon: icon not found", root.resolvedSource)
+                console.warn("PhIcon: icon not found", root.resolvedSource);
             }
         }
     }
@@ -62,4 +62,3 @@ Item {
         }
     }
 }
-

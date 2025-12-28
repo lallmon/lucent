@@ -3,13 +3,13 @@ from typing import List, Optional, Dict, Any
 from PySide6.QtCore import (
     QAbstractListModel, QModelIndex, Qt, Signal, Slot, Property, QObject
 )
-from canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerItem
-from commands import (
+from designvibe.canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerItem
+from designvibe.commands import (
     Command, AddItemCommand, RemoveItemCommand,
     UpdateItemCommand, ClearCommand, MoveItemCommand, TransactionCommand
 )
-from history_manager import HistoryManager
-from item_schema import (
+from designvibe.history_manager import HistoryManager
+from designvibe.item_schema import (
     parse_item,
     parse_item_data,
     item_to_dict,
@@ -538,7 +538,7 @@ class CanvasModel(QAbstractListModel):
         the latest-added child paints above earlier siblings. Layers retain
         their model order.
         """
-        from canvas_items import LayerItem, RectangleItem, EllipseItem
+        from designvibe.canvas_items import LayerItem, RectangleItem, EllipseItem
 
         groups: List[List[CanvasItem]] = []
         current_group: List[CanvasItem] = []

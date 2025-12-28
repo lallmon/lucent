@@ -4,10 +4,10 @@ import QtQuick.Controls
 // Main menu bar component
 MenuBar {
     id: root
-    
+
     // Property to reference the viewport for zoom operations
     property var viewport: null
-    
+
     Menu {
         title: qsTr("&File")
         Action {
@@ -23,13 +23,15 @@ MenuBar {
             text: qsTr("&Undo (Ctrl+Z)")
             shortcut: StandardKey.Undo
             enabled: canvasModel ? canvasModel.canUndo : false
-            onTriggered: if (canvasModel) canvasModel.undo()
+            onTriggered: if (canvasModel)
+                canvasModel.undo()
         }
         Action {
             text: qsTr("&Redo (Ctrl+Shift+Z)")
             shortcut: StandardKey.Redo
             enabled: canvasModel ? canvasModel.canRedo : false
-            onTriggered: if (canvasModel) canvasModel.redo()
+            onTriggered: if (canvasModel)
+                canvasModel.redo()
         }
     }
 
@@ -40,7 +42,7 @@ MenuBar {
             shortcut: StandardKey.ZoomIn
             onTriggered: {
                 if (root.viewport) {
-                    root.viewport.zoomIn()
+                    root.viewport.zoomIn();
                 }
             }
         }
@@ -49,7 +51,7 @@ MenuBar {
             shortcut: StandardKey.ZoomOut
             onTriggered: {
                 if (root.viewport) {
-                    root.viewport.zoomOut()
+                    root.viewport.zoomOut();
                 }
             }
         }
@@ -58,10 +60,9 @@ MenuBar {
             shortcut: "Ctrl+0"
             onTriggered: {
                 if (root.viewport) {
-                    root.viewport.resetZoom()
+                    root.viewport.resetZoom();
                 }
             }
         }
     }
 }
-

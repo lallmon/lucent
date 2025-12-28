@@ -1,8 +1,8 @@
 """Unit tests for canvas_model module."""
 import pytest
-from canvas_model import CanvasModel
-from canvas_items import RectangleItem, EllipseItem, LayerItem
-from commands import (
+from designvibe.canvas_model import CanvasModel
+from designvibe.canvas_items import RectangleItem, EllipseItem, LayerItem
+from designvibe.commands import (
     Command, AddItemCommand, RemoveItemCommand, UpdateItemCommand, TransactionCommand
 )
 from types import SimpleNamespace
@@ -2246,8 +2246,8 @@ class TestCoverageEdgeCases:
 
     def test_execute_command_without_recording(self, canvas_model):
         """_execute_command with record=False executes without history."""
-        from commands import AddItemCommand
-        from item_schema import parse_item_data
+        from designvibe.commands import AddItemCommand
+        from designvibe.item_schema import parse_item_data
         
         parsed = parse_item_data({
             "type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Test"

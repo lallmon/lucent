@@ -8,48 +8,48 @@ import "." as DV
 ToolBar {
     id: root
     height: 48
-    
+
     // Properties
     property string activeTool: ""  // Current tool ("select", "rectangle", "ellipse", etc.)
-    
+
     // Tool-specific settings - Rectangle
     property real rectangleStrokeWidth: 1
     property color rectangleStrokeColor: "#ffffff"
     property real rectangleStrokeOpacity: 1.0
     property color rectangleFillColor: "#ffffff"
     property real rectangleFillOpacity: 0.0
-    
+
     // Tool-specific settings - Ellipse
     property real ellipseStrokeWidth: 1
     property color ellipseStrokeColor: "#ffffff"
     property real ellipseStrokeOpacity: 1.0
     property color ellipseFillColor: "#ffffff"
     property real ellipseFillOpacity: 0.0
-    
+
     // Construct toolSettings object from individual properties
     readonly property var toolSettings: ({
-        "rectangle": {
-            strokeWidth: rectangleStrokeWidth,
-            strokeColor: rectangleStrokeColor,
-            strokeOpacity: rectangleStrokeOpacity,
-            fillColor: rectangleFillColor,
-            fillOpacity: rectangleFillOpacity
-        },
-        "ellipse": {
-            strokeWidth: ellipseStrokeWidth,
-            strokeColor: ellipseStrokeColor,
-            strokeOpacity: ellipseStrokeOpacity,
-            fillColor: ellipseFillColor,
-            fillOpacity: ellipseFillOpacity
-        }
-    })
-    
+            "rectangle": {
+                strokeWidth: rectangleStrokeWidth,
+                strokeColor: rectangleStrokeColor,
+                strokeOpacity: rectangleStrokeOpacity,
+                fillColor: rectangleFillColor,
+                fillOpacity: rectangleFillOpacity
+            },
+            "ellipse": {
+                strokeWidth: ellipseStrokeWidth,
+                strokeColor: ellipseStrokeColor,
+                strokeOpacity: ellipseStrokeOpacity,
+                fillColor: ellipseFillColor,
+                fillOpacity: ellipseFillOpacity
+            }
+        })
+
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
         spacing: 8
-        
+
         // Rectangle tool settings
         RowLayout {
             id: rectangleSettings
@@ -57,13 +57,13 @@ ToolBar {
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter
             spacing: 6
-                
+
             Label {
                 text: qsTr("Stroke Width:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             TextField {
                 id: strokeWidthInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsStrokeWidthFieldWidth
@@ -77,7 +77,7 @@ ToolBar {
                     top: 100.0
                     decimals: 1
                 }
-                
+
                 function commitValue() {
                     var value = parseFloat(text);
                     if (!isNaN(value) && value >= 0.1 && value <= 100.0) {
@@ -87,33 +87,33 @@ ToolBar {
                         text = root.rectangleStrokeWidth.toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: strokeWidthInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("px")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             // Separator
             Rectangle {
                 Layout.preferredWidth: 1
@@ -123,23 +123,23 @@ ToolBar {
                 Layout.rightMargin: 6
                 color: DV.Theme.colors.borderSubtle
             }
-            
+
             Label {
                 text: qsTr("Stroke Color:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Button {
                 id: strokeColorButton
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 Layout.alignment: Qt.AlignVCenter
-                
+
                 onClicked: {
                     strokeColorDialog.open();
                 }
-                
+
                 background: Rectangle {
                     color: root.rectangleStrokeColor
                     border.color: DV.Theme.colors.borderSubtle
@@ -147,13 +147,13 @@ ToolBar {
                     radius: DV.Theme.sizes.radiusSm
                 }
             }
-            
+
             Label {
                 text: qsTr("Opacity:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Slider {
                 id: strokeOpacitySlider
                 Layout.preferredWidth: 80
@@ -164,28 +164,28 @@ ToolBar {
                 to: 100
                 stepSize: 1
                 value: 100
-                
+
                 onPressedChanged: {
                     if (!pressed) {
                         root.rectangleStrokeOpacity = value / 100.0;
                     }
                 }
-                
+
                 onValueChanged: {
                     root.rectangleStrokeOpacity = value / 100.0;
                 }
-                
+
                 Component.onCompleted: {
                     value = Math.round(root.rectangleStrokeOpacity * 100);
                 }
-                
+
                 Binding {
                     target: strokeOpacitySlider
                     property: "value"
                     value: Math.round(root.rectangleStrokeOpacity * 100)
                     when: !strokeOpacitySlider.pressed
                 }
-                
+
                 background: Rectangle {
                     x: strokeOpacitySlider.leftPadding
                     y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
@@ -195,7 +195,7 @@ ToolBar {
                     implicitHeight: DV.Theme.sizes.sliderTrackHeight
                     radius: DV.Theme.sizes.radiusSm
                     color: DV.Theme.colors.gridMinor
-                    
+
                     Rectangle {
                         width: strokeOpacitySlider.visualPosition * parent.width
                         height: parent.height
@@ -203,7 +203,7 @@ ToolBar {
                         radius: DV.Theme.sizes.radiusSm
                     }
                 }
-                
+
                 handle: Rectangle {
                     x: strokeOpacitySlider.leftPadding + strokeOpacitySlider.visualPosition * (strokeOpacitySlider.availableWidth - width)
                     y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
@@ -217,7 +217,7 @@ ToolBar {
                     border.width: 1
                 }
             }
-            
+
             TextField {
                 id: strokeOpacityInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
@@ -230,7 +230,7 @@ ToolBar {
                     bottom: 0
                     top: 100
                 }
-                
+
                 function commitValue() {
                     var value = parseInt(text);
                     if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -240,17 +240,17 @@ ToolBar {
                         text = Math.round(root.rectangleStrokeOpacity * 100).toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 Connections {
                     target: root
                     function onRectangleStrokeOpacityChanged() {
@@ -259,23 +259,23 @@ ToolBar {
                         }
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: strokeOpacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("%")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             // Separator
             Rectangle {
                 Layout.preferredWidth: 1
@@ -285,30 +285,30 @@ ToolBar {
                 Layout.rightMargin: 6
                 color: DV.Theme.colors.borderSubtle
             }
-            
+
             Label {
                 text: qsTr("Fill Color:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Button {
                 id: fillColorButton
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 Layout.alignment: Qt.AlignVCenter
-                
+
                 onClicked: {
                     fillColorDialog.open();
                 }
-                
+
                 background: Rectangle {
                     border.color: DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                     color: "transparent"
                     clip: true
-                    
+
                     // Checkerboard pattern to show transparency
                     Canvas {
                         anchors.fill: parent
@@ -316,12 +316,12 @@ ToolBar {
                         onPaint: {
                             var ctx = getContext("2d");
                             ctx.clearRect(0, 0, width, height);
-                            
+
                             // Draw checkerboard
                             var size = 4;
                             for (var y = 0; y < height; y += size) {
                                 for (var x = 0; x < width; x += size) {
-                                    if ((Math.floor(x/size) + Math.floor(y/size)) % 2 === 0) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
                                         ctx.fillStyle = "#999999";
                                     } else {
                                         ctx.fillStyle = "#666666";
@@ -332,7 +332,7 @@ ToolBar {
                         }
                         Component.onCompleted: requestPaint()
                     }
-                    
+
                     // Fill color with opacity applied
                     Rectangle {
                         anchors.fill: parent
@@ -342,13 +342,13 @@ ToolBar {
                     }
                 }
             }
-            
+
             Label {
                 text: qsTr("Opacity:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Slider {
                 id: opacitySlider
                 Layout.preferredWidth: 80
@@ -361,30 +361,30 @@ ToolBar {
                 to: 100
                 stepSize: 1
                 value: 0
-                
+
                 onPressedChanged: {
                     if (!pressed) {
                         // Update property when slider is released
                         root.rectangleFillOpacity = value / 100.0;
                     }
                 }
-                
+
                 onValueChanged: {
                     // Update property as slider moves
                     root.rectangleFillOpacity = value / 100.0;
                 }
-                
+
                 Component.onCompleted: {
                     value = Math.round(root.rectangleFillOpacity * 100);
                 }
-                
+
                 Binding {
                     target: opacitySlider
                     property: "value"
                     value: Math.round(root.rectangleFillOpacity * 100)
                     when: !opacitySlider.pressed
                 }
-                
+
                 background: Rectangle {
                     x: opacitySlider.leftPadding
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
@@ -395,7 +395,7 @@ ToolBar {
                     implicitHeight: DV.Theme.sizes.sliderTrackHeight
                     radius: DV.Theme.sizes.radiusSm
                     color: DV.Theme.colors.gridMinor
-                    
+
                     Rectangle {
                         width: opacitySlider.visualPosition * parent.width
                         height: parent.height
@@ -403,7 +403,7 @@ ToolBar {
                         radius: DV.Theme.sizes.radiusSm
                     }
                 }
-                
+
                 handle: Rectangle {
                     x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
@@ -417,7 +417,7 @@ ToolBar {
                     border.width: 1
                 }
             }
-            
+
             TextField {
                 id: opacityInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
@@ -430,7 +430,7 @@ ToolBar {
                     bottom: 0
                     top: 100
                 }
-                
+
                 function commitValue() {
                     var value = parseInt(text);
                     if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -440,17 +440,17 @@ ToolBar {
                         text = Math.round(root.rectangleFillOpacity * 100).toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 // Update text when property changes externally
                 Connections {
                     target: root
@@ -460,46 +460,46 @@ ToolBar {
                         }
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: opacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("%")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
         }
-        
+
         // Stroke color picker dialog
         ColorDialog {
             id: strokeColorDialog
             title: qsTr("Choose Stroke Color")
             selectedColor: root.rectangleStrokeColor
-            
+
             onAccepted: {
                 root.rectangleStrokeColor = selectedColor;
             }
         }
-        
+
         // Fill color picker dialog
         ColorDialog {
             id: fillColorDialog
             title: qsTr("Choose Fill Color")
             selectedColor: root.rectangleFillColor
-            
+
             onAccepted: {
                 root.rectangleFillColor = selectedColor;
             }
         }
-        
+
         // Ellipse tool settings
         RowLayout {
             id: ellipseSettings
@@ -507,13 +507,13 @@ ToolBar {
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter
             spacing: 6
-                
+
             Label {
                 text: qsTr("Stroke Width:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             TextField {
                 id: ellipseStrokeWidthInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsStrokeWidthFieldWidth
@@ -527,7 +527,7 @@ ToolBar {
                     top: 100.0
                     decimals: 1
                 }
-                
+
                 function commitValue() {
                     var value = parseFloat(text);
                     if (!isNaN(value) && value >= 0.1 && value <= 100.0) {
@@ -537,33 +537,33 @@ ToolBar {
                         text = root.ellipseStrokeWidth.toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: ellipseStrokeWidthInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("px")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             // Separator
             Rectangle {
                 Layout.preferredWidth: 1
@@ -573,23 +573,23 @@ ToolBar {
                 Layout.rightMargin: 6
                 color: DV.Theme.colors.borderSubtle
             }
-            
+
             Label {
                 text: qsTr("Stroke Color:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Button {
                 id: ellipseStrokeColorButton
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 Layout.alignment: Qt.AlignVCenter
-                
+
                 onClicked: {
                     ellipseStrokeColorDialog.open();
                 }
-                
+
                 background: Rectangle {
                     color: root.ellipseStrokeColor
                     border.color: DV.Theme.colors.borderSubtle
@@ -597,13 +597,13 @@ ToolBar {
                     radius: DV.Theme.sizes.radiusSm
                 }
             }
-            
+
             Label {
                 text: qsTr("Opacity:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Slider {
                 id: ellipseStrokeOpacitySlider
                 Layout.preferredWidth: 80
@@ -614,28 +614,28 @@ ToolBar {
                 to: 100
                 stepSize: 1
                 value: 100
-                
+
                 onPressedChanged: {
                     if (!pressed) {
                         root.ellipseStrokeOpacity = value / 100.0;
                     }
                 }
-                
+
                 onValueChanged: {
                     root.ellipseStrokeOpacity = value / 100.0;
                 }
-                
+
                 Component.onCompleted: {
                     value = Math.round(root.ellipseStrokeOpacity * 100);
                 }
-                
+
                 Binding {
                     target: ellipseStrokeOpacitySlider
                     property: "value"
                     value: Math.round(root.ellipseStrokeOpacity * 100)
                     when: !ellipseStrokeOpacitySlider.pressed
                 }
-                
+
                 background: Rectangle {
                     x: ellipseStrokeOpacitySlider.leftPadding
                     y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
@@ -645,7 +645,7 @@ ToolBar {
                     implicitHeight: DV.Theme.sizes.sliderTrackHeight
                     radius: DV.Theme.sizes.radiusSm
                     color: DV.Theme.colors.gridMinor
-                    
+
                     Rectangle {
                         width: ellipseStrokeOpacitySlider.visualPosition * parent.width
                         height: parent.height
@@ -653,7 +653,7 @@ ToolBar {
                         radius: DV.Theme.sizes.radiusSm
                     }
                 }
-                
+
                 handle: Rectangle {
                     x: ellipseStrokeOpacitySlider.leftPadding + ellipseStrokeOpacitySlider.visualPosition * (ellipseStrokeOpacitySlider.availableWidth - width)
                     y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
@@ -667,7 +667,7 @@ ToolBar {
                     border.width: 1
                 }
             }
-            
+
             TextField {
                 id: ellipseStrokeOpacityInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
@@ -680,7 +680,7 @@ ToolBar {
                     bottom: 0
                     top: 100
                 }
-                
+
                 function commitValue() {
                     var value = parseInt(text);
                     if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -690,17 +690,17 @@ ToolBar {
                         text = Math.round(root.ellipseStrokeOpacity * 100).toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 Connections {
                     target: root
                     function onEllipseStrokeOpacityChanged() {
@@ -709,23 +709,23 @@ ToolBar {
                         }
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: ellipseStrokeOpacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("%")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             // Separator
             Rectangle {
                 Layout.preferredWidth: 1
@@ -735,30 +735,30 @@ ToolBar {
                 Layout.rightMargin: 6
                 color: DV.Theme.colors.borderSubtle
             }
-            
+
             Label {
                 text: qsTr("Fill Color:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Button {
                 id: ellipseFillColorButton
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 Layout.alignment: Qt.AlignVCenter
-                
+
                 onClicked: {
                     ellipseFillColorDialog.open();
                 }
-                
+
                 background: Rectangle {
                     border.color: DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                     color: "transparent"
                     clip: true
-                    
+
                     // Checkerboard pattern to show transparency
                     Canvas {
                         anchors.fill: parent
@@ -766,12 +766,12 @@ ToolBar {
                         onPaint: {
                             var ctx = getContext("2d");
                             ctx.clearRect(0, 0, width, height);
-                            
+
                             // Draw checkerboard
                             var size = 4;
                             for (var y = 0; y < height; y += size) {
                                 for (var x = 0; x < width; x += size) {
-                                    if ((Math.floor(x/size) + Math.floor(y/size)) % 2 === 0) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
                                         ctx.fillStyle = "#999999";
                                     } else {
                                         ctx.fillStyle = "#666666";
@@ -782,7 +782,7 @@ ToolBar {
                         }
                         Component.onCompleted: requestPaint()
                     }
-                    
+
                     // Fill color with opacity applied
                     Rectangle {
                         anchors.fill: parent
@@ -792,13 +792,13 @@ ToolBar {
                     }
                 }
             }
-            
+
             Label {
                 text: qsTr("Opacity:")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
-            
+
             Slider {
                 id: ellipseOpacitySlider
                 Layout.preferredWidth: 80
@@ -809,30 +809,30 @@ ToolBar {
                 to: 100
                 stepSize: 1
                 value: 0
-                
+
                 onPressedChanged: {
                     if (!pressed) {
                         // Update property when slider is released
                         root.ellipseFillOpacity = value / 100.0;
                     }
                 }
-                
+
                 onValueChanged: {
                     // Update property as slider moves
                     root.ellipseFillOpacity = value / 100.0;
                 }
-                
+
                 Component.onCompleted: {
                     value = Math.round(root.ellipseFillOpacity * 100);
                 }
-                
+
                 Binding {
                     target: ellipseOpacitySlider
                     property: "value"
                     value: Math.round(root.ellipseFillOpacity * 100)
                     when: !ellipseOpacitySlider.pressed
                 }
-                
+
                 background: Rectangle {
                     x: ellipseOpacitySlider.leftPadding
                     y: ellipseOpacitySlider.topPadding + ellipseOpacitySlider.availableHeight / 2 - height / 2
@@ -842,7 +842,7 @@ ToolBar {
                     implicitHeight: DV.Theme.sizes.sliderTrackHeight
                     radius: DV.Theme.sizes.radiusSm
                     color: DV.Theme.colors.gridMinor
-                    
+
                     Rectangle {
                         width: ellipseOpacitySlider.visualPosition * parent.width
                         height: parent.height
@@ -850,7 +850,7 @@ ToolBar {
                         radius: DV.Theme.sizes.radiusSm
                     }
                 }
-                
+
                 handle: Rectangle {
                     x: ellipseOpacitySlider.leftPadding + ellipseOpacitySlider.visualPosition * (ellipseOpacitySlider.availableWidth - width)
                     y: ellipseOpacitySlider.topPadding + ellipseOpacitySlider.availableHeight / 2 - height / 2
@@ -864,7 +864,7 @@ ToolBar {
                     border.width: 1
                 }
             }
-            
+
             TextField {
                 id: ellipseOpacityInput
                 Layout.preferredWidth: DV.Theme.sizes.settingsOpacityFieldWidth
@@ -877,7 +877,7 @@ ToolBar {
                     bottom: 0
                     top: 100
                 }
-                
+
                 function commitValue() {
                     var value = parseInt(text);
                     if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -887,17 +887,17 @@ ToolBar {
                         text = Math.round(root.ellipseFillOpacity * 100).toString();
                     }
                 }
-                
+
                 onEditingFinished: {
                     commitValue();
                 }
-                
+
                 onActiveFocusChanged: {
                     if (!activeFocus) {
                         commitValue();
                     }
                 }
-                
+
                 // Update text when property changes externally
                 Connections {
                     target: root
@@ -907,57 +907,56 @@ ToolBar {
                         }
                     }
                 }
-                
+
                 background: Rectangle {
                     color: DV.Theme.colors.gridMinor
                     border.color: ellipseOpacityInput.activeFocus ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
                     border.width: 1
                     radius: DV.Theme.sizes.radiusSm
                 }
-                
+
                 color: "#ffffff"
             }
-            
+
             Label {
                 text: qsTr("%")
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignVCenter
             }
         }
-        
+
         // Ellipse stroke color picker dialog
         ColorDialog {
             id: ellipseStrokeColorDialog
             title: qsTr("Choose Ellipse Stroke Color")
             selectedColor: root.ellipseStrokeColor
-            
+
             onAccepted: {
                 root.ellipseStrokeColor = selectedColor;
             }
         }
-        
+
         // Ellipse fill color picker dialog
         ColorDialog {
             id: ellipseFillColorDialog
             title: qsTr("Choose Ellipse Fill Color")
             selectedColor: root.ellipseFillColor
-            
+
             onAccepted: {
                 root.ellipseFillColor = selectedColor;
             }
         }
-        
+
         // Select tool settings (empty for now)
         Item {
             visible: root.activeTool === "select" || root.activeTool === ""
             Layout.fillHeight: true
             Layout.fillWidth: true
         }
-        
+
         // Spacer
         Item {
             Layout.fillWidth: true
         }
     }
 }
-

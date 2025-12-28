@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: qmlformat
+        name: qmlformat (PySide6)
+        entry: pyside6-qmlformat
+        language: python
+        additional_dependencies:
+          - PySide6==6.10.1
+        args: ["-i"]
+        files: "\\.qml$"
+        pass_filenames: true
+

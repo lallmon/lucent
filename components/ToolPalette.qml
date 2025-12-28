@@ -36,11 +36,11 @@ Pane {
 
             onClicked: {
                 if (checked) {
-                    root.activeTool = "select"
-                    root.toolSelected("select")
+                    root.activeTool = "select";
+                    root.toolSelected("select");
                 } else {
-                    root.activeTool = ""
-                    root.toolSelected("")
+                    root.activeTool = "";
+                    root.toolSelected("");
                 }
             }
 
@@ -72,11 +72,11 @@ Pane {
             }
             onClicked: {
                 if (checked) {
-                    root.activeTool = "rectangle"
-                    root.toolSelected("rectangle")
+                    root.activeTool = "rectangle";
+                    root.toolSelected("rectangle");
                 } else {
-                    root.activeTool = ""
-                    root.toolSelected("")
+                    root.activeTool = "";
+                    root.toolSelected("");
                 }
             }
             background: Rectangle {
@@ -106,11 +106,11 @@ Pane {
 
             onClicked: {
                 if (checked) {
-                    root.activeTool = "ellipse"
-                    root.toolSelected("ellipse")
+                    root.activeTool = "ellipse";
+                    root.toolSelected("ellipse");
                 } else {
-                    root.activeTool = ""
-                    root.toolSelected("")
+                    root.activeTool = "";
+                    root.toolSelected("");
                 }
             }
 

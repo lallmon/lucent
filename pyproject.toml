@@ -1,5 +1,16 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "DesignVibe"
+name = "designvibe"
+version = "0.0.0"
+description = "DesignVibe QML app"
+requires-python = ">=3.10"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pyside6-project]
 files = ["main.py", "main.qml", "components/Canvas.qml", "components/SelectTool.qml", "components/RectangleTool.qml", "components/ToolSettings.qml", "components/StatusBar.qml", "components/ToolPalette.qml", "components/RightPanel.qml", "components/MenuBar.qml", "components/SelectionManager.qml", "components/ObjectPropertiesInspector.qml"]
