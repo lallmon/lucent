@@ -63,5 +63,3 @@ QtObject {
         readonly property int sliderHandleSize: 12
     }
 }
-
-

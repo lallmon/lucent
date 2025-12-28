@@ -18,7 +18,13 @@ There's plenty to do but the end goal is pretty clear for me, so if you want to 
 
 ### Getting Started
 
-As of right now you can follow [QT for Python](https://doc.qt.io/qtforpython-6/gettingstarted.html) guide to get going that way, but it might just be easier to grab [QT Creator](https://download.qt.io/official_releases/qtcreator/) which should have the python dependencies already in it.
+## Local setup
+- Install Python 3.10
+- Create/activate the project venv: `python -m venv .venv && source .venv/bin/activate`
+- Install deps: `pip install -r requirements.txt -r requirements-dev.txt`
+- Install hooks: `pre-commit install`
+
+Run `python main.py`
 
 #### AI Contributions
 I have used AI on this project, so I am not against it, but you definitely need to wrangle that slop machine. LOL. Just straight vibe coding is definitely not something that will work in the long run.

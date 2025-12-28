@@ -13,24 +13,24 @@ ScrollView {
     property var selectedItem: null
     property string originalStrokeColor: ""
     property string originalFillColor: ""
-    
+
     // Helper to check if selected item is a shape with stroke/fill properties
-    readonly property bool isShapeSelected: selectedItem !== null && 
-        (selectedItem.type === "rectangle" || selectedItem.type === "ellipse")
-    
+    readonly property bool isShapeSelected: selectedItem !== null && (selectedItem.type === "rectangle" || selectedItem.type === "ellipse")
+
     // Helper to check if selected item is effectively locked (own state or parent layer locked)
-    readonly property bool isLocked: DV.SelectionManager.selectedItemIndex >= 0 && 
-        canvasModel.isEffectivelyLocked(DV.SelectionManager.selectedItemIndex)
-    
+    readonly property bool isLocked: DV.SelectionManager.selectedItemIndex >= 0 && canvasModel.isEffectivelyLocked(DV.SelectionManager.selectedItemIndex)
+
     readonly property int labelSize: 11
     readonly property color labelColor: DV.Theme.colors.textSubtle
-    
+
     function updateProperty(property, value) {
         if (selectedItem && DV.SelectionManager.selectedItemIndex >= 0) {
-            canvasModel.updateItem(DV.SelectionManager.selectedItemIndex, {[property]: value})
+            canvasModel.updateItem(DV.SelectionManager.selectedItemIndex, {
+                [property]: value
+            });
         }
     }
-    
+
     component PropertySeparator: Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: 1
@@ -82,36 +82,56 @@ ScrollView {
                     Layout.fillWidth: true
                     enabled: !root.isLocked
 
-                    Label { text: qsTr("X:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("X:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: -100000; to: 100000
+                        from: -100000
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.x) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("x", value)
                     }
 
-                    Label { text: qsTr("Y:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Y:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: -100000; to: 100000
+                        from: -100000
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.y) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("y", value)
                     }
 
-                    Label { text: qsTr("Width:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Width:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: 0; to: 100000
+                        from: 0
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.width) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("width", value)
                     }
 
-                    Label { text: qsTr("Height:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Height:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: 0; to: 100000
+                        from: 0
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.height) : 0
                         editable: true
                         Layout.fillWidth: true
@@ -139,36 +159,56 @@ ScrollView {
                     Layout.fillWidth: true
                     enabled: !root.isLocked
 
-                    Label { text: qsTr("Center X:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Center X:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: -100000; to: 100000
+                        from: -100000
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.centerX) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("centerX", value)
                     }
 
-                    Label { text: qsTr("Center Y:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Center Y:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: -100000; to: 100000
+                        from: -100000
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.centerY) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("centerY", value)
                     }
 
-                    Label { text: qsTr("Radius X:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Radius X:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: 0; to: 100000
+                        from: 0
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.radiusX) : 0
                         editable: true
                         Layout.fillWidth: true
                         onValueModified: root.updateProperty("radiusX", value)
                     }
 
-                    Label { text: qsTr("Radius Y:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Radius Y:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: 0; to: 100000
+                        from: 0
+                        to: 100000
                         value: root.selectedItem ? Math.round(root.selectedItem.radiusY) : 0
                         editable: true
                         Layout.fillWidth: true
@@ -196,7 +236,11 @@ ScrollView {
                     columnSpacing: 8
                     Layout.fillWidth: true
 
-                    Label { text: qsTr("Name:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Name:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     Label {
                         text: root.selectedItem ? root.selectedItem.name : ""
                         font.pixelSize: root.labelSize
@@ -238,23 +282,33 @@ ScrollView {
                     columnSpacing: 8
                     Layout.fillWidth: true
 
-                    Label { text: qsTr("Stroke Width:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Stroke Width:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     SpinBox {
-                        from: 1; to: 1000; stepSize: 1
+                        from: 1
+                        to: 1000
+                        stepSize: 1
                         value: root.selectedItem ? Math.round(root.selectedItem.strokeWidth * 10) : 10
                         editable: true
                         Layout.fillWidth: true
                         property real realValue: value / 10.0
-                        textFromValue: function(value, locale) {
-                            return Number(value / 10.0).toLocaleString(locale, 'f', 1) + " px"
+                        textFromValue: function (value, locale) {
+                            return Number(value / 10.0).toLocaleString(locale, 'f', 1) + " px";
                         }
-                        valueFromText: function(text, locale) {
-                            return Math.round(Number.fromLocaleString(locale, text.replace(" px", "")) * 10)
+                        valueFromText: function (text, locale) {
+                            return Math.round(Number.fromLocaleString(locale, text.replace(" px", "")) * 10);
                         }
                         onValueModified: root.updateProperty("strokeWidth", realValue)
                     }
 
-                    Label { text: qsTr("Stroke Color:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Stroke Color:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     RowLayout {
                         spacing: 4
                         Layout.fillWidth: true
@@ -262,9 +316,9 @@ ScrollView {
                             Layout.preferredWidth: 16
                             Layout.preferredHeight: 16
                             onClicked: {
-                                root.originalStrokeColor = root.selectedItem.strokeColor
-                                canvasModel.beginTransaction()
-                                strokeColorDialog.open()
+                                root.originalStrokeColor = root.selectedItem.strokeColor;
+                                canvasModel.beginTransaction();
+                                strokeColorDialog.open();
                             }
                             background: Rectangle {
                                 color: root.isShapeSelected ? root.selectedItem.strokeColor : "transparent"
@@ -282,7 +336,11 @@ ScrollView {
                         }
                     }
 
-                    Label { text: qsTr("Stroke Opacity:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Stroke Opacity:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     RowLayout {
                         spacing: 8
                         Layout.fillWidth: true
@@ -291,19 +349,23 @@ ScrollView {
                             Layout.fillWidth: true
                             Layout.preferredHeight: DV.Theme.sizes.sliderHeight
                             implicitHeight: DV.Theme.sizes.sliderHeight
-                            from: 0; to: 100; stepSize: 1; value: 100
+                            from: 0
+                            to: 100
+                            stepSize: 1
+                            value: 100
 
                             onPressedChanged: pressed ? canvasModel.beginTransaction() : canvasModel.endTransaction()
-                            onValueChanged: if (pressed) root.updateProperty("strokeOpacity", value / 100.0)
+                            onValueChanged: if (pressed)
+                                root.updateProperty("strokeOpacity", value / 100.0)
                             Component.onCompleted: value = root.selectedItem && root.selectedItem.strokeOpacity !== undefined ? Math.round(root.selectedItem.strokeOpacity * 100) : 100
-                            
+
                             Binding {
                                 target: strokeOpacitySlider
                                 property: "value"
                                 value: root.selectedItem && root.selectedItem.strokeOpacity !== undefined ? Math.round(root.selectedItem.strokeOpacity * 100) : 100
                                 when: !strokeOpacitySlider.pressed
                             }
-                            
+
                             background: Rectangle {
                                 x: strokeOpacitySlider.leftPadding
                                 y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
@@ -350,7 +412,11 @@ ScrollView {
                     columnSpacing: 8
                     Layout.fillWidth: true
 
-                    Label { text: qsTr("Fill Color:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Fill Color:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     RowLayout {
                         spacing: 4
                         Layout.fillWidth: true
@@ -358,9 +424,9 @@ ScrollView {
                             Layout.preferredWidth: 16
                             Layout.preferredHeight: 16
                             onClicked: {
-                                root.originalFillColor = root.selectedItem.fillColor
-                                canvasModel.beginTransaction()
-                                fillColorDialog.open()
+                                root.originalFillColor = root.selectedItem.fillColor;
+                                canvasModel.beginTransaction();
+                                fillColorDialog.open();
                             }
                             background: Rectangle {
                                 color: root.isShapeSelected ? root.selectedItem.fillColor : "transparent"
@@ -378,7 +444,11 @@ ScrollView {
                         }
                     }
 
-                    Label { text: qsTr("Fill Opacity:"); font.pixelSize: root.labelSize; color: root.labelColor }
+                    Label {
+                        text: qsTr("Fill Opacity:")
+                        font.pixelSize: root.labelSize
+                        color: root.labelColor
+                    }
                     RowLayout {
                         spacing: 8
                         Layout.fillWidth: true
@@ -387,19 +457,23 @@ ScrollView {
                             Layout.fillWidth: true
                             Layout.preferredHeight: DV.Theme.sizes.sliderHeight
                             implicitHeight: DV.Theme.sizes.sliderHeight
-                            from: 0; to: 100; stepSize: 1; value: 0
+                            from: 0
+                            to: 100
+                            stepSize: 1
+                            value: 0
 
                             onPressedChanged: pressed ? canvasModel.beginTransaction() : canvasModel.endTransaction()
-                            onValueChanged: if (pressed) root.updateProperty("fillOpacity", value / 100.0)
+                            onValueChanged: if (pressed)
+                                root.updateProperty("fillOpacity", value / 100.0)
                             Component.onCompleted: value = root.selectedItem ? Math.round(root.selectedItem.fillOpacity * 100) : 0
-                            
+
                             Binding {
                                 target: opacitySlider
                                 property: "value"
                                 value: root.selectedItem ? Math.round(root.selectedItem.fillOpacity * 100) : 0
                                 when: !opacitySlider.pressed
                             }
-                            
+
                             background: Rectangle {
                                 x: opacitySlider.leftPadding
                                 y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
@@ -445,8 +519,8 @@ ScrollView {
                     onSelectedColorChanged: root.updateProperty("strokeColor", selectedColor.toString())
                     onAccepted: canvasModel.endTransaction()
                     onRejected: {
-                        root.updateProperty("strokeColor", root.originalStrokeColor)
-                        canvasModel.endTransaction()
+                        root.updateProperty("strokeColor", root.originalStrokeColor);
+                        canvasModel.endTransaction();
                     }
                 }
 
@@ -457,8 +531,8 @@ ScrollView {
                     onSelectedColorChanged: root.updateProperty("fillColor", selectedColor.toString())
                     onAccepted: canvasModel.endTransaction()
                     onRejected: {
-                        root.updateProperty("fillColor", root.originalFillColor)
-                        canvasModel.endTransaction()
+                        root.updateProperty("fillColor", root.originalFillColor);
+                        canvasModel.endTransaction();
                     }
                 }
             }

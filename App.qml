@@ -45,8 +45,8 @@ ApplicationWindow {
                 Layout.fillHeight: true
 
                 onToolSelected: toolName => {
-                                    canvas.setDrawingMode(toolName)
-                                }
+                    canvas.setDrawingMode(toolName);
+                }
             }
 
             // Main content with viewport and right panel
@@ -76,8 +76,8 @@ ApplicationWindow {
                         toolSettings: toolSettings.toolSettings
 
                         onPanRequested: (dx, dy) => {
-                                            viewport.pan(dx, dy)
-                                        }
+                            viewport.pan(dx, dy);
+                        }
                     }
                 }
 

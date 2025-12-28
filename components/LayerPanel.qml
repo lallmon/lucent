@@ -85,13 +85,13 @@ Item {
 
                 function autoScrollScene(yInFlickable) {
                     if (contentHeight <= height)
-                        return
-                    const edge = 24
+                        return;
+                    const edge = 24;
                     if (yInFlickable < edge) {
-                        contentY = Math.max(0, contentY - autoScrollStep)
+                        contentY = Math.max(0, contentY - autoScrollStep);
                     } else if (yInFlickable > height - edge) {
-                        const maxY = Math.max(0, contentHeight - height)
-                        contentY = Math.min(maxY, contentY + autoScrollStep)
+                        const maxY = Math.max(0, contentHeight - height);
+                        contentY = Math.min(maxY, contentY + autoScrollStep);
                     }
                 }
 
@@ -102,8 +102,8 @@ Item {
                     repeat: true
                     onTriggered: {
                         if (!layerContainer.dragActive)
-                            return
-                        layerFlickable.autoScrollScene(root.lastDragYInFlick)
+                            return;
+                        layerFlickable.autoScrollScene(root.lastDragYInFlick);
                     }
                 }
 
@@ -122,413 +122,423 @@ Item {
                             anchors.right: parent.right
                             height: layerContainer.itemHeight
 
-                        // Model role properties (auto-bound from QAbstractListModel)
-                        required property int index
-                        required property string name
-                        required property string itemType
-                        required property int itemIndex
-                        required property var itemId      // Layer's unique ID (null for shapes)
-                        required property var parentId    // Parent layer ID (null for top-level items)
-                        required property bool modelVisible
-                        required property bool modelLocked
+                            // Model role properties (auto-bound from QAbstractListModel)
+                            required property int index
+                            required property string name
+                            required property string itemType
+                            required property int itemIndex
+                            required property var itemId      // Layer's unique ID (null for shapes)
+                            required property var parentId    // Parent layer ID (null for top-level items)
+                            required property bool modelVisible
+                            required property bool modelLocked
 
-                        // Use layerRepeater.count (reactive property) not canvasModel.rowCount() (method)
-                        // Methods don't trigger binding updates; properties do
-                        property int displayIndex: layerRepeater.count - 1 - index
-                        // Use model index for selection comparison (not displayIndex)
-                        property bool isSelected: index === DV.SelectionManager.selectedItemIndex
-                        property bool isBeingDragged: root.draggedIndex === index
-                        property real dragOffsetY: 0
-                        property bool hasParent: !!parentId
-                        property bool isLayer: itemType === "layer"
+                            // Use layerRepeater.count (reactive property) not canvasModel.rowCount() (method)
+                            // Methods don't trigger binding updates; properties do
+                            property int displayIndex: layerRepeater.count - 1 - index
+                            // Use model index for selection comparison (not displayIndex)
+                            property bool isSelected: index === DV.SelectionManager.selectedItemIndex
+                            property bool isBeingDragged: root.draggedIndex === index
+                            property real dragOffsetY: 0
+                            property bool hasParent: !!parentId
+                            property bool isLayer: itemType === "layer"
 
-                        transform: Translate { y: delegateRoot.dragOffsetY }
-                        z: isBeingDragged ? 100 : 0
+                            transform: Translate {
+                                y: delegateRoot.dragOffsetY
+                            }
+                            z: isBeingDragged ? 100 : 0
 
-                        property bool isDropTarget: delegateRoot.isLayer && 
-                                                    root.draggedIndex >= 0 && 
-                                                    root.draggedItemType !== "layer" &&
-                                                    root.dropTargetLayerId === delegateRoot.itemId
-
-                        Rectangle {
-                            id: background
-                            anchors.fill: parent
-                            radius: DV.Theme.sizes.radiusSm
-                            color: delegateRoot.isDropTarget ? DV.Theme.colors.accentHover
-                                 : delegateRoot.isSelected ? DV.Theme.colors.accent 
-                                 : nameHoverHandler.hovered ? DV.Theme.colors.panelHover 
-                                 : "transparent"
-                            border.width: delegateRoot.isDropTarget ? 2 : 0
-                            border.color: DV.Theme.colors.accent
+                            property bool isDropTarget: delegateRoot.isLayer && root.draggedIndex >= 0 && root.draggedItemType !== "layer" && root.dropTargetLayerId === delegateRoot.itemId
 
                             Rectangle {
-                                // Separator between items; thickens and highlights when this is the insertion target
-                                property bool isInsertTarget: delegateRoot.index === root.dropInsertIndex
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                height: isInsertTarget ? 3 : 1
-                                color: isInsertTarget ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
-                                visible: delegateRoot.index > 0 || isInsertTarget
-                            }
-
-                            RowLayout {
+                                id: background
                                 anchors.fill: parent
-                                anchors.leftMargin: delegateRoot.hasParent ? 20 : 4
-                                anchors.rightMargin: 8
-                                spacing: 4
+                                radius: DV.Theme.sizes.radiusSm
+                                color: delegateRoot.isDropTarget ? DV.Theme.colors.accentHover : delegateRoot.isSelected ? DV.Theme.colors.accent : nameHoverHandler.hovered ? DV.Theme.colors.panelHover : "transparent"
+                                border.width: delegateRoot.isDropTarget ? 2 : 0
+                                border.color: DV.Theme.colors.accent
 
-                                Item {
-                                    id: dragHandle
-                                    Layout.preferredWidth: 28
-                                    Layout.fillHeight: true
+                                Rectangle {
+                                    // Separator between items; thickens and highlights when this is the insertion target
+                                    property bool isInsertTarget: delegateRoot.index === root.dropInsertIndex
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    height: isInsertTarget ? 3 : 1
+                                    color: isInsertTarget ? DV.Theme.colors.accent : DV.Theme.colors.borderSubtle
+                                    visible: delegateRoot.index > 0 || isInsertTarget
+                                }
 
-                                    DV.PhIcon {
-                                        anchors.centerIn: parent
-                                        name: {
-                                            if (delegateRoot.itemType === "layer") return "stack"
-                                            if (delegateRoot.itemType === "rectangle") return "rectangle"
-                                            if (delegateRoot.itemType === "ellipse") return "circle"
-                                            return "shapes"
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: delegateRoot.hasParent ? 20 : 4
+                                    anchors.rightMargin: 8
+                                    spacing: 4
+
+                                    Item {
+                                        id: dragHandle
+                                        Layout.preferredWidth: 28
+                                        Layout.fillHeight: true
+
+                                        DV.PhIcon {
+                                            anchors.centerIn: parent
+                                            name: {
+                                                if (delegateRoot.itemType === "layer")
+                                                    return "stack";
+                                                if (delegateRoot.itemType === "rectangle")
+                                                    return "rectangle";
+                                                if (delegateRoot.itemType === "ellipse")
+                                                    return "circle";
+                                                return "shapes";
+                                            }
+                                            size: 18
+                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
                                         }
-                                        size: 18
-                                        color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
-                                    }
 
-                                    DragHandler {
-                                        id: dragHandler
-                                        target: null
-                                        yAxis.enabled: true
-                                        xAxis.enabled: false
+                                        DragHandler {
+                                            id: dragHandler
+                                            target: null
+                                            yAxis.enabled: true
+                                            xAxis.enabled: false
 
-                                        onActiveChanged: {
-                                            try {
-                                                if (active) {
-                                                    root.draggedIndex = delegateRoot.index
-                                                    root.draggedItemType = delegateRoot.itemType
-                                                    root.draggedItemParentId = delegateRoot.parentId
-                                                layerContainer.dragStartContentY = layerFlickable.contentY
-                                                    layerContainer.dragActive = true
-                                                    autoScrollTimer.start()
-                                                } else {
-                                                    layerContainer.dragActive = false
-                                                    autoScrollTimer.stop()
-                                                    if (root.draggedIndex >= 0) {
-                                                        // Calculate target model index for potential reordering
-                                                        let totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing
-                                                        let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight)
-                                                        let targetModelIndex = delegateRoot.index + indexDelta
-                                                        let rowCount = layerRepeater.count
-                                                        targetModelIndex = Math.max(0, Math.min(rowCount - 1, targetModelIndex))
-                                                        
-                                                        // Determine the action based on drag context
-                                                        if (root.dropTargetLayerId !== "" && root.draggedItemType !== "layer") {
-                                                            // Check if dropping onto the SAME parent layer (sibling reorder, not reparent)
-                                                            if (root.dropTargetLayerId === root.draggedItemParentId) {
-                                                                // Same parent - just reorder within the layer
-                                                                if (targetModelIndex !== root.draggedIndex) {
-                                                                    canvasModel.moveItem(root.draggedIndex, targetModelIndex)
+                                            onActiveChanged: {
+                                                try {
+                                                    if (active) {
+                                                        root.draggedIndex = delegateRoot.index;
+                                                        root.draggedItemType = delegateRoot.itemType;
+                                                        root.draggedItemParentId = delegateRoot.parentId;
+                                                        layerContainer.dragStartContentY = layerFlickable.contentY;
+                                                        layerContainer.dragActive = true;
+                                                        autoScrollTimer.start();
+                                                    } else {
+                                                        layerContainer.dragActive = false;
+                                                        autoScrollTimer.stop();
+                                                        if (root.draggedIndex >= 0) {
+                                                            // Calculate target model index for potential reordering
+                                                            let totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing;
+                                                            let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight);
+                                                            let targetModelIndex = delegateRoot.index + indexDelta;
+                                                            let rowCount = layerRepeater.count;
+                                                            targetModelIndex = Math.max(0, Math.min(rowCount - 1, targetModelIndex));
+
+                                                            // Determine the action based on drag context
+                                                            if (root.dropTargetLayerId !== "" && root.draggedItemType !== "layer") {
+                                                                // Check if dropping onto the SAME parent layer (sibling reorder, not reparent)
+                                                                if (root.dropTargetLayerId === root.draggedItemParentId) {
+                                                                    // Same parent - just reorder within the layer
+                                                                    if (targetModelIndex !== root.draggedIndex) {
+                                                                        canvasModel.moveItem(root.draggedIndex, targetModelIndex);
+                                                                    }
+                                                                } else {
+                                                                    // Different layer - reparent to that layer
+                                                                    canvasModel.reparentItem(root.draggedIndex, root.dropTargetLayerId);
                                                                 }
+                                                            } else if (root.draggedItemParentId && root.dropTargetParentId === root.draggedItemParentId) {
+                                                                // Dropping onto a sibling (same parent) - just reorder, keep parent
+                                                                if (targetModelIndex !== root.draggedIndex) {
+                                                                    canvasModel.moveItem(root.draggedIndex, targetModelIndex);
+                                                                }
+                                                            } else if (root.draggedItemParentId && !root.dropTargetParentId && root.dropTargetLayerId === "") {
+                                                                // Dropping a child onto a top-level item - unparent
+                                                                canvasModel.reparentItem(root.draggedIndex, "");
                                                             } else {
-                                                                // Different layer - reparent to that layer
-                                                                canvasModel.reparentItem(root.draggedIndex, root.dropTargetLayerId)
-                                                            }
-                                                        } else if (root.draggedItemParentId && root.dropTargetParentId === root.draggedItemParentId) {
-                                                            // Dropping onto a sibling (same parent) - just reorder, keep parent
-                                                            if (targetModelIndex !== root.draggedIndex) {
-                                                                canvasModel.moveItem(root.draggedIndex, targetModelIndex)
-                                                            }
-                                                        } else if (root.draggedItemParentId && !root.dropTargetParentId && root.dropTargetLayerId === "") {
-                                                            // Dropping a child onto a top-level item - unparent
-                                                            canvasModel.reparentItem(root.draggedIndex, "")
-                                                        } else {
-                                                            // Normal z-order reordering for top-level items
-                                                            if (targetModelIndex !== root.draggedIndex) {
-                                                                canvasModel.moveItem(root.draggedIndex, targetModelIndex)
+                                                                // Normal z-order reordering for top-level items
+                                                                if (targetModelIndex !== root.draggedIndex) {
+                                                                    canvasModel.moveItem(root.draggedIndex, targetModelIndex);
+                                                                }
                                                             }
                                                         }
+                                                        delegateRoot.dragOffsetY = 0;
+                                                        root.draggedIndex = -1;
+                                                        root.draggedItemType = "";
+                                                        root.dropTargetLayerId = "";
+                                                        root.draggedItemParentId = null;
+                                                        root.dropTargetParentId = null;
+                                                        root.dropInsertIndex = -1;
                                                     }
-                                                    delegateRoot.dragOffsetY = 0
-                                                    root.draggedIndex = -1
-                                                    root.draggedItemType = ""
-                                                    root.dropTargetLayerId = ""
-                                                    root.draggedItemParentId = null
-                                                    root.dropTargetParentId = null
-                                                    root.dropInsertIndex = -1
-                                                }
-                                            } catch (e) {
-                                                console.warn("LayerPanel drag error:", e)
-                                                // Reset state - guard against delegate destruction during model reset
-                                                if (typeof delegateRoot !== 'undefined' && delegateRoot) {
-                                                    delegateRoot.dragOffsetY = 0
-                                                }
-                                                if (typeof root !== 'undefined' && root) {
-                                                    root.draggedIndex = -1
-                                                    root.draggedItemType = ""
-                                                    root.dropTargetLayerId = ""
-                                                    root.draggedItemParentId = null
-                                                    root.dropTargetParentId = null
-                                                    root.dropInsertIndex = -1
+                                                } catch (e) {
+                                                    console.warn("LayerPanel drag error:", e);
+                                                    // Reset state - guard against delegate destruction during model reset
+                                                    if (typeof delegateRoot !== 'undefined' && delegateRoot) {
+                                                        delegateRoot.dragOffsetY = 0;
+                                                    }
+                                                    if (typeof root !== 'undefined' && root) {
+                                                        root.draggedIndex = -1;
+                                                        root.draggedItemType = "";
+                                                        root.dropTargetLayerId = "";
+                                                        root.draggedItemParentId = null;
+                                                        root.dropTargetParentId = null;
+                                                        root.dropInsertIndex = -1;
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        onTranslationChanged: {
-                                            if (active) {
-                                                // Compensate for flickable contentY changes during auto-scroll
-                                                let compensatedY = translation.y + (layerFlickable.contentY - layerContainer.dragStartContentY)
-                                                delegateRoot.dragOffsetY = compensatedY
-                                                // Calculate which item we're hovering over
-                                                updateDropTarget()
-                                                // Auto-scroll handled via timer using scene position
-                                                const p = delegateRoot.mapToItem(layerFlickable, 0, dragHandler.centroid.position.y)
-                                                root.lastDragYInFlick = p.y
+                                            onTranslationChanged: {
+                                                if (active) {
+                                                    // Compensate for flickable contentY changes during auto-scroll
+                                                    let compensatedY = translation.y + (layerFlickable.contentY - layerContainer.dragStartContentY);
+                                                    delegateRoot.dragOffsetY = compensatedY;
+                                                    // Calculate which item we're hovering over
+                                                    updateDropTarget();
+                                                    // Auto-scroll handled via timer using scene position
+                                                    const p = delegateRoot.mapToItem(layerFlickable, 0, dragHandler.centroid.position.y);
+                                                    root.lastDragYInFlick = p.y;
+                                                }
                                             }
-                                        }
 
-                                        function updateDropTarget() {
-                                            // Find which row we're over based on drag offset
-                                            let totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing
-                                            let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight)
-                                            let targetListIndex = delegateRoot.index + indexDelta
-                                            let rowCount = layerRepeater.count
-                                            targetListIndex = Math.max(0, Math.min(rowCount - 1, targetListIndex))
+                                            function updateDropTarget() {
+                                                // Find which row we're over based on drag offset
+                                                let totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing;
+                                                let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight);
+                                                let targetListIndex = delegateRoot.index + indexDelta;
+                                                let rowCount = layerRepeater.count;
+                                                targetListIndex = Math.max(0, Math.min(rowCount - 1, targetListIndex));
 
-                                            // Calculate fractional position within the target row
-                                            let exactOffset = delegateRoot.dragOffsetY / totalItemHeight
-                                            let fractionalPart = exactOffset - Math.floor(exactOffset)
-                                            let isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75
+                                                // Calculate fractional position within the target row
+                                                let exactOffset = delegateRoot.dragOffsetY / totalItemHeight;
+                                                let fractionalPart = exactOffset - Math.floor(exactOffset);
+                                                let isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75;
 
-                                            let targetItem = layerRepeater.itemAt(targetListIndex)
-                                            if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer" && isLayerParentingZone) {
-                                                // Center of a layer - show as drop target for parenting
-                                                root.dropTargetLayerId = targetItem.itemId
-                                                root.dropTargetParentId = null
-                                                root.dropInsertIndex = -1
-                                            } else {
-                                                // Edge zone - show insertion indicator
-                                                root.dropTargetLayerId = ""
-                                                root.dropTargetParentId = targetItem ? targetItem.parentId : null
-                                                // Insert indicator shows on the item below the insertion gap
-                                                if (fractionalPart >= 0.5) {
-                                                    // Dropping below target row, indicator on next item
-                                                    root.dropInsertIndex = Math.min(targetListIndex + 1, rowCount - 1)
+                                                let targetItem = layerRepeater.itemAt(targetListIndex);
+                                                if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer" && isLayerParentingZone) {
+                                                    // Center of a layer - show as drop target for parenting
+                                                    root.dropTargetLayerId = targetItem.itemId;
+                                                    root.dropTargetParentId = null;
+                                                    root.dropInsertIndex = -1;
                                                 } else {
-                                                    // Dropping above target row, indicator on target item
-                                                    root.dropInsertIndex = targetListIndex
+                                                    // Edge zone - show insertion indicator
+                                                    root.dropTargetLayerId = "";
+                                                    root.dropTargetParentId = targetItem ? targetItem.parentId : null;
+                                                    // Insert indicator shows on the item below the insertion gap
+                                                    if (fractionalPart >= 0.5) {
+                                                        // Dropping below target row, indicator on next item
+                                                        root.dropInsertIndex = Math.min(targetListIndex + 1, rowCount - 1);
+                                                    } else {
+                                                        // Dropping above target row, indicator on target item
+                                                        root.dropInsertIndex = targetListIndex;
+                                                    }
+                                                    // Hide indicator when dragging over self or adjacent position (no move would occur)
+                                                    if (root.dropInsertIndex === root.draggedIndex || root.dropInsertIndex === root.draggedIndex + 1) {
+                                                        root.dropInsertIndex = -1;
+                                                    }
                                                 }
-                                                // Hide indicator when dragging over self or adjacent position (no move would occur)
-                                                if (root.dropInsertIndex === root.draggedIndex || root.dropInsertIndex === root.draggedIndex + 1) {
-                                                    root.dropInsertIndex = -1
+                                            }
+                                        }
+
+                                        HoverHandler {
+                                            cursorShape: Qt.OpenHandCursor
+                                        }
+                                    }
+
+                                    Item {
+                                        id: nameEditor
+                                        Layout.fillWidth: true
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Layout.minimumWidth: 80
+                                        Layout.preferredWidth: 120
+                                        implicitWidth: Math.max(80, nameLabel.implicitWidth)
+                                        implicitHeight: nameLabel.implicitHeight
+                                        property bool isEditing: false
+                                        property string draftName: delegateRoot.name
+                                        property string originalName: delegateRoot.name
+
+                                        function startEditing() {
+                                            originalName = delegateRoot.name;
+                                            draftName = delegateRoot.name;
+                                            isEditing = true;
+                                            nameField.text = draftName;
+                                            nameField.selectAll();
+                                            nameField.forceActiveFocus();
+                                        }
+
+                                        function commitEditing() {
+                                            if (!isEditing)
+                                                return;
+                                            draftName = nameField.text;
+                                            isEditing = false;
+                                            if (draftName !== delegateRoot.name) {
+                                                canvasModel.renameItem(delegateRoot.index, draftName);
+                                            }
+                                        }
+
+                                        function cancelEditing() {
+                                            if (!isEditing)
+                                                return;
+                                            isEditing = false;
+                                            draftName = originalName;
+                                            nameField.text = originalName;
+                                        }
+
+                                        HoverHandler {
+                                            id: nameHoverHandler
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            enabled: !nameEditor.isEditing
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton
+                                            preventStealing: true
+                                            cursorShape: Qt.IBeamCursor
+                                            onClicked: {
+                                                DV.SelectionManager.selectedItemIndex = delegateRoot.index;
+                                                DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index);
+                                            }
+                                            onDoubleClicked: {
+                                                DV.SelectionManager.selectedItemIndex = delegateRoot.index;
+                                                DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index);
+                                                nameEditor.startEditing();
+                                            }
+                                        }
+
+                                        Label {
+                                            id: nameLabel
+                                            visible: !nameEditor.isEditing
+                                            text: delegateRoot.name
+                                            font.pixelSize: 11
+                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 40
+                                        }
+
+                                        TextField {
+                                            id: nameField
+                                            visible: nameEditor.isEditing
+                                            text: nameEditor.draftName
+                                            font.pixelSize: 11
+                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                            horizontalAlignment: Text.AlignLeft
+                                            verticalAlignment: TextInput.AlignVCenter
+                                            padding: 0
+                                            Layout.fillWidth: true
+                                            background: Rectangle {
+                                                color: "transparent"
+                                                border.color: "transparent"
+                                            }
+
+                                            Keys.onEscapePressed: nameEditor.cancelEditing()
+                                            onAccepted: nameEditor.commitEditing()
+                                            onActiveFocusChanged: {
+                                                if (!activeFocus && nameEditor.isEditing) {
+                                                    nameEditor.cancelEditing();
                                                 }
+                                            }
+                                            onTextChanged: nameEditor.draftName = text
+                                        }
+                                    }
+
+                                    Item {
+                                        id: visibilityButton
+                                        Layout.preferredWidth: 28
+                                        Layout.fillHeight: true
+
+                                        HoverHandler {
+                                            id: visibilityHover
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton
+                                            preventStealing: true
+                                            onClicked: {
+                                                canvasModel.toggleVisibility(delegateRoot.index);
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: visibilityHover.hovered ? DV.Theme.colors.panelHover : "transparent"
+                                            radius: DV.Theme.sizes.radiusSm
+
+                                            DV.PhIcon {
+                                                anchors.centerIn: parent
+                                                name: delegateRoot.modelVisible ? "eye" : "eye-closed"
+                                                size: 16
+                                                color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
                                             }
                                         }
                                     }
 
-                                    HoverHandler {
-                                        cursorShape: Qt.OpenHandCursor
-                                    }
-                                }
+                                    Item {
+                                        id: lockButton
+                                        Layout.preferredWidth: 28
+                                        Layout.fillHeight: true
 
-                                Item {
-                                    id: nameEditor
-                                    Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignVCenter
-                                    Layout.minimumWidth: 80
-                                    Layout.preferredWidth: 120
-                                    implicitWidth: Math.max(80, nameLabel.implicitWidth)
-                                    implicitHeight: nameLabel.implicitHeight
-                                    property bool isEditing: false
-                                    property string draftName: delegateRoot.name
-                                    property string originalName: delegateRoot.name
-
-                                    function startEditing() {
-                                        originalName = delegateRoot.name
-                                        draftName = delegateRoot.name
-                                        isEditing = true
-                                        nameField.text = draftName
-                                        nameField.selectAll()
-                                        nameField.forceActiveFocus()
-                                    }
-
-                                    function commitEditing() {
-                                        if (!isEditing)
-                                            return
-                                        draftName = nameField.text
-                                        isEditing = false
-                                        if (draftName !== delegateRoot.name) {
-                                            canvasModel.renameItem(delegateRoot.index, draftName)
+                                        HoverHandler {
+                                            id: lockHover
                                         }
-                                    }
 
-                                    function cancelEditing() {
-                                        if (!isEditing)
-                                            return
-                                        isEditing = false
-                                        draftName = originalName
-                                        nameField.text = originalName
-                                    }
-
-                                    HoverHandler {
-                                        id: nameHoverHandler
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        enabled: !nameEditor.isEditing
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton
-                                        preventStealing: true
-                                        cursorShape: Qt.IBeamCursor
-                                        onClicked: {
-                                            DV.SelectionManager.selectedItemIndex = delegateRoot.index
-                                            DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index)
-                                        }
-                                        onDoubleClicked: {
-                                            DV.SelectionManager.selectedItemIndex = delegateRoot.index
-                                            DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index)
-                                            nameEditor.startEditing()
-                                        }
-                                    }
-
-                                    Label {
-                                        id: nameLabel
-                                        visible: !nameEditor.isEditing
-                                        text: delegateRoot.name
-                                        font.pixelSize: 11
-                                        color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                        Layout.minimumWidth: 40
-                                    }
-
-                                    TextField {
-                                        id: nameField
-                                        visible: nameEditor.isEditing
-                                        text: nameEditor.draftName
-                                        font.pixelSize: 11
-                                        color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
-                                        horizontalAlignment: Text.AlignLeft
-                                        verticalAlignment: TextInput.AlignVCenter
-                                        padding: 0
-                                        Layout.fillWidth: true
-                                        background: Rectangle { color: "transparent"; border.color: "transparent" }
-
-                                        Keys.onEscapePressed: nameEditor.cancelEditing()
-                                        onAccepted: nameEditor.commitEditing()
-                                        onActiveFocusChanged: {
-                                            if (!activeFocus && nameEditor.isEditing) {
-                                                nameEditor.cancelEditing()
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton
+                                            preventStealing: true
+                                            onClicked: {
+                                                canvasModel.toggleLocked(delegateRoot.index);
                                             }
                                         }
-                                        onTextChanged: nameEditor.draftName = text
-                                    }
-                                }
 
-                                Item {
-                                    id: visibilityButton
-                                    Layout.preferredWidth: 28
-                                    Layout.fillHeight: true
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: lockHover.hovered ? DV.Theme.colors.panelHover : "transparent"
+                                            radius: DV.Theme.sizes.radiusSm
 
-                                    HoverHandler { id: visibilityHover }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton
-                                        preventStealing: true
-                                        onClicked: {
-                                            canvasModel.toggleVisibility(delegateRoot.index)
+                                            DV.PhIcon {
+                                                anchors.centerIn: parent
+                                                name: delegateRoot.modelLocked ? "lock" : "lock-open"
+                                                size: 16
+                                                color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                            }
                                         }
                                     }
 
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: visibilityHover.hovered ? DV.Theme.colors.panelHover : "transparent"
-                                        radius: DV.Theme.sizes.radiusSm
+                                    Item {
+                                        id: deleteButton
+                                        Layout.preferredWidth: 28
+                                        Layout.fillHeight: true
 
-                                        DV.PhIcon {
-                                            anchors.centerIn: parent
-                                            name: delegateRoot.modelVisible ? "eye" : "eye-closed"
-                                            size: 16
-                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                        HoverHandler {
+                                            id: deleteHover
                                         }
-                                    }
-                                }
 
-                                Item {
-                                    id: lockButton
-                                    Layout.preferredWidth: 28
-                                    Layout.fillHeight: true
-
-                                    HoverHandler { id: lockHover }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton
-                                        preventStealing: true
-                                        onClicked: {
-                                            canvasModel.toggleLocked(delegateRoot.index)
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton
+                                            preventStealing: true
+                                            onClicked: {
+                                                // Ensure selection reflects the target being deleted
+                                                DV.SelectionManager.selectedItemIndex = delegateRoot.index;
+                                                DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index);
+                                                canvasModel.removeItem(delegateRoot.index);
+                                            }
                                         }
-                                    }
 
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: lockHover.hovered ? DV.Theme.colors.panelHover : "transparent"
-                                        radius: DV.Theme.sizes.radiusSm
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            color: deleteHover.hovered ? DV.Theme.colors.panelHover : "transparent"
+                                            radius: DV.Theme.sizes.radiusSm
 
-                                        DV.PhIcon {
-                                            anchors.centerIn: parent
-                                            name: delegateRoot.modelLocked ? "lock" : "lock-open"
-                                            size: 16
-                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
-                                        }
-                                    }
-                                }
-
-                                Item {
-                                    id: deleteButton
-                                    Layout.preferredWidth: 28
-                                    Layout.fillHeight: true
-
-                                    HoverHandler { id: deleteHover }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton
-                                        preventStealing: true
-                                        onClicked: {
-                                            // Ensure selection reflects the target being deleted
-                                            DV.SelectionManager.selectedItemIndex = delegateRoot.index
-                                            DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.index)
-                                            canvasModel.removeItem(delegateRoot.index)
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: deleteHover.hovered ? DV.Theme.colors.panelHover : "transparent"
-                                        radius: DV.Theme.sizes.radiusSm
-
-                                        DV.PhIcon {
-                                            anchors.centerIn: parent
-                                            name: "trash"
-                                            size: 16
-                                            color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                            DV.PhIcon {
+                                                anchors.centerIn: parent
+                                                name: "trash"
+                                                size: 16
+                                                color: delegateRoot.isSelected ? "white" : DV.Theme.colors.textSubtle
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        Behavior on dragOffsetY {
-                            enabled: !delegateRoot.isBeingDragged
-                            NumberAnimation { duration: 100 }
+                            Behavior on dragOffsetY {
+                                enabled: !delegateRoot.isBeingDragged
+                                NumberAnimation {
+                                    duration: 100
+                                }
+                            }
                         }
                     }
-                }
                 }
 
                 Label {

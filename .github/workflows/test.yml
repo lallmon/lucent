@@ -50,6 +50,11 @@ jobs:
         run: |
           pip install -r requirements.txt -r requirements-dev.txt
       
+      - name: Check QML formatting
+        run: |
+          find . -name '*.qml' -not -path './.venv/*' -print0 | xargs -0 pyside6-qmlformat -i
+          git diff --exit-code
+
       - name: Run tests with coverage
         env:
           QT_QPA_PLATFORM: offscreen
