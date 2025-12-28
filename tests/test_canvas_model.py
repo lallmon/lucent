@@ -1968,3 +1968,296 @@ class TestZOrderRendering:
         assert items[3].name == "Child1"
         assert items[3].parent_id == layer1.id
 
+
+class TestLockedFunctionality:
+    """Tests for object lock feature."""
+
+    def test_locked_role_exists(self, canvas_model):
+        """LockedRole should be defined in role names."""
+        role_names = canvas_model.roleNames()
+        assert canvas_model.LockedRole in role_names
+        assert role_names[canvas_model.LockedRole] == b"modelLocked"
+
+    def test_locked_role_returns_false_by_default(self, canvas_model):
+        """LockedRole should return False for new items."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.LockedRole) is False
+
+    def test_toggle_locked_sets_locked_true(self, canvas_model, qtbot):
+        """toggleLocked should toggle item's locked state."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
+            canvas_model.toggleLocked(0)
+
+        assert blocker.args[0] == 0
+        assert blocker.args[1]["locked"] is True
+        assert canvas_model.getItems()[0].locked is True
+
+    def test_toggle_locked_toggles_back_to_false(self, canvas_model):
+        """toggleLocked should toggle locked from True back to False."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        assert canvas_model.getItems()[0].locked is True
+
+        canvas_model.toggleLocked(0)
+        assert canvas_model.getItems()[0].locked is False
+
+    def test_toggle_locked_supports_undo_redo(self, canvas_model):
+        """toggleLocked should support undo/redo."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        assert canvas_model.getItems()[0].locked is True
+
+        canvas_model.undo()
+        assert canvas_model.getItems()[0].locked is False
+
+        canvas_model.redo()
+        assert canvas_model.getItems()[0].locked is True
+
+    def test_toggle_locked_invalid_index_is_noop(self, canvas_model):
+        """toggleLocked with invalid index should do nothing."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        initial_can_undo = canvas_model.canUndo
+        canvas_model.toggleLocked(-1)
+        canvas_model.toggleLocked(5)
+        assert canvas_model.canUndo == initial_can_undo
+
+    def test_toggle_locked_on_layer(self, canvas_model):
+        """toggleLocked should work on layers."""
+        canvas_model.addLayer()
+        canvas_model.toggleLocked(0)
+        assert canvas_model.getItems()[0].locked is True
+
+    def test_toggle_locked_on_ellipse(self, canvas_model):
+        """toggleLocked should work on ellipses."""
+        canvas_model.addItem({"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10})
+        canvas_model.toggleLocked(0)
+        assert canvas_model.getItems()[0].locked is True
+
+    def test_locked_role_returns_true_after_toggle(self, canvas_model):
+        """LockedRole should return True after toggleLocked."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.LockedRole) is True
+
+    def test_get_item_data_includes_locked(self, canvas_model):
+        """getItemData should include locked property."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        data = canvas_model.getItemData(0)
+        assert data["locked"] is True
+
+    def test_locked_items_still_in_hit_test(self, canvas_model):
+        """Locked items should still appear in getItemsForHitTest (unlike hidden)."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        hit_items = canvas_model.getItemsForHitTest()
+        assert len(hit_items) == 1
+
+
+class TestEffectiveLockedFunctionality:
+    """Tests for effective locked behavior (children inherit parent layer's locked state)."""
+
+    def test_effective_locked_role_exists(self, canvas_model):
+        """EffectiveLockedRole should be defined in role names."""
+        role_names = canvas_model.roleNames()
+        assert canvas_model.EffectiveLockedRole in role_names
+        assert role_names[canvas_model.EffectiveLockedRole] == b"modelEffectiveLocked"
+
+    def test_effective_locked_false_by_default(self, canvas_model):
+        """EffectiveLockedRole should return False for unlocked items."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is False
+
+    def test_effective_locked_true_when_item_locked(self, canvas_model):
+        """EffectiveLockedRole should return True when item itself is locked."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.toggleLocked(0)
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is True
+
+    def test_child_effective_locked_when_parent_layer_locked(self, canvas_model):
+        """Child should be effectively locked when parent layer is locked."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        # Lock the parent layer
+        canvas_model.toggleLocked(0)
+
+        # Child's own locked is False, but effective locked should be True
+        idx_child = canvas_model.index(1, 0)
+        assert canvas_model.data(idx_child, canvas_model.LockedRole) is False
+        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
+
+    def test_child_not_effective_locked_when_parent_unlocked(self, canvas_model):
+        """Child should not be effectively locked when parent layer is unlocked."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        # Parent layer is not locked
+        idx_child = canvas_model.index(1, 0)
+        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is False
+
+    def test_unlocking_parent_restores_child_effective_state(self, canvas_model):
+        """Unlocking parent layer should restore child's effective locked state."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        # Lock parent, then unlock
+        canvas_model.toggleLocked(0)
+        idx_child = canvas_model.index(1, 0)
+        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
+
+        canvas_model.toggleLocked(0)  # Unlock parent
+        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is False
+
+    def test_child_locked_independently_of_parent(self, canvas_model):
+        """Child can be locked independently even when parent is unlocked."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.setParent(1, layer_id)
+
+        # Lock only the child
+        canvas_model.toggleLocked(1)
+
+        idx_child = canvas_model.index(1, 0)
+        assert canvas_model.data(idx_child, canvas_model.LockedRole) is True
+        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
+
+    def test_layer_effective_locked_equals_own_locked(self, canvas_model):
+        """Layer's effective locked should equal its own locked (no parent)."""
+        canvas_model.addLayer()
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is False
+
+        canvas_model.toggleLocked(0)
+        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is True
+
+
+class TestCoverageEdgeCases:
+    """Tests for edge cases and guard clauses to improve coverage."""
+
+    def test_row_count_with_valid_parent_returns_zero(self, canvas_model):
+        """rowCount returns 0 for hierarchical parent (flat model)."""
+        from PySide6.QtCore import QModelIndex
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        parent_idx = canvas_model.index(0, 0)
+        assert canvas_model.rowCount(parent_idx) == 0
+
+    def test_type_role_returns_ellipse(self, canvas_model):
+        """TypeRole returns 'ellipse' for EllipseItem."""
+        canvas_model.addItem({"type": "ellipse", "x": 0, "y": 0, "width": 10, "height": 10})
+        idx = canvas_model.index(0, 0)
+        assert canvas_model.data(idx, canvas_model.TypeRole) == "ellipse"
+
+    def test_index_role_returns_row(self, canvas_model):
+        """IndexRole returns the item's row index."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        idx = canvas_model.index(1, 0)
+        assert canvas_model.data(idx, canvas_model.IndexRole) == 1
+
+    def test_unhandled_role_returns_none(self, canvas_model):
+        """Unhandled role returns None."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        idx = canvas_model.index(0, 0)
+        # Use a role that doesn't exist
+        fake_role = 9999
+        assert canvas_model.data(idx, fake_role) is None
+
+    def test_is_effectively_locked_slot(self, canvas_model):
+        """isEffectivelyLocked slot returns correct value."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        assert canvas_model.isEffectivelyLocked(0) is False
+        canvas_model.toggleLocked(0)
+        assert canvas_model.isEffectivelyLocked(0) is True
+
+    def test_is_effectively_locked_invalid_index(self, canvas_model):
+        """isEffectivelyLocked returns False for invalid index."""
+        assert canvas_model.isEffectivelyLocked(-1) is False
+        assert canvas_model.isEffectivelyLocked(999) is False
+
+    def test_is_layer_locked_nonexistent_layer(self, canvas_model):
+        """_is_layer_locked returns False for nonexistent layer ID."""
+        canvas_model.addLayer()
+        # Access private method to test edge case
+        assert canvas_model._is_layer_locked("nonexistent-id") is False
+
+    def test_is_layer_visible_nonexistent_layer(self, canvas_model):
+        """_is_layer_visible returns True for nonexistent layer ID."""
+        canvas_model.addLayer()
+        # Access private method to test edge case
+        assert canvas_model._is_layer_visible("nonexistent-id") is True
+
+    def test_find_last_child_position_nonexistent_layer(self, canvas_model):
+        """_findLastChildPosition returns end of list for nonexistent layer."""
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        result = canvas_model._findLastChildPosition("nonexistent-id")
+        assert result == canvas_model.rowCount()
+
+    def test_find_last_child_position_next_item_is_layer(self, canvas_model):
+        """_findLastChildPosition returns correct index when next item is a layer."""
+        canvas_model.addLayer()  # Layer at index 0
+        layer_id = canvas_model.data(canvas_model.index(0, 0), canvas_model.ItemIdRole)
+        canvas_model.addLayer()  # Layer at index 1
+        # Position for first layer's children should be before second layer
+        result = canvas_model._findLastChildPosition(layer_id)
+        assert result == 1
+
+    def test_reparent_item_when_source_before_target(self, canvas_model):
+        """reparentItem adjusts target when source item is before target position."""
+        # Create: rect0, layer, rect1
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        canvas_model.addLayer()
+        canvas_model.addItem({"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10})
+        
+        layer_id = canvas_model.data(canvas_model.index(1, 0), canvas_model.ItemIdRole)
+        
+        # Reparent rect0 (index 0) to layer (index 1)
+        # This should trigger the adjustment since item_index < target_index
+        canvas_model.reparentItem(0, layer_id)
+        
+        # Verify rect0 is now a child of the layer
+        rect_parent = canvas_model.data(canvas_model.index(1, 0), canvas_model.ParentIdRole)
+        assert rect_parent == layer_id
+
+    def test_is_effectively_visible_invalid_index(self, canvas_model):
+        """_is_effectively_visible returns False for invalid index."""
+        assert canvas_model._is_effectively_visible(-1) is False
+        assert canvas_model._is_effectively_visible(999) is False
+
+    def test_add_item_with_invalid_schema(self, canvas_model):
+        """addItem handles schema validation errors gracefully."""
+        # Invalid numeric field should trigger schema error
+        canvas_model.addItem({"type": "rectangle", "x": "not-a-number", "y": 0, "width": 10, "height": 10})
+        # Should not crash, and no item should be added
+        assert canvas_model.rowCount() == 0
+
+    def test_execute_command_without_recording(self, canvas_model):
+        """_execute_command with record=False executes without history."""
+        from commands import AddItemCommand
+        from item_schema import parse_item_data
+        
+        parsed = parse_item_data({
+            "type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "name": "Test"
+        })
+        command = AddItemCommand(canvas_model, parsed.data)
+        
+        # Execute without recording
+        canvas_model._execute_command(command, record=False)
+        
+        assert canvas_model.rowCount() == 1
+        # Undo should not be available since we didn't record
+        assert canvas_model.canUndo is False
+

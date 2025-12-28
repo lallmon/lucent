@@ -139,3 +139,76 @@ def test_item_to_dict_rejects_unknown():
     with pytest.raises(ItemSchemaError):
         item_to_dict(Unknown())
 
+
+class TestLockedSerialization:
+    """Tests for locked property validation and serialization."""
+
+    def test_validate_rectangle_includes_locked(self):
+        """validate_rectangle should include locked in output."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "locked": True}
+        out = validate_rectangle(data)
+        assert out["locked"] is True
+
+    def test_validate_rectangle_locked_defaults_false(self):
+        """validate_rectangle should default locked to False."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        out = validate_rectangle(data)
+        assert out["locked"] is False
+
+    def test_validate_ellipse_includes_locked(self):
+        """validate_ellipse should include locked in output."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10, "locked": True}
+        out = validate_ellipse(data)
+        assert out["locked"] is True
+
+    def test_validate_ellipse_locked_defaults_false(self):
+        """validate_ellipse should default locked to False."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10}
+        out = validate_ellipse(data)
+        assert out["locked"] is False
+
+    def test_validate_layer_includes_locked(self):
+        """validate_layer should include locked in output."""
+        data = {"type": "layer", "name": "Test", "locked": True}
+        out = validate_layer(data)
+        assert out["locked"] is True
+
+    def test_validate_layer_locked_defaults_false(self):
+        """validate_layer should default locked to False."""
+        data = {"type": "layer", "name": "Test"}
+        out = validate_layer(data)
+        assert out["locked"] is False
+
+    def test_parse_item_rectangle_preserves_locked(self):
+        """parse_item should create RectangleItem with locked property."""
+        rect = parse_item({"type": "rectangle", "width": 10, "height": 10, "locked": True})
+        assert rect.locked is True
+
+    def test_parse_item_ellipse_preserves_locked(self):
+        """parse_item should create EllipseItem with locked property."""
+        ell = parse_item({"type": "ellipse", "radiusX": 10, "radiusY": 10, "locked": True})
+        assert ell.locked is True
+
+    def test_parse_item_layer_preserves_locked(self):
+        """parse_item should create LayerItem with locked property."""
+        layer = parse_item({"type": "layer", "locked": True})
+        assert layer.locked is True
+
+    def test_item_to_dict_rectangle_includes_locked(self):
+        """item_to_dict should include locked for RectangleItem."""
+        rect = RectangleItem(x=0, y=0, width=10, height=10, locked=True)
+        out = item_to_dict(rect)
+        assert out["locked"] is True
+
+    def test_item_to_dict_ellipse_includes_locked(self):
+        """item_to_dict should include locked for EllipseItem."""
+        ell = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10, locked=True)
+        out = item_to_dict(ell)
+        assert out["locked"] is True
+
+    def test_item_to_dict_layer_includes_locked(self):
+        """item_to_dict should include locked for LayerItem."""
+        layer = LayerItem(name="Test", locked=True)
+        out = item_to_dict(layer)
+        assert out["locked"] is True
+

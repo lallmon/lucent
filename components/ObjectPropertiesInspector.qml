@@ -18,6 +18,10 @@ ScrollView {
     readonly property bool isShapeSelected: selectedItem !== null && 
         (selectedItem.type === "rectangle" || selectedItem.type === "ellipse")
     
+    // Helper to check if selected item is effectively locked (own state or parent layer locked)
+    readonly property bool isLocked: DV.SelectionManager.selectedItemIndex >= 0 && 
+        canvasModel.isEffectivelyLocked(DV.SelectionManager.selectedItemIndex)
+    
     readonly property int labelSize: 11
     readonly property color labelColor: DV.Theme.colors.textSubtle
     
@@ -76,6 +80,7 @@ ScrollView {
                     rowSpacing: 4
                     columnSpacing: 8
                     Layout.fillWidth: true
+                    enabled: !root.isLocked
 
                     Label { text: qsTr("X:"); font.pixelSize: root.labelSize; color: root.labelColor }
                     SpinBox {
@@ -132,6 +137,7 @@ ScrollView {
                     rowSpacing: 4
                     columnSpacing: 8
                     Layout.fillWidth: true
+                    enabled: !root.isLocked
 
                     Label { text: qsTr("Center X:"); font.pixelSize: root.labelSize; color: root.labelColor }
                     SpinBox {
@@ -215,6 +221,7 @@ ScrollView {
                 Layout.fillWidth: true
                 spacing: 6
                 visible: root.isShapeSelected
+                enabled: !root.isLocked
 
                 PropertySeparator {}
 

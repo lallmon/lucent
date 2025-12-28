@@ -538,3 +538,73 @@ class TestShapeParentId:
         ellipse = EllipseItem.from_dict(data)
         assert ellipse.parent_id is None
 
+
+class TestLockedProperty:
+    """Tests for locked property on canvas items."""
+
+    def test_rectangle_unlocked_by_default(self):
+        """RectangleItem should be unlocked by default."""
+        rect = RectangleItem(x=0, y=0, width=10, height=10)
+        assert rect.locked is False
+
+    def test_rectangle_with_locked_true(self):
+        """RectangleItem can be created with locked=True."""
+        rect = RectangleItem(x=0, y=0, width=10, height=10, locked=True)
+        assert rect.locked is True
+
+    def test_rectangle_from_dict_with_locked(self):
+        """RectangleItem.from_dict should parse locked."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10, "locked": True}
+        rect = RectangleItem.from_dict(data)
+        assert rect.locked is True
+
+    def test_rectangle_from_dict_locked_defaults_false(self):
+        """RectangleItem.from_dict should default locked to False."""
+        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        rect = RectangleItem.from_dict(data)
+        assert rect.locked is False
+
+    def test_ellipse_unlocked_by_default(self):
+        """EllipseItem should be unlocked by default."""
+        ellipse = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10)
+        assert ellipse.locked is False
+
+    def test_ellipse_with_locked_true(self):
+        """EllipseItem can be created with locked=True."""
+        ellipse = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10, locked=True)
+        assert ellipse.locked is True
+
+    def test_ellipse_from_dict_with_locked(self):
+        """EllipseItem.from_dict should parse locked."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10, "locked": True}
+        ellipse = EllipseItem.from_dict(data)
+        assert ellipse.locked is True
+
+    def test_ellipse_from_dict_locked_defaults_false(self):
+        """EllipseItem.from_dict should default locked to False."""
+        data = {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10}
+        ellipse = EllipseItem.from_dict(data)
+        assert ellipse.locked is False
+
+    def test_layer_unlocked_by_default(self):
+        """LayerItem should be unlocked by default."""
+        layer = LayerItem(name="Test")
+        assert layer.locked is False
+
+    def test_layer_with_locked_true(self):
+        """LayerItem can be created with locked=True."""
+        layer = LayerItem(name="Test", locked=True)
+        assert layer.locked is True
+
+    def test_layer_from_dict_with_locked(self):
+        """LayerItem.from_dict should parse locked."""
+        data = {"type": "layer", "name": "Test", "locked": True}
+        layer = LayerItem.from_dict(data)
+        assert layer.locked is True
+
+    def test_layer_from_dict_locked_defaults_false(self):
+        """LayerItem.from_dict should default locked to False."""
+        data = {"type": "layer", "name": "Test"}
+        layer = LayerItem.from_dict(data)
+        assert layer.locked is False
+

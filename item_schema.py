@@ -64,12 +64,14 @@ def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
     visible = bool(data.get("visible", True))
+    locked = bool(data.get("locked", False))
 
     return {
         "type": ItemType.RECTANGLE.value,
         "name": name,
         "parentId": parent_id,
         "visible": visible,
+        "locked": locked,
         "x": x,
         "y": y,
         "width": width,
@@ -99,12 +101,14 @@ def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
     visible = bool(data.get("visible", True))
+    locked = bool(data.get("locked", False))
 
     return {
         "type": ItemType.ELLIPSE.value,
         "name": name,
         "parentId": parent_id,
         "visible": visible,
+        "locked": locked,
         "centerX": center_x,
         "centerY": center_y,
         "radiusX": radius_x,
@@ -121,11 +125,13 @@ def validate_layer(data: Dict[str, Any]) -> Dict[str, Any]:
     name = str(data.get("name", ""))
     layer_id = data.get("id") or None
     visible = bool(data.get("visible", True))
+    locked = bool(data.get("locked", False))
     return {
         "type": ItemType.LAYER.value,
         "id": layer_id,
         "name": name,
         "visible": visible,
+        "locked": locked,
     }
 
 
@@ -161,6 +167,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
+            locked=d.get("locked", False),
         )
     if t is ItemType.ELLIPSE:
         return EllipseItem(
@@ -176,9 +183,15 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
+            locked=d.get("locked", False),
         )
     if t is ItemType.LAYER:
-        return LayerItem(name=d["name"], layer_id=d.get("id"), visible=d.get("visible", True))
+        return LayerItem(
+            name=d["name"],
+            layer_id=d.get("id"),
+            visible=d.get("visible", True),
+            locked=d.get("locked", False),
+        )
     raise ItemSchemaError(f"Unsupported item type: {parsed.type}")
 
 
@@ -189,6 +202,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "name": item.name,
             "parentId": item.parent_id,
             "visible": getattr(item, "visible", True),
+            "locked": getattr(item, "locked", False),
             "x": item.x,
             "y": item.y,
             "width": item.width,
@@ -205,6 +219,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "name": item.name,
             "parentId": item.parent_id,
             "visible": getattr(item, "visible", True),
+            "locked": getattr(item, "locked", False),
             "centerX": item.center_x,
             "centerY": item.center_y,
             "radiusX": item.radius_x,
@@ -221,6 +236,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "id": item.id,
             "name": item.name,
             "visible": getattr(item, "visible", True),
+            "locked": getattr(item, "locked", False),
         }
     raise ItemSchemaError(f"Cannot serialize unknown item type: {type(item).__name__}")
 

@@ -292,6 +292,7 @@ Item {
         
         var item = DV.SelectionManager.selectedItem;
         if (!item) return;
+        if (canvasModel.isEffectivelyLocked(index)) return;
         
         var properties = {};
         if (item.type === "rectangle") {
@@ -308,6 +309,7 @@ Item {
     function deleteSelectedItem() {
         if (DV.SelectionManager.selectedItemIndex >= 0) {
             var index = DV.SelectionManager.selectedItemIndex;
+            if (canvasModel.isEffectivelyLocked(index)) return;
             DV.SelectionManager.selectedItemIndex = -1;
             DV.SelectionManager.selectedItem = null;
             canvasModel.removeItem(index);

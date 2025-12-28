@@ -29,6 +29,8 @@ class CanvasModel(QAbstractListModel):
     ParentIdRole = Qt.UserRole + 5    # Parent layer ID for shapes
     VisibleRole = Qt.UserRole + 6
     EffectiveVisibleRole = Qt.UserRole + 7
+    LockedRole = Qt.UserRole + 8
+    EffectiveLockedRole = Qt.UserRole + 9
 
     # Legacy signals (kept for backward compatibility with CanvasRenderer)
     itemAdded = Signal(int)
@@ -87,6 +89,10 @@ class CanvasModel(QAbstractListModel):
             return getattr(item, "visible", True)
         elif role == self.EffectiveVisibleRole:
             return self._is_effectively_visible(index.row())
+        elif role == self.LockedRole:
+            return getattr(item, "locked", False)
+        elif role == self.EffectiveLockedRole:
+            return self._is_effectively_locked(index.row())
         return None
 
     def roleNames(self) -> Dict[int, bytes]:
@@ -98,6 +104,8 @@ class CanvasModel(QAbstractListModel):
             self.ParentIdRole: b"parentId",
             self.VisibleRole: b"modelVisible",
             self.EffectiveVisibleRole: b"modelEffectiveVisible",
+            self.LockedRole: b"modelLocked",
+            self.EffectiveLockedRole: b"modelEffectiveLocked",
         }
 
     def _execute_command(self, command: Command, record: bool = True) -> None:
@@ -160,6 +168,26 @@ class CanvasModel(QAbstractListModel):
             if isinstance(candidate, LayerItem) and candidate.id == layer_id:
                 return getattr(candidate, "visible", True)
         return True
+
+    def _is_effectively_locked(self, index: int) -> bool:
+        if not (0 <= index < len(self._items)):
+            return False
+        item = self._items[index]
+        locked = getattr(item, "locked", False)
+        if locked:
+            return True
+        # Shapes respect parent layer locked state
+        if isinstance(item, (RectangleItem, EllipseItem)):
+            parent_id = item.parent_id
+            if parent_id:
+                return self._is_layer_locked(parent_id)
+        return locked
+
+    def _is_layer_locked(self, layer_id: str) -> bool:
+        for candidate in self._items:
+            if isinstance(candidate, LayerItem) and candidate.id == layer_id:
+                return getattr(candidate, "locked", False)
+        return False
 
     @Slot(dict)
     def addItem(self, item_data: Dict[str, Any]) -> None:
@@ -449,6 +477,20 @@ class CanvasModel(QAbstractListModel):
         item = self._items[index]
         current_visible = getattr(item, "visible", True)
         self.updateItem(index, {"visible": not current_visible})
+
+    @Slot(int)
+    def toggleLocked(self, index: int) -> None:
+        """Toggle locked state for an item with undo/redo support."""
+        if not (0 <= index < len(self._items)):
+            return
+        item = self._items[index]
+        current_locked = getattr(item, "locked", False)
+        self.updateItem(index, {"locked": not current_locked})
+
+    @Slot(int, result=bool)
+    def isEffectivelyLocked(self, index: int) -> bool:
+        """Check if item is effectively locked (own state or parent layer locked)."""
+        return self._is_effectively_locked(index)
 
     @Slot(result=int)
     def count(self) -> int:
