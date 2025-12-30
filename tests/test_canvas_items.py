@@ -1,8 +1,6 @@
 """Unit tests for canvas_items module."""
 
-import pytest
-from PySide6.QtGui import QPainter, QColor
-from PySide6.QtCore import QRectF
+from PySide6.QtGui import QPainter
 from lucent.canvas_items import (
     CanvasItem,
     RectangleItem,
@@ -11,7 +9,7 @@ from lucent.canvas_items import (
     CANVAS_OFFSET_X,
     CANVAS_OFFSET_Y,
 )
-from PySide6.QtGui import QImage, QPainter
+from PySide6.QtGui import QImage
 from PySide6.QtCore import QSize
 
 

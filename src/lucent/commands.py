@@ -11,8 +11,6 @@ from lucent.canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerIte
 from lucent.item_schema import (
     parse_item,
     parse_item_data,
-    item_to_dict,
-    ItemSchemaError,
 )
 
 
@@ -113,7 +111,8 @@ class RemoveItemCommand(Command):
                     self._model.beginRemoveRows(QModelIndex(), child_index, child_index)
                     del self._model._items[child_index]
                     self._model.endRemoveRows()
-                    # Do not emit itemRemoved for children; primary removal will emit once for the layer
+                    # Do not emit itemRemoved for children; primary removal will
+                    # emit once for the layer
 
             self._model.beginRemoveRows(QModelIndex(), self._index, self._index)
             del self._model._items[self._index]

@@ -5,10 +5,12 @@ Lucent - Main application entry point.
 This module initializes the Qt application, registers QML components,
 and launches the main window.
 """
+
 import sys
 import os
 from pathlib import Path
 
+from typing import cast
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import Qt
@@ -24,11 +26,13 @@ if __name__ == "__main__":
     os.environ["QSG_RENDER_LOOP"] = "basic"  # Use basic render loop for better sync
 
     # Enable desktop OpenGL for better performance
-    QGuiApplication.setAttribute(Qt.AA_UseDesktopOpenGL)
+    QGuiApplication.setAttribute(Qt.AA_UseDesktopOpenGL)  # type: ignore[attr-defined]
 
     app = QGuiApplication(sys.argv)
 
-    qmlRegisterType(CanvasRenderer, "CanvasRendering", 1, 0, "CanvasRenderer")
+    qmlRegisterType(
+        cast(type, CanvasRenderer), "CanvasRendering", 1, 0, "CanvasRenderer"
+    )  # type: ignore[call-overload]
 
     engine = QQmlApplicationEngine()
 

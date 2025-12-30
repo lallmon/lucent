@@ -1,14 +1,8 @@
 """Unit tests for canvas_model module."""
 
-import pytest
-from lucent.canvas_model import CanvasModel
 from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem
 from lucent.commands import (
-    Command,
     AddItemCommand,
-    RemoveItemCommand,
-    UpdateItemCommand,
-    TransactionCommand,
 )
 from types import SimpleNamespace
 
@@ -1473,7 +1467,6 @@ class TestCanvasModelListModel:
 
     def test_data_returns_name_role(self, canvas_model):
         """data() should return item name for NameRole."""
-        from PySide6.QtCore import Qt
 
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
@@ -1787,7 +1780,7 @@ class TestCanvasModelLayerDeletion:
         assert canvas_model.count() == 0
 
     def test_delete_layer_with_multiple_children_removes_them(self, canvas_model):
-        """Deleting a layer should remove all its children, leaving other items intact."""
+        """Deleting a layer should remove all its children, keeping others."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
 
@@ -2108,8 +2101,6 @@ class TestCanvasModelReparentItem:
         canvas_model.addLayer()
 
         layer1 = canvas_model.getItems()[0]
-        layer2 = canvas_model.getItems()[1]
-
         initial_can_undo = canvas_model.canUndo
         canvas_model.reparentItem(1, layer1.id)
 
@@ -2193,7 +2184,7 @@ class TestCanvasModelReparentItem:
         assert canvas_model.canUndo == initial_can_undo
 
     def test_find_last_child_position_no_children(self, canvas_model):
-        """_findLastChildPosition should return position after layer when no children."""
+        """_findLastChildPosition returns after layer when no children."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
         canvas_model.addItem(
@@ -2225,7 +2216,7 @@ class TestCanvasModelReparentItem:
         assert pos == 2  # Should insert before the top-level rect
 
     def test_find_last_child_position_at_end(self, canvas_model):
-        """_findLastChildPosition should return end of list if no top-level after layer."""
+        """_findLastChildPosition returns end if no top-level after layer."""
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
         )  # Top-level
@@ -2318,7 +2309,6 @@ class TestLayerMoveWithChildren:
         canvas_model.setParent(2, layer1.id)
 
         canvas_model.addLayer()
-        layer2 = canvas_model.getItems()[3]
 
         # Order: [Layer1, Rect1, Ellipse1, Layer2]
         assert canvas_model.count() == 4
@@ -2683,7 +2673,7 @@ class TestLockedFunctionality:
 
 
 class TestEffectiveLockedFunctionality:
-    """Tests for effective locked behavior (children inherit parent layer's locked state)."""
+    """Tests for effective locked behavior (children inherit parent lock)."""
 
     def test_effective_locked_role_exists(self, canvas_model):
         """EffectiveLockedRole should be defined in role names."""
@@ -2786,7 +2776,6 @@ class TestCoverageEdgeCases:
 
     def test_row_count_with_valid_parent_returns_zero(self, canvas_model):
         """rowCount returns 0 for hierarchical parent (flat model)."""
-        from PySide6.QtCore import QModelIndex
 
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
@@ -2911,7 +2900,6 @@ class TestCoverageEdgeCases:
 
     def test_execute_command_without_recording(self, canvas_model):
         """_execute_command with record=False executes without history."""
-        from lucent.commands import AddItemCommand
         from lucent.item_schema import parse_item_data
 
         parsed = parse_item_data(

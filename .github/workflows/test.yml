@@ -56,7 +56,23 @@ jobs:
           find . -name '*.qml' -not -path './.venv/*' -print0 | xargs -0 pyside6-qmlformat -i
           git diff --exit-code
 
-      - name: Python unit tests with coverage
+      - name: QML Lint
+        run: |
+          pyside6-qmllint -I components App.qml
+
+      - name: Python Format (ruff)
+        run: |
+          ruff format --check .
+
+      - name: Python Lint (ruff)
+        run: |
+          ruff check .
+
+      - name: Python Type Check (mypy)
+        run: |
+          mypy --config-file mypy.ini src tests main.py
+
+      - name: Python Unit Tests + Coverage Report
         env:
           QT_QPA_PLATFORM: offscreen
         run: |

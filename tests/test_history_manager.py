@@ -1,8 +1,6 @@
 """Tests for HistoryManager undo/redo orchestration."""
 
-import pytest
-
-from lucent.commands import Command, TransactionCommand
+from lucent.commands import Command
 from lucent.history_manager import HistoryManager
 
 

@@ -10,9 +10,31 @@ repos:
         args: ["-i"]
         files: "\\.qml$"
         pass_filenames: true
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
     hooks:
-      - id: black
+      - id: ruff-format
+        name: ruff (format)
         language_version: python3.10
+      - id: ruff
+        name: ruff (lint)
+        args: ["--fix", "--show-fixes"]
+        language_version: python3.10
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.1
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-PySide6
+        language_version: python3.10
+        args: ["--config-file", "mypy.ini"]
+  - repo: local
+    hooks:
+      - id: qmllint
+        name: qmllint (PySide6)
+        entry: pyside6-qmllint
+        language: python
+        additional_dependencies:
+          - PySide6==6.10.1
+        files: "\\.qml$"
 
