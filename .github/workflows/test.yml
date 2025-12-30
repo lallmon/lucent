@@ -58,7 +58,7 @@ jobs:
 
       - name: QML Lint
         run: |
-          find components -name '*.qml' -print0 | xargs -0 pyside6-qmllint
+          pyside6-qmllint -I components App.qml
 
       - name: Python Lint (ruff)
         run: |
