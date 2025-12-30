@@ -1,14 +1,8 @@
 """Unit tests for canvas_model module."""
 
-import pytest
-from lucent.canvas_model import CanvasModel
 from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem
 from lucent.commands import (
-    Command,
     AddItemCommand,
-    RemoveItemCommand,
-    UpdateItemCommand,
-    TransactionCommand,
 )
 from types import SimpleNamespace
 
@@ -1473,7 +1467,6 @@ class TestCanvasModelListModel:
 
     def test_data_returns_name_role(self, canvas_model):
         """data() should return item name for NameRole."""
-        from PySide6.QtCore import Qt
 
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
@@ -2108,8 +2101,6 @@ class TestCanvasModelReparentItem:
         canvas_model.addLayer()
 
         layer1 = canvas_model.getItems()[0]
-        layer2 = canvas_model.getItems()[1]
-
         initial_can_undo = canvas_model.canUndo
         canvas_model.reparentItem(1, layer1.id)
 
@@ -2318,7 +2309,6 @@ class TestLayerMoveWithChildren:
         canvas_model.setParent(2, layer1.id)
 
         canvas_model.addLayer()
-        layer2 = canvas_model.getItems()[3]
 
         # Order: [Layer1, Rect1, Ellipse1, Layer2]
         assert canvas_model.count() == 4
@@ -2786,7 +2776,6 @@ class TestCoverageEdgeCases:
 
     def test_row_count_with_valid_parent_returns_zero(self, canvas_model):
         """rowCount returns 0 for hierarchical parent (flat model)."""
-        from PySide6.QtCore import QModelIndex
 
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
@@ -2911,7 +2900,6 @@ class TestCoverageEdgeCases:
 
     def test_execute_command_without_recording(self, canvas_model):
         """_execute_command with record=False executes without history."""
-        from lucent.commands import AddItemCommand
         from lucent.item_schema import parse_item_data
 
         parsed = parse_item_data(

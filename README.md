@@ -27,3 +27,11 @@ There's plenty to do but the end goal is pretty clear for me, so if you want to 
 Run the app: `python main.py`
 
 Run tests: `pytest -q`
+
+Lint/type checks:
+- QML format: `pyside6-qmlformat -i components/*.qml`
+- QML lint: `pyside6-qmllint components/*.qml`
+- Python format: `black .`
+- Python lint: `ruff check .`
+- Type check: `mypy --config-file mypy.ini src tests main.py`
+- All hooks: `pre-commit run --all-files`

@@ -7,7 +7,7 @@ that bridges QML and Python, rendering canvas items using QPainter.
 
 from typing import Optional, List, TYPE_CHECKING
 from PySide6.QtCore import Property, Signal, Slot, QObject
-from PySide6.QtQuick import QQuickPaintedItem
+from PySide6.QtQuick import QQuickPaintedItem, QQuickItem
 from PySide6.QtGui import QPainter
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ class CanvasRenderer(QQuickPaintedItem):
 
     zoomLevelChanged = Signal()
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: Optional[QQuickItem] = None) -> None:
         super().__init__(parent)
         self._model: Optional["CanvasModel"] = None
         self._zoom_level: float = 1.0
@@ -58,7 +58,7 @@ class CanvasRenderer(QQuickPaintedItem):
         if not self._model:
             return
 
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.Antialiasing, True)  # type: ignore[attr-defined]
 
         # Get ordered items respecting parent-child grouping
         ordered_items = self._get_render_order()
@@ -75,7 +75,7 @@ class CanvasRenderer(QQuickPaintedItem):
     def zoomLevel(self) -> float:
         return self._zoom_level
 
-    @zoomLevel.setter
+    @zoomLevel.setter  # type: ignore[no-redef]
     def zoomLevel(self, value: float) -> None:
         if self._zoom_level != value:
             self._zoom_level = value

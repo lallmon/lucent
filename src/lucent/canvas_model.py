@@ -1,14 +1,16 @@
 """Canvas model for Lucent - manages canvas items with undo/redo support."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from PySide6.QtCore import (
     QAbstractListModel,
     QModelIndex,
+    QPersistentModelIndex,
     Qt,
     Signal,
     Slot,
     Property,
     QObject,
+    QByteArray,
 )
 from lucent.canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerItem
 from lucent.commands import (
@@ -34,21 +36,21 @@ class CanvasModel(QAbstractListModel):
     """Manages CanvasItem objects as a Qt list model with undo/redo support."""
 
     # Custom roles for QML data binding
-    NameRole = Qt.UserRole + 1
-    TypeRole = Qt.UserRole + 2
-    IndexRole = Qt.UserRole + 3
-    ItemIdRole = Qt.UserRole + 4  # Unique ID for layers
-    ParentIdRole = Qt.UserRole + 5  # Parent layer ID for shapes
-    VisibleRole = Qt.UserRole + 6
-    EffectiveVisibleRole = Qt.UserRole + 7
-    LockedRole = Qt.UserRole + 8
-    EffectiveLockedRole = Qt.UserRole + 9
+    NameRole = Qt.UserRole + 1  # type: ignore[attr-defined]
+    TypeRole = Qt.UserRole + 2  # type: ignore[attr-defined]
+    IndexRole = Qt.UserRole + 3  # type: ignore[attr-defined]
+    ItemIdRole = Qt.UserRole + 4  # type: ignore[attr-defined]
+    ParentIdRole = Qt.UserRole + 5  # type: ignore[attr-defined]
+    VisibleRole = Qt.UserRole + 6  # type: ignore[attr-defined]
+    EffectiveVisibleRole = Qt.UserRole + 7  # type: ignore[attr-defined]
+    LockedRole = Qt.UserRole + 8  # type: ignore[attr-defined]
+    EffectiveLockedRole = Qt.UserRole + 9  # type: ignore[attr-defined]
 
     # Legacy signals (kept for backward compatibility with CanvasRenderer)
     itemAdded = Signal(int)
     itemRemoved = Signal(int)
     itemsCleared = Signal()
-    itemModified = Signal(int, "QVariant")  # index and item data
+    itemModified = Signal(int, object)  # index and item data
     itemsReordered = Signal()
     undoStackChanged = Signal()
     redoStackChanged = Signal()
@@ -65,12 +67,18 @@ class CanvasModel(QAbstractListModel):
         self._type_counters: Dict[str, int] = {}
 
     # QAbstractListModel required methods
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def rowCount(
+        self, parent: Union[QModelIndex, QPersistentModelIndex] = QModelIndex()
+    ) -> int:
         if parent.isValid():
             return 0
         return len(self._items)
 
-    def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
+    def data(
+        self,
+        index: Union[QModelIndex, QPersistentModelIndex],
+        role: int = Qt.DisplayRole,  # type: ignore[attr-defined]
+    ) -> Any:
         if not index.isValid() or not (0 <= index.row() < len(self._items)):
             return None
 
@@ -107,17 +115,17 @@ class CanvasModel(QAbstractListModel):
             return self._is_effectively_locked(index.row())
         return None
 
-    def roleNames(self) -> Dict[int, bytes]:
+    def roleNames(self) -> Dict[int, QByteArray]:
         return {
-            self.NameRole: b"name",
-            self.TypeRole: b"itemType",
-            self.IndexRole: b"itemIndex",
-            self.ItemIdRole: b"itemId",
-            self.ParentIdRole: b"parentId",
-            self.VisibleRole: b"modelVisible",
-            self.EffectiveVisibleRole: b"modelEffectiveVisible",
-            self.LockedRole: b"modelLocked",
-            self.EffectiveLockedRole: b"modelEffectiveLocked",
+            self.NameRole: QByteArray(b"name"),
+            self.TypeRole: QByteArray(b"itemType"),
+            self.IndexRole: QByteArray(b"itemIndex"),
+            self.ItemIdRole: QByteArray(b"itemId"),
+            self.ParentIdRole: QByteArray(b"parentId"),
+            self.VisibleRole: QByteArray(b"modelVisible"),
+            self.EffectiveVisibleRole: QByteArray(b"modelEffectiveVisible"),
+            self.LockedRole: QByteArray(b"modelLocked"),
+            self.EffectiveLockedRole: QByteArray(b"modelEffectiveLocked"),
         }
 
     def _execute_command(self, command: Command, record: bool = True) -> None:
@@ -273,7 +281,7 @@ class CanvasModel(QAbstractListModel):
         self._execute_command(command)
 
     @Slot(int, str)
-    def setParent(self, item_index: int, parent_id: str) -> None:
+    def setParent(self, item_index: int, parent_id: str) -> None:  # type: ignore[override]
         """Set the parent layer for a shape item.
 
         Args:
@@ -422,7 +430,6 @@ class CanvasModel(QAbstractListModel):
         # Use a transaction to group both operations for single undo
         # Store old state
         old_props = self._itemToDict(item)
-        old_index = item_index
 
         # Set parent
         item.parent_id = new_parent_id
@@ -544,13 +551,13 @@ class CanvasModel(QAbstractListModel):
     def getItems(self) -> List[CanvasItem]:
         return self._items
 
-    @Slot(int, result="QVariant")
+    @Slot(int, result=object)
     def getItemData(self, index: int) -> Optional[Dict[str, Any]]:
         if 0 <= index < len(self._items):
             return self._itemToDict(self._items[index])
         return None
 
-    @Slot(result="QVariantList")
+    @Slot(result=object)
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:
         visible_items: List[Dict[str, Any]] = []
         for idx, item in enumerate(self._items):

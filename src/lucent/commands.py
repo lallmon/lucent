@@ -11,8 +11,6 @@ from lucent.canvas_items import CanvasItem, RectangleItem, EllipseItem, LayerIte
 from lucent.item_schema import (
     parse_item,
     parse_item_data,
-    item_to_dict,
-    ItemSchemaError,
 )
 
 

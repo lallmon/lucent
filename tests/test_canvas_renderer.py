@@ -1,10 +1,8 @@
 """Unit tests for canvas_renderer module."""
 
 import pytest
-from unittest.mock import MagicMock, patch
 from lucent.canvas_renderer import CanvasRenderer
 from lucent.canvas_model import CanvasModel
-from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtCore import QSize
 

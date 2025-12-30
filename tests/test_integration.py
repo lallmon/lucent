@@ -1,9 +1,6 @@
 """Integration tests for CanvasRenderer and Python-Qt bridge."""
 
-import pytest
 from PySide6.QtCore import QObject
-from lucent.canvas_model import CanvasModel
-from lucent.canvas_renderer import CanvasRenderer
 
 
 class TestRendererModelIntegration:
