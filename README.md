@@ -17,7 +17,7 @@ Additionaly I want to see how far I can push current AI assisted coding techniqu
 There's plenty to do but the end goal is pretty clear for me, so if you want to help out, I'd love any help. Checkout the issues or open an issue if you found some while playing with the application. What tools are missing from the software?
 
 ### Getting Started
-- Clone the Repo
+- Clone the Repo: `git clone git@github.com:lallmon/lucent.git`
 - Install Python 3.10
 - Create/activate the project venv: `python -m venv .venv && source .venv/bin/activate`
 - Install deps: `pip install -r requirements.txt -r requirements-dev.txt`
@@ -28,10 +28,12 @@ Run the app: `python main.py`
 
 Run tests: `pytest -q`
 
-Lint/type checks:
+### Lint/type checks:
 - QML format: `pyside6-qmlformat -i components/*.qml`
 - QML lint: `pyside6-qmllint components/*.qml`
 - Python format: `black .`
 - Python lint: `ruff check .`
 - Type check: `mypy --config-file mypy.ini src tests main.py`
 - All hooks: `pre-commit run --all-files`
+
+**Note: the CI/CD Pipeline will fail the build if these don't pass, so make sure you're installing pre-commit as stated above.**
