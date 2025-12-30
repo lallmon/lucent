@@ -60,6 +60,10 @@ jobs:
         run: |
           pyside6-qmllint -I components App.qml
 
+      - name: Python Format (ruff)
+        run: |
+          ruff format --check .
+
       - name: Python Lint (ruff)
         run: |
           ruff check .

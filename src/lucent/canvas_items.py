@@ -89,9 +89,9 @@ class RectangleItem(CanvasItem):
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
         """Render this rectangle using QPainter"""
-        # Transform from canvas coordinates to CanvasRenderer local coordinates
-        # CanvasRenderer is positioned at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) with size 10000x10000
-        # Canvas coordinate (0, 0) maps to local coordinate (CANVAS_OFFSET_X, CANVAS_OFFSET_Y)
+        # Transform from canvas coordinates to CanvasRenderer local coordinates.
+        # Renderer is at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) size 10000x10000.
+        # Canvas (0,0) maps to local (CANVAS_OFFSET_X, CANVAS_OFFSET_Y).
         local_x = self.x + offset_x
         local_y = self.y + offset_y
 
@@ -122,7 +122,7 @@ class RectangleItem(CanvasItem):
         width = max(0.0, float(data.get("width", 0)))
         height = max(0.0, float(data.get("height", 0)))
 
-        # Extract and validate stroke width (must be positive, clamped to reasonable range)
+        # Extract stroke width (positive, clamped to a reasonable range)
         stroke_width = max(0.1, min(100.0, float(data.get("strokeWidth", 1))))
 
         # Extract and validate stroke opacity (must be in range 0.0-1.0)
@@ -193,9 +193,9 @@ class EllipseItem(CanvasItem):
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
         """Render this ellipse using QPainter"""
-        # Transform from canvas coordinates to CanvasRenderer local coordinates
-        # CanvasRenderer is positioned at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) with size 10000x10000
-        # Canvas coordinate (0, 0) maps to local coordinate (CANVAS_OFFSET_X, CANVAS_OFFSET_Y)
+        # Transform from canvas coordinates to CanvasRenderer local coordinates.
+        # Renderer is at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) size 10000x10000.
+        # Canvas (0,0) maps to local (CANVAS_OFFSET_X, CANVAS_OFFSET_Y).
         local_center_x = self.center_x + offset_x
         local_center_y = self.center_y + offset_y
 
@@ -232,7 +232,7 @@ class EllipseItem(CanvasItem):
         radius_x = max(0.0, float(data.get("radiusX", 0)))
         radius_y = max(0.0, float(data.get("radiusY", 0)))
 
-        # Extract and validate stroke width (must be positive, clamped to reasonable range)
+        # Extract stroke width (positive, clamped to a reasonable range)
         stroke_width = max(0.1, min(100.0, float(data.get("strokeWidth", 1))))
 
         # Extract and validate stroke opacity (must be in range 0.0-1.0)

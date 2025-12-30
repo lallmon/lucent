@@ -60,7 +60,7 @@ class TestCanvasRendererZOrder:
         # Model order: [First (0), Second (1), Third (2)]
         render_order = canvas_renderer._get_render_order()
 
-        # Render order should be reversed: Third rendered first (behind), First rendered last (on top)
+        # Render order reversed: Third first (behind), First last (on top)
         assert len(render_order) == 3
         assert render_order[0].name == "Third"
         assert render_order[1].name == "Second"

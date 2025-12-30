@@ -30,8 +30,8 @@ Run tests: `pytest -q`
 
 ### Lint/type checks:
 - QML format: `pyside6-qmlformat -i components/*.qml`
-- QML lint: `pyside6-qmllint components/*.qml`
-- Python format: `black .`
+- QML lint: `pyside6-qmllint -I components App.qml`
+- Python format: `ruff format .`
 - Python lint: `ruff check .`
 - Type check: `mypy --config-file mypy.ini src tests main.py`
 - All hooks: `pre-commit run --all-files`

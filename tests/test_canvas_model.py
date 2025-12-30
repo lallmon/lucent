@@ -1780,7 +1780,7 @@ class TestCanvasModelLayerDeletion:
         assert canvas_model.count() == 0
 
     def test_delete_layer_with_multiple_children_removes_them(self, canvas_model):
-        """Deleting a layer should remove all its children, leaving other items intact."""
+        """Deleting a layer should remove all its children, keeping others."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
 
@@ -2184,7 +2184,7 @@ class TestCanvasModelReparentItem:
         assert canvas_model.canUndo == initial_can_undo
 
     def test_find_last_child_position_no_children(self, canvas_model):
-        """_findLastChildPosition should return position after layer when no children."""
+        """_findLastChildPosition returns after layer when no children."""
         canvas_model.addLayer()
         layer = canvas_model.getItems()[0]
         canvas_model.addItem(
@@ -2216,7 +2216,7 @@ class TestCanvasModelReparentItem:
         assert pos == 2  # Should insert before the top-level rect
 
     def test_find_last_child_position_at_end(self, canvas_model):
-        """_findLastChildPosition should return end of list if no top-level after layer."""
+        """_findLastChildPosition returns end if no top-level after layer."""
         canvas_model.addItem(
             {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
         )  # Top-level
@@ -2673,7 +2673,7 @@ class TestLockedFunctionality:
 
 
 class TestEffectiveLockedFunctionality:
-    """Tests for effective locked behavior (children inherit parent layer's locked state)."""
+    """Tests for effective locked behavior (children inherit parent lock)."""
 
     def test_effective_locked_role_exists(self, canvas_model):
         """EffectiveLockedRole should be defined in role names."""

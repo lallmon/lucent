@@ -5,6 +5,7 @@ Lucent - Main application entry point.
 This module initializes the Qt application, registers QML components,
 and launches the main window.
 """
+
 import sys
 import os
 from pathlib import Path

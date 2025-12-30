@@ -33,7 +33,7 @@ def test_flatten_orders_layers_and_children(canvas_model):
     canvas_model.setParent(4, layer2.id)
 
     ordered = canvas_model.getRenderItems()
-    # Render order is bottom-to-top based on model order (index 0 is top), children follow their layer in reverse paint order
+    # Render order is bottom-to-top; children follow their layer in reverse paint order
     assert names(ordered) == ["B", "A", "C"]  # Layer nodes are skipped
 
 

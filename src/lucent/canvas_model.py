@@ -286,7 +286,8 @@ class CanvasModel(QAbstractListModel):
 
         Args:
             item_index: Index of the shape item to reparent
-            parent_id: ID of the layer to set as parent, or empty string to make top-level
+            parent_id: ID of the layer to set as parent, or empty string to make
+                top-level
         """
         if not (0 <= item_index < len(self._items)):
             return
@@ -353,7 +354,8 @@ class CanvasModel(QAbstractListModel):
         This maintains the parent-child visual grouping by extracting the layer
         and all its children, then reinserting them at the target position.
         """
-        # Collect all indices to move (layer + children), sorted descending for safe removal
+        # Collect all indices to move (layer + children), sorted descending for
+        # safe removal
         all_indices = sorted([layer_from] + children_indices, reverse=True)
 
         # Extract items in order (we'll reverse after extraction)

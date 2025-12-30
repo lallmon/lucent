@@ -10,14 +10,12 @@ repos:
         args: ["-i"]
         files: "\\.qml$"
         pass_filenames: true
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
-    hooks:
-      - id: black
-        language_version: python3.10
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
     hooks:
+      - id: ruff-format
+        name: ruff (format)
+        language_version: python3.10
       - id: ruff
         name: ruff (lint)
         args: ["--fix", "--show-fixes"]
