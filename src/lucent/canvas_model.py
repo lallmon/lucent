@@ -568,40 +568,25 @@ class CanvasModel(QAbstractListModel):
         return visible_items
 
     def getRenderItems(self) -> List[CanvasItem]:
-        """Return items in render order (front to back) skipping layers.
+        """Return items in model order (bottom to top) skipping layers.
 
-        Groups children under their layer, reversing order within each group so
-        the latest-added child paints above earlier siblings. Layers retain
-        their model order.
+        Model order is treated as bottom-to-top z-order: lower indices are
+        beneath higher indices. Rendering should therefore iterate this list in
+        order so later items naturally paint over earlier ones. Layers are not
+        rendered, so they are skipped but the relative order of shapes is
+        preserved exactly as in the model.
         """
-        from lucent.canvas_items import LayerItem, RectangleItem, EllipseItem
+        from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem
 
-        groups: List[List[CanvasItem]] = []
-        current_group: List[CanvasItem] = []
-
-        def flush_group():
-            if current_group:
-                # reverse within group so later siblings are on top
-                groups.append(list(reversed(current_group)))
-
+        ordered: List[CanvasItem] = []
         for idx, item in enumerate(self._items):
+            # Skip layers (not renderable) but keep model ordering of shapes
             if isinstance(item, LayerItem):
-                flush_group()
-                current_group = []
                 continue
-
             if isinstance(item, (RectangleItem, EllipseItem)):
                 if not self._is_effectively_visible(idx):
                     continue
-                current_group.append(item)
-                continue
-
-        flush_group()
-
-        # Flatten groups in encounter order (top-first)
-        ordered: List[CanvasItem] = []
-        for group in groups:
-            ordered.extend(group)
+                ordered.append(item)
         return ordered
 
     def _itemToDict(self, item: CanvasItem) -> Dict[str, Any]:

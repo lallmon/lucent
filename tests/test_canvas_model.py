@@ -2437,11 +2437,39 @@ class TestZOrderRendering:
         )
 
         ordered = canvas_model.getRenderItems()
-        # Render order is bottom-to-top, reversed model order for shapes
-        assert [item.name for item in ordered] == ["Top", "Bottom"]
+        # Render order follows model order (bottom-to-top for painting)
+        assert [item.name for item in ordered] == ["Bottom", "Top"]
 
-    def test_render_order_reversed_from_model(self, canvas_model):
-        """Items at lower model indices should render last (on top)."""
+    def test_render_order_respects_layers_as_separators(self, canvas_model):
+        """Shapes keep their relative order even when layers are interleaved."""
+        canvas_model.addItem(
+            {
+                "type": "rectangle",
+                "x": 0,
+                "y": 0,
+                "width": 10,
+                "height": 10,
+                "name": "Rect1",
+            }
+        )
+        canvas_model.addLayer()  # Acts as a separator in the model
+        canvas_model.addItem(
+            {
+                "type": "rectangle",
+                "x": 5,
+                "y": 5,
+                "width": 10,
+                "height": 10,
+                "name": "Rect2",
+            }
+        )
+
+        ordered = canvas_model.getRenderItems()
+        # Layers are skipped; shapes stay in their model order for rendering.
+        assert [item.name for item in ordered] == ["Rect1", "Rect2"]
+
+    def test_render_order_matches_model(self, canvas_model):
+        """Model order determines z: higher indices paint on top."""
         canvas_model.addItem(
             {
                 "type": "rectangle",
@@ -2468,8 +2496,9 @@ class TestZOrderRendering:
         assert items[0].name == "Bottom"
         assert items[1].name == "Top"
 
-        # Render order should be reversed: Top renders last (on top)
-        # This is verified by canvas_renderer which reverses the order
+        # Render order matches model order
+        ordered = canvas_model.getRenderItems()
+        assert [item.name for item in ordered] == ["Bottom", "Top"]
 
     def test_move_item_up_changes_z_order(self, canvas_model):
         """Moving an item to a lower index should move it above other items."""
