@@ -50,7 +50,7 @@ class CanvasModel(QAbstractListModel):
     itemAdded = Signal(int)
     itemRemoved = Signal(int)
     itemsCleared = Signal()
-    itemModified = Signal(int, object)  # index and item data
+    itemModified = Signal(int, "QVariant")  # type: ignore[arg-type]
     itemsReordered = Signal()
     undoStackChanged = Signal()
     redoStackChanged = Signal()
@@ -553,13 +553,13 @@ class CanvasModel(QAbstractListModel):
     def getItems(self) -> List[CanvasItem]:
         return self._items
 
-    @Slot(int, result=object)
+    @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getItemData(self, index: int) -> Optional[Dict[str, Any]]:
         if 0 <= index < len(self._items):
             return self._itemToDict(self._items[index])
         return None
 
-    @Slot(result=object)
+    @Slot(result="QVariant")  # type: ignore[arg-type]
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:
         visible_items: List[Dict[str, Any]] = []
         for idx, item in enumerate(self._items):
