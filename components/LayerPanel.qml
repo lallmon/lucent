@@ -300,20 +300,24 @@ Item {
                                             }
 
                                             function updateDropTarget() {
-                                                // Find which row we're over based on drag offset
-                                                let totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing;
-                                                let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight);
-                                                let targetDisplayIndex = delegateRoot.displayIndex + indexDelta;
-                                                let rowCount = layerRepeater.count;
+                                                // Use pointer position within the list to determine target row
+                                                const totalItemHeight = layerContainer.itemHeight + layerContainer.itemSpacing;
+                                                const rowCount = layerRepeater.count;
+                                                const p = delegateRoot.mapToItem(layerColumn, 0, dragHandler.centroid.position.y);
+                                                let yInColumn = p.y;
+                                                // Clamp to column bounds
+                                                yInColumn = Math.max(0, Math.min(layerColumn.contentHeight - 1, yInColumn));
+
+                                                let targetDisplayIndex = Math.floor(yInColumn / totalItemHeight);
                                                 targetDisplayIndex = Math.max(0, Math.min(rowCount - 1, targetDisplayIndex));
 
-                                                // Calculate fractional position within the target row
-                                                let exactOffset = delegateRoot.dragOffsetY / totalItemHeight;
-                                                let fractionalPart = exactOffset - Math.floor(exactOffset);
-                                                let isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75;
+                                                // Calculate fractional position within the target row using absolute pointer
+                                                const positionInRow = yInColumn / totalItemHeight;
+                                                const fractionalPart = positionInRow - Math.floor(positionInRow);
+                                                const isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75;
 
-                                                let targetModelIndex = root.modelIndexForDisplay(targetDisplayIndex);
-                                                let targetItem = layerRepeater.itemAt(targetModelIndex);
+                                                const targetModelIndex = root.modelIndexForDisplay(targetDisplayIndex);
+                                                const targetItem = layerRepeater.itemAt(targetModelIndex);
                                                 if (targetItem && targetItem.isLayer && root.draggedItemType !== "layer" && isLayerParentingZone) {
                                                     // Center of a layer - show as drop target for parenting
                                                     root.dropTargetLayerId = targetItem.itemId;
