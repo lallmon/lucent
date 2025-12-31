@@ -68,7 +68,13 @@ class CanvasRenderer(QQuickPaintedItem):
 
         # Render each item with dynamic offsets
         for item in ordered_items:
-            item.paint(painter, self._zoom_level, offset_x=offset_x, offset_y=offset_y)
+            try:
+                item.paint(
+                    painter, self._zoom_level, offset_x=offset_x, offset_y=offset_y
+                )
+            except TypeError:
+                # Fallback for items that don't accept offsets (legacy/test doubles)
+                item.paint(painter, self._zoom_level)
 
     def _get_render_order(self) -> List["CanvasItem"]:
         """Get items in render order from the model."""
