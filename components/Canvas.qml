@@ -48,11 +48,15 @@ Item {
         width: 0
         height: 0
 
+        // Renderer sized to the current viewport; we only render what is visible.
         CanvasRenderer {
-            x: -5000
-            y: -5000
-            width: 10000
-            height: 10000
+            id: canvasRenderer
+            width: root.width
+            height: root.height
+            // Place the renderer so (0,0) in canvas space aligns with the center
+            // of the viewport-sized surface. This keeps item math consistent.
+            x: -width / 2
+            y: -height / 2
             zoomLevel: root.zoomLevel
 
             Component.onCompleted: {

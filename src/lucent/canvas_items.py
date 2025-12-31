@@ -16,9 +16,9 @@ import uuid
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor
 from PySide6.QtCore import QRectF, Qt
 
-# Canvas coordinate system constants
-# The canvas uses a virtual coordinate system centered at (0, 0) in canvas space
-# which maps to (CANVAS_OFFSET_X, CANVAS_OFFSET_Y) in renderer local coordinates
+# Canvas coordinate system defaults.
+# Renderers typically pass dynamic offsets (width/2, height/2) so these serve
+# as fallbacks for tests and any non-viewport-based usage.
 CANVAS_OFFSET_X = 5000
 CANVAS_OFFSET_Y = 5000
 
@@ -89,9 +89,6 @@ class RectangleItem(CanvasItem):
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
         """Render this rectangle using QPainter"""
-        # Transform from canvas coordinates to CanvasRenderer local coordinates.
-        # Renderer is at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) size 10000x10000.
-        # Canvas (0,0) maps to local (CANVAS_OFFSET_X, CANVAS_OFFSET_Y).
         local_x = self.x + offset_x
         local_y = self.y + offset_y
 
@@ -193,9 +190,6 @@ class EllipseItem(CanvasItem):
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
         """Render this ellipse using QPainter"""
-        # Transform from canvas coordinates to CanvasRenderer local coordinates.
-        # Renderer is at (-CANVAS_OFFSET_X, -CANVAS_OFFSET_Y) size 10000x10000.
-        # Canvas (0,0) maps to local (CANVAS_OFFSET_X, CANVAS_OFFSET_Y).
         local_center_x = self.center_x + offset_x
         local_center_y = self.center_y + offset_y
 
