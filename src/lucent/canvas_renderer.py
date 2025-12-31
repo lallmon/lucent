@@ -60,12 +60,21 @@ class CanvasRenderer(QQuickPaintedItem):
 
         painter.setRenderHint(QPainter.Antialiasing, True)  # type: ignore[attr-defined]
 
-        # Get ordered items respecting parent-child grouping
+        # Compute offsets so (0,0) maps to the center of the renderer surface.
+        offset_x = self.width() / 2.0
+        offset_y = self.height() / 2.0
+
         ordered_items = self._get_render_order()
 
-        # Render each item
+        # Render each item with dynamic offsets
         for item in ordered_items:
-            item.paint(painter, self._zoom_level)
+            try:
+                item.paint(
+                    painter, self._zoom_level, offset_x=offset_x, offset_y=offset_y
+                )
+            except TypeError:
+                # Fallback for items that don't accept offsets (legacy/test doubles)
+                item.paint(painter, self._zoom_level)
 
     def _get_render_order(self) -> List["CanvasItem"]:
         """Get items in render order from the model."""

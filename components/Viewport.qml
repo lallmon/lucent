@@ -17,13 +17,13 @@ Item {
     property real offsetX: 0
     property real offsetY: 0
 
-    // Canvas bounds (matches CanvasRenderer dimensions)
-    readonly property real canvasWidth: 10000
-    readonly property real canvasHeight: 10000
-    readonly property real canvasMinX: -5000
-    readonly property real canvasMaxX: 5000
-    readonly property real canvasMinY: -5000
-    readonly property real canvasMaxY: 5000
+    // Canvas bounds (matches the viewport-sized renderer surface)
+    readonly property real canvasWidth: width
+    readonly property real canvasHeight: height
+    readonly property real canvasMinX: -width / 2
+    readonly property real canvasMaxX: width / 2
+    readonly property real canvasMinY: -height / 2
+    readonly property real canvasMaxY: height / 2
 
     // Minimum visible canvas area (percentage)
     readonly property real minVisibleRatio: 0.2  // Keep 20% of canvas visible
@@ -37,145 +37,37 @@ Item {
         color: DV.Theme.colors.canvasBackground
     }
 
-    // Enhanced Canvas grid with crisp rendering and adaptive spacing
-    // Placed outside viewportContent so it always fills the viewport
-    Canvas {
-        id: gridCanvas
+    // GPU grid overlay: crisp, infinite-feel, tied to current viewport
+    ShaderEffect {
+        id: gridShader
         anchors.fill: parent
-        renderTarget: Canvas.FramebufferObject
-        renderStrategy: Canvas.Immediate
 
         property real baseGridSize: 32.0
-        property int majorMultiplier: 5
-
-        // Trigger repaint on zoom/pan changes immediately (no debouncing)
-        onAvailableChanged: requestPaint()
-
-        Connections {
-            target: root
-            function onZoomLevelChanged() {
-                gridCanvas.requestPaint();
-            }
-            function onOffsetXChanged() {
-                gridCanvas.requestPaint();
-            }
-            function onOffsetYChanged() {
-                gridCanvas.requestPaint();
-            }
-        }
-
-        onPaint: {
-            var ctx = getContext("2d");
-
-            // Enable crisp rendering for high-DPI displays
-            var dpr = 1.0;  // Qt handles DPI scaling automatically
-
-            ctx.clearRect(0, 0, width, height);
-
-            // Disable image smoothing for crisp lines
-            ctx.imageSmoothingEnabled = false;
-
-            // Translate by 0.5px for crisp 1px lines on pixel boundaries
-            ctx.save();
-            ctx.translate(0.5, 0.5);
-
-            // Calculate visible canvas area
-            var centerX = width / 2;
-            var centerY = height / 2;
-
-            // Adaptive grid spacing based on zoom level
-            var gridSize = baseGridSize;
-            var showMinorLines = true;
-
+        property real majorMultiplier: 5.0
+        // Keep lines consistent across zoom by tying thickness to projected spacing.
+        // Matches shader gridSize logic (base, zoomed-out major-only, zoomed-in half).
+        // Keep lines very thin across zoom: small clamps plus modest scaling.
+        property real _gridSizePx: {
+            var g = baseGridSize;
             if (root.zoomLevel < 0.5) {
-                // Zoomed way out: show only major lines with larger spacing
-                gridSize = baseGridSize * majorMultiplier;
-                showMinorLines = false;
+                g = baseGridSize * majorMultiplier;
             } else if (root.zoomLevel > 2.0) {
-                // Zoomed in: show subdivided grid
-                gridSize = baseGridSize / 2;
+                g = baseGridSize * 0.5;
             }
-
-            // Calculate the canvas coordinates of the viewport corners
-            var topLeftCanvasX = (-centerX - root.offsetX) / root.zoomLevel;
-            var topLeftCanvasY = (-centerY - root.offsetY) / root.zoomLevel;
-            var bottomRightCanvasX = (width - centerX - root.offsetX) / root.zoomLevel;
-            var bottomRightCanvasY = (height - centerY - root.offsetY) / root.zoomLevel;
-
-            // Calculate which grid lines are visible, clamped to canvas bounds
-            var startX = Math.max(root.canvasMinX, Math.floor(topLeftCanvasX / gridSize) * gridSize);
-            var endX = Math.min(root.canvasMaxX, Math.ceil(bottomRightCanvasX / gridSize) * gridSize);
-            var startY = Math.max(root.canvasMinY, Math.floor(topLeftCanvasY / gridSize) * gridSize);
-            var endY = Math.min(root.canvasMaxY, Math.ceil(bottomRightCanvasY / gridSize) * gridSize);
-
-            // Limit number of lines to prevent performance issues
-            var maxLines = 200;
-            var xStep = Math.max(gridSize, (endX - startX) / maxLines);
-            var yStep = Math.max(gridSize, (endY - startY) / maxLines);
-
-            // Round steps to nearest grid multiple
-            xStep = Math.ceil(xStep / gridSize) * gridSize;
-            yStep = Math.ceil(yStep / gridSize) * gridSize;
-
-            // Calculate canvas bounds in screen coordinates for clipping lines
-            var canvasTopScreen = root.canvasMinY * root.zoomLevel + centerY + root.offsetY;
-            var canvasBottomScreen = root.canvasMaxY * root.zoomLevel + centerY + root.offsetY;
-            var canvasLeftScreen = root.canvasMinX * root.zoomLevel + centerX + root.offsetX;
-            var canvasRightScreen = root.canvasMaxX * root.zoomLevel + centerX + root.offsetX;
-
-            ctx.lineWidth = 1;
-
-            // Draw vertical lines (clipped to canvas height)
-            for (var x = startX; x <= endX; x += xStep) {
-                var screenX = x * root.zoomLevel + centerX + root.offsetX;  // Sub-pixel positioning
-                var gridIndex = Math.round(x / baseGridSize);
-                var isMajor = (gridIndex % majorMultiplier === 0);
-
-                // Skip minor lines if zoomed out
-                if (!showMinorLines && !isMajor)
-                    continue;
-
-                ctx.strokeStyle = isMajor ? DV.Theme.colors.gridMajor : DV.Theme.colors.gridMinor;
-
-                ctx.beginPath();
-                // Clip line to canvas bounds vertically
-                var lineTop = Math.max(0, canvasTopScreen);
-                var lineBottom = Math.min(height, canvasBottomScreen);
-                ctx.moveTo(screenX, lineTop);
-                ctx.lineTo(screenX, lineBottom);
-                ctx.stroke();
-            }
-
-            // Draw horizontal lines (clipped to canvas width)
-            for (var y = startY; y <= endY; y += yStep) {
-                var screenY = y * root.zoomLevel + centerY + root.offsetY;  // Sub-pixel positioning
-                var gridIndex = Math.round(y / baseGridSize);
-                var isMajor = (gridIndex % majorMultiplier === 0);
-
-                // Skip minor lines if zoomed out
-                if (!showMinorLines && !isMajor)
-                    continue;
-
-                ctx.strokeStyle = isMajor ? DV.Theme.colors.gridMajor : DV.Theme.colors.gridMinor;
-
-                ctx.beginPath();
-                // Clip line to canvas bounds horizontally
-                var lineLeft = Math.max(0, canvasLeftScreen);
-                var lineRight = Math.min(width, canvasRightScreen);
-                ctx.moveTo(lineLeft, screenY);
-                ctx.lineTo(lineRight, screenY);
-                ctx.stroke();
-            }
-
-            // Draw canvas boundary rectangle
-            ctx.strokeStyle = DV.Theme.colors.gridMajor;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.rect(Math.max(0, canvasLeftScreen), Math.max(0, canvasTopScreen), Math.min(width, canvasRightScreen) - Math.max(0, canvasLeftScreen), Math.min(height, canvasBottomScreen) - Math.max(0, canvasTopScreen));
-            ctx.stroke();
-
-            ctx.restore();
+            return g * root.zoomLevel;
         }
+        property real minorThicknessPx: Math.min(0.6, Math.max(0.15, _gridSizePx * 0.08))
+        property real majorThicknessPx: Math.min(0.9, Math.max(0.2, _gridSizePx * 0.12))
+        property real featherPx: Math.min(0.8, Math.max(0.25, minorThicknessPx * 0.7))
+        property real zoomLevel: root.zoomLevel
+        property real offsetX: root.offsetX
+        property real offsetY: root.offsetY
+        property color minorColor: DV.Theme.colors.gridMinor
+        property color majorColor: DV.Theme.colors.gridMajor
+        property var viewportSize: Qt.vector2d(width, height)
+
+        vertexShader: Qt.resolvedUrl("shaders/grid.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/grid.frag.qsb")
     }
 
     // Origin marker at canvas (0,0)

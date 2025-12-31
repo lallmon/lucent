@@ -48,11 +48,15 @@ Item {
         width: 0
         height: 0
 
+        // Renderer sized to the current viewport; we only render what is visible.
         CanvasRenderer {
-            x: -5000
-            y: -5000
-            width: 10000
-            height: 10000
+            id: canvasRenderer
+            // Expand with zoom and modest padding; cap under GPU limits to reduce overdraw.
+            readonly property real _pad: 1000
+            width: Math.min(14000, (root.width / Math.max(root.zoomLevel, 0.001)) + _pad * 2)
+            height: Math.min(14000, (root.height / Math.max(root.zoomLevel, 0.001)) + _pad * 2)
+            x: -width / 2
+            y: -height / 2
             zoomLevel: root.zoomLevel
 
             Component.onCompleted: {
