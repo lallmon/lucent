@@ -174,21 +174,31 @@ Item {
         if (!tool.active || !isDrawing)
             return;
 
-        // Calculate width and height from start point to current point
-        var width = canvasX - drawStartX;
-        var height = canvasY - drawStartY;
-
-        // Handle dragging in any direction (normalize rectangle)
-        var rectX = width >= 0 ? drawStartX : canvasX;
-        var rectY = height >= 0 ? drawStartY : canvasY;
-        var rectWidth = Math.abs(width);
-        var rectHeight = Math.abs(height);
+        // Calculate distance from start point to current point
+        var deltaX = canvasX - drawStartX;
+        var deltaY = canvasY - drawStartY;
+        var rectWidth = Math.abs(deltaX);
+        var rectHeight = Math.abs(deltaY);
 
         // Constrain to square when Shift is held
         if (modifiers & Qt.ShiftModifier) {
             var size = Math.max(rectWidth, rectHeight);
             rectWidth = size;
             rectHeight = size;
+        }
+
+        // Calculate position based on Alt (center mode) or corner mode
+        var rectX, rectY;
+        if (modifiers & Qt.AltModifier) {
+            // Alt: draw from center - double the dimensions
+            rectWidth *= 2;
+            rectHeight *= 2;
+            rectX = drawStartX - rectWidth / 2;
+            rectY = drawStartY - rectHeight / 2;
+        } else {
+            // Normal: draw from corner
+            rectX = deltaX >= 0 ? drawStartX : drawStartX - rectWidth;
+            rectY = deltaY >= 0 ? drawStartY : drawStartY - rectHeight;
         }
 
         // Update current rectangle (create new object to trigger binding)
