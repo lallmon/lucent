@@ -8,8 +8,10 @@ from lucent.commands import (
     UpdateItemCommand,
     ClearCommand,
     TransactionCommand,
+    DuplicateItemCommand,
+    DEFAULT_DUPLICATE_OFFSET,
 )
-from lucent.canvas_items import RectangleItem, EllipseItem
+from lucent.canvas_items import RectangleItem, EllipseItem, GroupItem, LayerItem
 from lucent.item_schema import ItemSchemaError
 
 
@@ -473,3 +475,60 @@ class TestMoveItemCommand:
 
         cmd = MoveItemCommand(canvas_model, 0, 2)
         assert cmd.description
+
+
+class TestDuplicateItemCommand:
+    """Tests for DuplicateItemCommand."""
+
+    def test_execute_duplicates_shape_with_offset_and_name(self, canvas_model):
+        """Duplicate a shape and apply offset/name changes."""
+        canvas_model._items = [RectangleItem(0, 0, 10, 10, name="Box")]
+
+        cmd = DuplicateItemCommand(canvas_model, 0)
+
+        cmd.execute()
+
+        assert canvas_model.count() == 2
+        duplicate = canvas_model.getItems()[1]
+        assert isinstance(duplicate, RectangleItem)
+        assert duplicate.x == 0 + DEFAULT_DUPLICATE_OFFSET
+        assert duplicate.y == 0 + DEFAULT_DUPLICATE_OFFSET
+        assert duplicate.name == "Box Copy"
+        assert cmd.result_index == 1
+
+        cmd.undo()
+        assert canvas_model.count() == 1
+
+        # Re-run to ensure redo path uses cached clone data
+        cmd.execute()
+        assert canvas_model.count() == 2
+
+    def test_duplicate_group_clones_children(self, canvas_model):
+        """Group duplication should copy descendants and remap parent IDs."""
+        layer = LayerItem(name="Layer 1", layer_id="layer-1")
+        group = GroupItem(name="Group 1", group_id="group-1", parent_id=layer.id)
+        child = RectangleItem(
+            5,
+            5,
+            10,
+            10,
+            name="Child",
+            parent_id=group.id,
+        )
+        canvas_model._items = [layer, group, child]
+
+        cmd = DuplicateItemCommand(canvas_model, 1)
+        cmd.execute()
+
+        # Expect original three plus duplicated group+child
+        assert canvas_model.count() == 5
+        group_copy = canvas_model.getItems()[3]
+        child_copy = canvas_model.getItems()[4]
+
+        assert isinstance(group_copy, GroupItem)
+        assert isinstance(child_copy, RectangleItem)
+        assert group_copy.id != group.id
+        assert group_copy.parent_id == layer.id
+        assert child_copy.parent_id == group_copy.id
+        assert child_copy.x == child.x + DEFAULT_DUPLICATE_OFFSET
+        assert child_copy.y == child.y + DEFAULT_DUPLICATE_OFFSET

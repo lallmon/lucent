@@ -1,15 +1,23 @@
 """Command pattern classes for undo/redo functionality."""
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Mapping
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Mapping, Tuple
 from PySide6.QtCore import QModelIndex
 
 if TYPE_CHECKING:
     from lucent.canvas_model import CanvasModel
 
 from lucent.canvas_items import CanvasItem, GroupItem, LayerItem
-from lucent.item_schema import item_to_dict, parse_item, parse_item_data
+from lucent.item_schema import (
+    item_to_dict,
+    parse_item,
+    parse_item_data,
+    ItemSchemaError,
+)
 import uuid
+
+
+DEFAULT_DUPLICATE_OFFSET = 12.0
 
 
 def _create_item(item_data: Dict[str, Any]) -> CanvasItem:
@@ -243,6 +251,120 @@ class MoveItemCommand(Command):
         items.insert(self._from_index, item)
         self._model.endMoveRows()
         self._model.itemsReordered.emit()
+
+
+class DuplicateItemCommand(Command):
+    """Command to duplicate an item (and its descendants) with an offset."""
+
+    def __init__(
+        self,
+        model: "CanvasModel",
+        source_index: int,
+        offset: Tuple[float, float] | None = None,
+    ) -> None:
+        self._model = model
+        self._source_index = source_index
+        self._offset = offset or (DEFAULT_DUPLICATE_OFFSET, DEFAULT_DUPLICATE_OFFSET)
+        self._clones: List[Dict[str, Any]] = []
+        self._insert_index: Optional[int] = None
+        self._result_index: Optional[int] = None
+        self._id_map: Dict[str, str] = {}
+
+    @property
+    def description(self) -> str:
+        return "Duplicate Item"
+
+    @property
+    def result_index(self) -> Optional[int]:
+        return self._result_index
+
+    def _clone_item_data(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return validated clone of item data with offsets and fresh IDs."""
+        item_type = data.get("type", "")
+        clone = dict(data)
+
+        base_name = str(clone.get("name", "") or "")
+        clone["name"] = (
+            f"{base_name} Copy"
+            if base_name
+            else self._model._generate_name(str(item_type))
+        )
+
+        if item_type in ("group", "layer"):
+            new_id = str(uuid.uuid4())
+            old_id = clone.get("id")
+            if old_id:
+                self._id_map[old_id] = new_id
+            clone["id"] = new_id
+
+        parent_id = clone.get("parentId")
+        if parent_id and parent_id in self._id_map:
+            clone["parentId"] = self._id_map[parent_id]
+
+        dx, dy = self._offset
+        if item_type == "rectangle":
+            clone["x"] = float(clone.get("x", 0)) + dx
+            clone["y"] = float(clone.get("y", 0)) + dy
+        elif item_type == "ellipse":
+            clone["centerX"] = float(clone.get("centerX", 0)) + dx
+            clone["centerY"] = float(clone.get("centerY", 0)) + dy
+
+        try:
+            return parse_item_data(clone).data
+        except ItemSchemaError:
+            return None
+
+    def _build_clone_payloads(self) -> None:
+        """Capture the data to duplicate once so redo stays deterministic."""
+        items = self._model._items
+        if not (0 <= self._source_index < len(items)):
+            return
+
+        source_item = items[self._source_index]
+        indices = [self._source_index]
+        if isinstance(source_item, (LayerItem, GroupItem)):
+            indices.extend(sorted(self._model._get_descendant_indices(source_item.id)))
+
+        last_index = max(indices)
+        self._insert_index = min(last_index + 1, len(items))
+        for idx in indices:
+            data = self._model._itemToDict(items[idx])
+            clone = self._clone_item_data(data)
+            if clone:
+                self._clones.append(clone)
+
+        if self._clones:
+            self._result_index = self._insert_index
+
+    def execute(self) -> None:
+        if not self._clones or self._insert_index is None:
+            self._build_clone_payloads()
+        if not self._clones or self._insert_index is None:
+            return
+
+        insert_at = min(self._insert_index, len(self._model._items))
+        count = len(self._clones)
+        self._model.beginInsertRows(QModelIndex(), insert_at, insert_at + count - 1)
+        for i, data in enumerate(self._clones):
+            self._model._items.insert(insert_at + i, _create_item(data))
+        self._model.endInsertRows()
+        for i in range(count):
+            self._model.itemAdded.emit(insert_at + i)
+        self._result_index = insert_at
+
+    def undo(self) -> None:
+        if self._insert_index is None or not self._clones:
+            return
+        count = len(self._clones)
+        if self._insert_index + count > len(self._model._items):
+            return
+        self._model.beginRemoveRows(
+            QModelIndex(), self._insert_index, self._insert_index + count - 1
+        )
+        for _ in range(count):
+            del self._model._items[self._insert_index]
+        self._model.endRemoveRows()
+        self._model.itemRemoved.emit(self._insert_index)
 
 
 class GroupItemsCommand(Command):

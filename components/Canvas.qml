@@ -373,6 +373,21 @@ Item {
         DV.SelectionManager.selectedItem = null;
     }
 
+    function duplicateSelectedItem() {
+        var targetIndex = DV.SelectionManager.selectedItemIndex;
+        if (targetIndex < 0)
+            return;
+        if (canvasModel.isEffectivelyLocked(targetIndex))
+            return;
+        var newIndex = canvasModel.duplicateItem(targetIndex);
+        if (newIndex < 0)
+            return;
+        DV.SelectionManager.selectedIndices = [newIndex];
+        DV.SelectionManager.selectedItemIndex = newIndex;
+        DV.SelectionManager.selectedItem = canvasModel.getItemData(newIndex);
+        refreshSelectionOverlayBounds();
+    }
+
     // Cancel the current drawing tool operation
     function cancelCurrentTool() {
         if (currentToolLoader.item) {

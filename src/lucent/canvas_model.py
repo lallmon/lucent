@@ -28,6 +28,7 @@ from lucent.commands import (
     MoveItemCommand,
     TransactionCommand,
     GroupItemsCommand,
+    DuplicateItemCommand,
 )
 from lucent.history_manager import HistoryManager
 from lucent.item_schema import (
@@ -341,6 +342,18 @@ class CanvasModel(QAbstractListModel):
 
         command = AddItemCommand(self, parsed.data)
         self._execute_command(command)
+
+    @Slot(int, result=int)
+    def duplicateItem(self, index: int) -> int:
+        """Duplicate an item (and its descendants) returning the new index."""
+        if not (0 <= index < len(self._items)):
+            return -1
+        if self._is_effectively_locked(index):
+            return -1
+
+        command = DuplicateItemCommand(self, index)
+        self._execute_command(command)
+        return command.result_index if command.result_index is not None else -1
 
     @Slot()
     def addLayer(self) -> None:

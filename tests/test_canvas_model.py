@@ -3,6 +3,7 @@
 from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem
 from lucent.commands import (
     AddItemCommand,
+    DEFAULT_DUPLICATE_OFFSET,
 )
 from types import SimpleNamespace
 
@@ -3124,6 +3125,55 @@ class TestEffectiveLockedFunctionality:
 
         canvas_model.toggleLocked(0)
         assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is True
+
+
+class TestCanvasModelDuplicate:
+    """Tests for duplicating items via CanvasModel."""
+
+    def test_duplicate_item_creates_offset_copy(self, canvas_model):
+        """Duplicating an item returns new index and copies geometry."""
+        base_data = {
+            "type": "rectangle",
+            "x": 2,
+            "y": 4,
+            "width": 20,
+            "height": 10,
+            "name": "Origin",
+        }
+        canvas_model.addItem(base_data)
+
+        new_index = canvas_model.duplicateItem(0)
+
+        assert new_index == 1
+        assert canvas_model.count() == 2
+        duplicate = canvas_model.getItemData(new_index)
+        assert duplicate is not None
+        assert duplicate["type"] == "rectangle"
+        assert duplicate["x"] == base_data["x"] + DEFAULT_DUPLICATE_OFFSET
+        assert duplicate["y"] == base_data["y"] + DEFAULT_DUPLICATE_OFFSET
+        assert duplicate["name"] == "Origin Copy"
+
+    def test_duplicate_item_respects_effective_lock(self, canvas_model):
+        """Locked ancestry prevents duplication."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.toggleLocked(0)  # Lock the layer
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        canvas_model.setParent(1, layer_id)
+
+        new_index = canvas_model.duplicateItem(1)
+
+        assert new_index == -1
+        assert canvas_model.count() == 2
+
+    def test_duplicate_item_invalid_index(self, canvas_model):
+        """Invalid index should return -1 without side effects."""
+        result = canvas_model.duplicateItem(99)
+
+        assert result == -1
+        assert canvas_model.count() == 0
 
 
 class TestCoverageEdgeCases:
