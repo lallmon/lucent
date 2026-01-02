@@ -3232,6 +3232,45 @@ class TestCanvasModelDuplicate:
         ]
         assert names == ["A", "B", "A Copy"]
 
+    def test_duplicate_group_appends_as_sibling_with_children(self, canvas_model):
+        """Duplicating a group appends it as a sibling with its children under it."""
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem({"type": "group", "name": "G1", "parentId": layer_id})
+        g1_id = canvas_model.getItems()[1].id
+        canvas_model.addItem(
+            {
+                "type": "rectangle",
+                "x": 0,
+                "y": 0,
+                "width": 1,
+                "height": 1,
+                "name": "C1",
+                "parentId": g1_id,
+            }
+        )
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 1, "y": 1, "width": 1, "height": 1, "name": "R1"}
+        )
+
+        new_indices = canvas_model.duplicateItems([1, 3])
+
+        assert len(new_indices) == 2
+        # Expect appended order: existing 4 items + group copy + child copy + rect copy
+        assert canvas_model.count() == 7
+        group_copy_idx = new_indices[0]
+        rect_copy_idx = new_indices[1]
+
+        group_copy = canvas_model.getItems()[group_copy_idx]
+        child_copy = canvas_model.getItems()[group_copy_idx - 1]
+        rect_copy = canvas_model.getItems()[rect_copy_idx]
+
+        assert group_copy.name == "G1 Copy"
+        assert group_copy.parent_id == layer_id
+        assert child_copy.parent_id == group_copy.id
+        assert rect_copy.name == "R1 Copy"
+        assert rect_copy_idx == canvas_model.count() - 1
+
     def test_duplicate_items_skips_descendant_when_parent_selected(self, canvas_model):
         """Descendants should not duplicate twice when parent container is selected."""
         canvas_model.addItem({"type": "group", "name": "Group"})

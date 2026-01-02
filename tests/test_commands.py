@@ -546,3 +546,14 @@ class TestDuplicateItemCommand:
         assert cmd.inserted_indices == [2]
         assert canvas_model.count() == 3
         assert canvas_model.getItems()[2].name == "A Copy"
+
+    def test_duplicate_inserted_parent_index_for_shape(self, canvas_model):
+        """inserted_parent_index returns inserted index for non-container."""
+        canvas_model._items = [
+            RectangleItem(0, 0, 1, 1, name="Solo"),
+        ]
+        cmd = DuplicateItemCommand(canvas_model, 0)
+        cmd.execute()
+
+        assert cmd.inserted_parent_index == 1
+        assert canvas_model.getItems()[1].name == "Solo Copy"
