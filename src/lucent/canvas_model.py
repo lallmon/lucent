@@ -615,6 +615,52 @@ class CanvasModel(QAbstractListModel):
                 visible_items.append(self._itemToDict(item))
         return visible_items
 
+    @Slot(int, result="QVariant")  # type: ignore[arg-type]
+    def getBoundingBox(self, index: int) -> Optional[Dict[str, float]]:
+        """Return axis-aligned bounding box for an item (or its descendants)."""
+        if not (0 <= index < len(self._items)):
+            return None
+        item = self._items[index]
+
+        def rect_bounds(x: float, y: float, w: float, h: float) -> Dict[str, float]:
+            return {"x": x, "y": y, "width": w, "height": h}
+
+        if isinstance(item, RectangleItem):
+            return rect_bounds(item.x, item.y, item.width, item.height)
+        if isinstance(item, EllipseItem):
+            return rect_bounds(
+                item.center_x - item.radius_x,
+                item.center_y - item.radius_y,
+                item.radius_x * 2,
+                item.radius_y * 2,
+            )
+
+        # For containers (layer/group), compute union of all descendant shapes
+        if isinstance(item, (LayerItem, GroupItem)):
+            descendants = self._get_descendant_indices(item.id)
+            bounds = None
+            for child_idx in descendants:
+                child_bounds = self.getBoundingBox(child_idx)
+                if not child_bounds:
+                    continue
+                if bounds is None:
+                    bounds = dict(child_bounds)
+                else:
+                    min_x = min(bounds["x"], child_bounds["x"])
+                    min_y = min(bounds["y"], child_bounds["y"])
+                    max_x = max(
+                        bounds["x"] + bounds["width"],
+                        child_bounds["x"] + child_bounds["width"],
+                    )
+                    max_y = max(
+                        bounds["y"] + bounds["height"],
+                        child_bounds["y"] + child_bounds["height"],
+                    )
+                    bounds = rect_bounds(min_x, min_y, max_x - min_x, max_y - min_y)
+            return bounds
+
+        return None
+
     def getRenderItems(self) -> List[CanvasItem]:
         """Return items in model order (bottom to top) skipping layers.
 

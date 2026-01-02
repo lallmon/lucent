@@ -63,6 +63,7 @@ Item {
             id: selectionOverlay
             selectionPadding: 8  // Padding around selected object in canvas units
             selectedItem: DV.SelectionManager.selectedItem
+            boundsOverride: root.selectionBounds()
             zoomLevel: root.zoomLevel
             accentColor: DV.Theme.colors.accent
         }
@@ -226,6 +227,32 @@ Item {
     function selectItemAt(canvasX, canvasY) {
         var hitIndex = hitTest(canvasX, canvasY);
         hitTestHelper.applySelection(DV.SelectionManager, canvasModel, hitIndex);
+    }
+
+    function selectionBounds() {
+        if (DV.SelectionManager.selectedItemIndex < 0)
+            return null;
+        var item = DV.SelectionManager.selectedItem;
+        if (!item)
+            return null;
+        if (item.type === "rectangle") {
+            return {
+                x: item.x,
+                y: item.y,
+                width: item.width,
+                height: item.height
+            };
+        } else if (item.type === "ellipse") {
+            return {
+                x: item.centerX - item.radiusX,
+                y: item.centerY - item.radiusY,
+                width: item.radiusX * 2,
+                height: item.radiusY * 2
+            };
+        } else if (item.type === "group" || item.type === "layer") {
+            return canvasModel.getBoundingBox(DV.SelectionManager.selectedItemIndex);
+        }
+        return null;
     }
 
     function updateSelectedItemPosition(canvasDx, canvasDy) {
