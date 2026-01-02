@@ -191,14 +191,58 @@ jobs:
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           
           if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            COMMITS=$(git log --pretty=format:"%s (%h)" --no-merges)
           else
-            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s (%h)" --no-merges)
           fi
           
-          echo "## What's Changed" > release_notes.md
-          echo "" >> release_notes.md
-          echo "$COMMITS" >> release_notes.md
+          FEATURES=()
+          BUGS=()
+          OTHER=()
+
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            type_part=${line%% *}
+            type_part=${type_part%%:*}
+            type_part=${type_part,,}
+            case "$type_part" in
+              feature|feat) FEATURES+=("$line") ;;
+              bug|fix) BUGS+=("$line") ;;
+              *) OTHER+=("$line") ;;
+            esac
+          done <<< "$COMMITS"
+
+          {
+            echo "## What's Changed"
+            echo ""
+
+            if [ ${#FEATURES[@]} -gt 0 ]; then
+              echo "### Features Created :tada:"
+              echo ""
+              for item in "${FEATURES[@]}"; do
+                echo "- $item"
+              done
+              echo ""
+            fi
+
+            if [ ${#BUGS[@]} -gt 0 ]; then
+              echo "### Bugs Squashed :bug:"
+              echo ""
+              for item in "${BUGS[@]}"; do
+                echo "- $item"
+              done
+              echo ""
+            fi
+
+            if [ ${#OTHER[@]} -gt 0 ]; then
+              echo "### Housekeeping :broom:"
+              echo ""
+              for item in "${OTHER[@]}"; do
+                echo "- $item"
+              done
+              echo ""
+            fi
+          } > release_notes.md
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
