@@ -99,6 +99,10 @@ Pane {
             checked: root.activeTool === "ellipse"
             ButtonGroup.group: toolButtonGroup
 
+            ToolTip.visible: ellipseButton.hovered
+            ToolTip.delay: 500
+            ToolTip.text: "Ellipse Tool\n\nShift: Constrain to circle\nAlt: Draw from center"
+
             contentItem: Item {
                 anchors.fill: parent
                 PhIcon {

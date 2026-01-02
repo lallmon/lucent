@@ -177,19 +177,36 @@ Item {
     }
 
     // Update preview during mouse movement
-    function handleMouseMove(canvasX, canvasY) {
+    function handleMouseMove(canvasX, canvasY, modifiers) {
         if (!tool.active || !isDrawing)
             return;
 
-        // Calculate width and height from start point to current point
-        var width = canvasX - drawStartX;
-        var height = canvasY - drawStartY;
+        // Calculate distance from start point to current point
+        var deltaX = canvasX - drawStartX;
+        var deltaY = canvasY - drawStartY;
+        var ellipseWidth = Math.abs(deltaX);
+        var ellipseHeight = Math.abs(deltaY);
 
-        // Handle dragging in any direction (normalize bounding box)
-        var ellipseX = width >= 0 ? drawStartX : canvasX;
-        var ellipseY = height >= 0 ? drawStartY : canvasY;
-        var ellipseWidth = Math.abs(width);
-        var ellipseHeight = Math.abs(height);
+        // Constrain to circle when Shift is held
+        if (modifiers & Qt.ShiftModifier) {
+            var size = Math.max(ellipseWidth, ellipseHeight);
+            ellipseWidth = size;
+            ellipseHeight = size;
+        }
+
+        // Calculate position based on Alt (center mode) or corner mode
+        var ellipseX, ellipseY;
+        if (modifiers & Qt.AltModifier) {
+            // Alt: draw from center - double the dimensions
+            ellipseWidth *= 2;
+            ellipseHeight *= 2;
+            ellipseX = drawStartX - ellipseWidth / 2;
+            ellipseY = drawStartY - ellipseHeight / 2;
+        } else {
+            // Normal: draw from corner
+            ellipseX = deltaX >= 0 ? drawStartX : drawStartX - ellipseWidth;
+            ellipseY = deltaY >= 0 ? drawStartY : drawStartY - ellipseHeight;
+        }
 
         // Update current ellipse (create new object to trigger binding)
         currentEllipse = {
