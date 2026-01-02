@@ -2348,6 +2348,48 @@ class TestCanvasModelReparentItem:
         assert pos == 2  # Should insert at end
 
 
+class TestLayerVisibilityLocking:
+    """Effective visibility/locking inheritance from parent layers."""
+
+    def test_shape_effective_visibility_respects_parent_layer(self, canvas_model):
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        canvas_model.setParent(1, layer_id)
+
+        # Layer visible by default -> shape visible
+        assert canvas_model._is_effectively_visible(1) is True
+
+        # Hide layer -> shape becomes effectively hidden
+        canvas_model.updateItem(0, {"visible": False})
+        assert canvas_model._is_effectively_visible(1) is False
+
+        # Show layer -> shape visible again
+        canvas_model.updateItem(0, {"visible": True})
+        assert canvas_model._is_effectively_visible(1) is True
+
+    def test_shape_effective_locked_respects_parent_layer(self, canvas_model):
+        canvas_model.addLayer()
+        layer_id = canvas_model.getItems()[0].id
+        canvas_model.addItem(
+            {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5}
+        )
+        canvas_model.setParent(1, layer_id)
+
+        # Layer unlocked by default -> shape unlocked
+        assert canvas_model._is_effectively_locked(1) is False
+
+        # Lock layer -> shape becomes effectively locked
+        canvas_model.updateItem(0, {"locked": True})
+        assert canvas_model._is_effectively_locked(1) is True
+
+        # Unlock layer -> shape unlocked again
+        canvas_model.updateItem(0, {"locked": False})
+        assert canvas_model._is_effectively_locked(1) is False
+
+
 class TestLayerMoveWithChildren:
     """Tests for moving layers with their children as a group."""
 
