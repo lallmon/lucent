@@ -190,6 +190,7 @@ Item {
         // Select the newly created item (it's at the end of the list)
         var newIndex = canvasModel.count() - 1;
         hitTestHelper.applySelection(DV.SelectionManager, canvasModel, newIndex);
+        refreshSelectionOverlayBounds();
     }
 
     // Set the drawing mode
@@ -220,13 +221,16 @@ Item {
 
     // Hit test to find item at canvas coordinates
     function hitTest(canvasX, canvasY) {
-        return hitTestHelper.hitTest(canvasModel.getItemsForHitTest(), canvasX, canvasY);
+        return hitTestHelper.hitTest(canvasModel.getItemsForHitTest(), canvasX, canvasY, function (idx) {
+            return canvasModel.getBoundingBox(idx);
+        });
     }
 
     // Select item at canvas coordinates
     function selectItemAt(canvasX, canvasY) {
         var hitIndex = hitTest(canvasX, canvasY);
         hitTestHelper.applySelection(DV.SelectionManager, canvasModel, hitIndex);
+        refreshSelectionOverlayBounds();
     }
 
     function selectionBounds() {
@@ -266,16 +270,34 @@ Item {
         if (canvasModel.isEffectivelyLocked(index))
             return;
 
-        var properties = {};
         if (item.type === "rectangle") {
-            properties.x = item.x + canvasDx;
-            properties.y = item.y + canvasDy;
+            canvasModel.updateItem(index, {
+                x: item.x + canvasDx,
+                y: item.y + canvasDy
+            });
         } else if (item.type === "ellipse") {
-            properties.centerX = item.centerX + canvasDx;
-            properties.centerY = item.centerY + canvasDy;
+            canvasModel.updateItem(index, {
+                centerX: item.centerX + canvasDx,
+                centerY: item.centerY + canvasDy
+            });
+        } else if (item.type === "group" || item.type === "layer") {
+            canvasModel.moveGroup(index, canvasDx, canvasDy);
+            refreshSelectionOverlayBounds();
         }
+    }
 
-        canvasModel.updateItem(index, properties);
+    function refreshSelectionOverlayBounds() {
+        selectionOverlay.boundsOverride = selectionBounds();
+    }
+
+    Connections {
+        target: DV.SelectionManager
+        function onSelectedItemChanged() {
+            refreshSelectionOverlayBounds();
+        }
+        function onSelectedItemIndexChanged() {
+            refreshSelectionOverlayBounds();
+        }
     }
 
     function deleteSelectedItem() {

@@ -84,9 +84,14 @@ Item {
                     }
 
                     TapHandler {
-                        onTapped: canvasModel.addItem({
-                            "type": "group"
-                        })
+                        onTapped: {
+                            canvasModel.addItem({
+                                "type": "group"
+                            });
+                            const idx = canvasModel.count() - 1;
+                            DV.SelectionManager.selectedItemIndex = idx;
+                            DV.SelectionManager.selectedItem = canvasModel.getItemData(idx);
+                        }
                     }
                 }
             }

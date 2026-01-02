@@ -223,9 +223,55 @@ class CanvasModel(QAbstractListModel):
             result.append(idx)
             child = self._items[idx]
             child_id = getattr(child, "id", None)
-            if isinstance(child, GroupItem) and child_id:
+            if isinstance(child, (GroupItem, LayerItem)) and child_id:
                 queue.extend(self._get_direct_children_indices(child_id))
         return result
+
+    @Slot(int, float, float)
+    def moveGroup(self, group_index: int, dx: float, dy: float) -> None:
+        """Translate all descendant shapes of a group/layer by dx, dy."""
+        if not (0 <= group_index < len(self._items)):
+            return
+        container = self._items[group_index]
+        if not isinstance(container, (GroupItem, LayerItem)):
+            return
+        # Apply deltas to descendant shapes
+        for idx in self._get_descendant_indices(container.id):
+            item = self._items[idx]
+            if isinstance(item, RectangleItem):
+                self.updateItem(idx, {"x": item.x + dx, "y": item.y + dy})
+            elif isinstance(item, EllipseItem):
+                self.updateItem(
+                    idx,
+                    {
+                        "centerX": item.center_x + dx,
+                        "centerY": item.center_y + dy,
+                    },
+                )
+
+    @Slot(int)
+    def ungroup(self, group_index: int) -> None:
+        """Ungroup a group: move its children to the group's parent and remove it."""
+        if not (0 <= group_index < len(self._items)):
+            return
+        group = self._items[group_index]
+        if not isinstance(group, GroupItem):
+            return
+        parent_id = getattr(group, "parent_id", None) or ""
+
+        # Reparent direct children to the group's parent
+        child_indices = []
+        for i in range(len(self._items)):
+            child = self._items[i]
+            if getattr(child, "parent_id", None) == group.id:
+                child_indices.append(i)
+
+        # Reparent children (bottom-up to keep indices stable)
+        for idx in reversed(child_indices):
+            self.reparentItem(idx, parent_id)
+
+        # Remove the group itself
+        self.removeItem(group_index)
 
     def _is_effectively_visible(self, index: int) -> bool:
         if not (0 <= index < len(self._items)):

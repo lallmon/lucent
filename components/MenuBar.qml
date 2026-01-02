@@ -76,23 +76,7 @@ MenuBar {
                 const groupData = canvasModel.getItemData(groupIndex);
                 if (!groupData || groupData.type !== "group")
                     return;
-                const groupId = groupData.id;
-                const parentId = groupData.parentId ? groupData.parentId : "";
-
-                // Reparent direct children to the group's parent
-                const childIndices = [];
-                for (let i = 0; i < canvasModel.count(); i++) {
-                    const data = canvasModel.getItemData(i);
-                    if (data && data.parentId === groupId) {
-                        childIndices.push(i);
-                    }
-                }
-                for (let j = 0; j < childIndices.length; j++) {
-                    const childIdx = childIndices[j];
-                    canvasModel.reparentItem(childIdx, parentId);
-                }
-
-                canvasModel.removeItem(groupIndex);
+                canvasModel.ungroup(groupIndex);
                 DV.SelectionManager.selectedItemIndex = -1;
                 DV.SelectionManager.selectedItem = null;
             }

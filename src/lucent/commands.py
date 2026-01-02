@@ -79,6 +79,7 @@ class RemoveItemCommand(Command):
     def __init__(self, model: "CanvasModel", index: int) -> None:
         self._model = model
         self._index = index
+        self._original_index = index
         self._item_data: Optional[Dict[str, Any]] = None
         # Track removed children for undo (list of (index, child_item_data))
         self._removed_children: List[tuple] = []
@@ -99,10 +100,12 @@ class RemoveItemCommand(Command):
             if isinstance(item, (LayerItem, GroupItem)):
                 container_id = item.id
                 self._removed_children = []
-                # Collect descendant indices (any depth) sorted descending
                 descendant_indices = self._model._get_descendant_indices(container_id)
                 descendant_indices.sort(reverse=True)
+                removed_before = 0
                 for child_index in descendant_indices:
+                    if child_index < self._index:
+                        removed_before += 1
                     child = self._model._items[child_index]
                     self._removed_children.append(
                         (child_index, self._model._itemToDict(child))
@@ -112,6 +115,8 @@ class RemoveItemCommand(Command):
                     self._model.endRemoveRows()
                     # Do not emit itemRemoved for children; primary removal will
                     # emit once for the container
+                # Adjust container index after prior removals
+                self._index = self._index - removed_before
 
             self._model.beginRemoveRows(QModelIndex(), self._index, self._index)
             del self._model._items[self._index]
@@ -121,10 +126,11 @@ class RemoveItemCommand(Command):
     def undo(self) -> None:
         if self._item_data:
             # Reinsert primary item
-            self._model.beginInsertRows(QModelIndex(), self._index, self._index)
-            self._model._items.insert(self._index, _create_item(self._item_data))
+            insert_at = min(self._original_index, len(self._model._items))
+            self._model.beginInsertRows(QModelIndex(), insert_at, insert_at)
+            self._model._items.insert(insert_at, _create_item(self._item_data))
             self._model.endInsertRows()
-            self._model.itemAdded.emit(self._index)
+            self._model.itemAdded.emit(insert_at)
 
             # Reinsert previously removed children, preserving order
             # Insert children after the layer to keep grouping reasonable
