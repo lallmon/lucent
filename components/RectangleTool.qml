@@ -10,10 +10,9 @@ Item {
     property bool active: false
     property var settings: null  // Tool settings object
 
-    // Internal state
-    property bool isDrawing: false
-    property real drawStartX: 0
-    property real drawStartY: 0
+    TwoPointToolHelper {
+        id: helper
+    }
     property var currentRect: null
 
     // Signal emitted when an item is completed
@@ -22,9 +21,9 @@ Item {
     // Starting point indicator (black dot shown during rectangle drawing)
     Rectangle {
         id: startPointIndicator
-        visible: tool.isDrawing
-        x: tool.drawStartX - (6 / tool.zoomLevel)
-        y: tool.drawStartY - (6 / tool.zoomLevel)
+        visible: helper.isDrawing
+        x: helper.startX - (6 / tool.zoomLevel)
+        y: helper.startY - (6 / tool.zoomLevel)
         width: 12 / tool.zoomLevel
         height: 12 / tool.zoomLevel
         radius: 6 / tool.zoomLevel
@@ -120,63 +119,49 @@ Item {
         if (!tool.active)
             return;
 
-        if (!isDrawing) {
+        if (!helper.isDrawing) {
             // First click: Start drawing a rectangle
-            isDrawing = true;
-            drawStartX = canvasX;
-            drawStartY = canvasY;
+            helper.begin(canvasX, canvasY);
 
             // Initialize rectangle at start point with minimal size
             currentRect = {
-                x: drawStartX,
-                y: drawStartY,
+                x: helper.startX,
+                y: helper.startY,
                 width: 1,
                 height: 1
             };
         } else {
             // Second click: Finalize the rectangle
-            if (currentRect && currentRect.width > 1 && currentRect.height > 1) {
-
-                // Create complete item data object
-                // Force value evaluation by storing in local variables first
-                // This prevents QML from creating bindings to the settings object
-                var sw = settings ? settings.strokeWidth : 1;
-                var sc = settings ? settings.strokeColor.toString() : "#ffffff";
-                var so = settings ? (settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0) : 1.0;
-                var fc = settings ? settings.fillColor.toString() : "#ffffff";
-                var fo = settings ? settings.fillOpacity : 0.0;
-
-                var itemData = {
+            if (helper.hasSize(currentRect)) {
+                var style = helper.extractStyle(settings);
+                itemCompleted({
                     type: "rectangle",
                     x: currentRect.x,
                     y: currentRect.y,
                     width: currentRect.width,
                     height: currentRect.height,
-                    strokeWidth: sw,
-                    strokeColor: sc,
-                    strokeOpacity: so,
-                    fillColor: fc,
-                    fillOpacity: fo
-                };
-
-                // Emit signal with complete item data
-                itemCompleted(itemData);
+                    strokeWidth: style.strokeWidth,
+                    strokeColor: style.strokeColor,
+                    strokeOpacity: style.strokeOpacity,
+                    fillColor: style.fillColor,
+                    fillOpacity: style.fillOpacity
+                });
             }
 
             // Clear current rectangle and reset drawing state
             currentRect = null;
-            isDrawing = false;
+            helper.reset();
         }
     }
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
-        if (!tool.active || !isDrawing)
+        if (!tool.active || !helper.isDrawing)
             return;
 
         // Calculate distance from start point to current point
-        var deltaX = canvasX - drawStartX;
-        var deltaY = canvasY - drawStartY;
+        var deltaX = canvasX - helper.startX;
+        var deltaY = canvasY - helper.startY;
         var rectWidth = Math.abs(deltaX);
         var rectHeight = Math.abs(deltaY);
 
@@ -193,12 +178,12 @@ Item {
             // Alt: draw from center - double the dimensions
             rectWidth *= 2;
             rectHeight *= 2;
-            rectX = drawStartX - rectWidth / 2;
-            rectY = drawStartY - rectHeight / 2;
+            rectX = helper.startX - rectWidth / 2;
+            rectY = helper.startY - rectHeight / 2;
         } else {
             // Normal: draw from corner
-            rectX = deltaX >= 0 ? drawStartX : drawStartX - rectWidth;
-            rectY = deltaY >= 0 ? drawStartY : drawStartY - rectHeight;
+            rectX = deltaX >= 0 ? helper.startX : helper.startX - rectWidth;
+            rectY = deltaY >= 0 ? helper.startY : helper.startY - rectHeight;
         }
 
         // Update current rectangle (create new object to trigger binding)
@@ -212,7 +197,7 @@ Item {
 
     // Reset tool state (called when switching tools)
     function reset() {
-        isDrawing = false;
+        helper.reset();
         currentRect = null;
     }
 }

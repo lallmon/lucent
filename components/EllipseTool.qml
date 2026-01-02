@@ -10,10 +10,9 @@ Item {
     property bool active: false
     property var settings: null  // Tool settings object
 
-    // Internal state
-    property bool isDrawing: false
-    property real drawStartX: 0
-    property real drawStartY: 0
+    TwoPointToolHelper {
+        id: helper
+    }
     property var currentEllipse: null
 
     // Signal emitted when an item is completed
@@ -22,9 +21,9 @@ Item {
     // Starting point indicator (black dot shown during ellipse drawing)
     Rectangle {
         id: startPointIndicator
-        visible: tool.isDrawing
-        x: tool.drawStartX - (6 / tool.zoomLevel)
-        y: tool.drawStartY - (6 / tool.zoomLevel)
+        visible: helper.isDrawing
+        x: helper.startX - (6 / tool.zoomLevel)
+        y: helper.startY - (6 / tool.zoomLevel)
         width: 12 / tool.zoomLevel
         height: 12 / tool.zoomLevel
         radius: 6 / tool.zoomLevel
@@ -121,37 +120,27 @@ Item {
         if (!tool.active)
             return;
 
-        if (!isDrawing) {
+        if (!helper.isDrawing) {
             // First click: Start drawing an ellipse
-            isDrawing = true;
-            drawStartX = canvasX;
-            drawStartY = canvasY;
+            helper.begin(canvasX, canvasY);
 
             // Initialize ellipse at start point with minimal size
             currentEllipse = {
-                x: drawStartX,
-                y: drawStartY,
+                x: helper.startX,
+                y: helper.startY,
                 width: 1,
                 height: 1
             };
         } else {
             // Second click: Finalize the ellipse
-            if (currentEllipse && currentEllipse.width > 1 && currentEllipse.height > 1) {
-
+            if (helper.hasSize(currentEllipse)) {
                 // Convert bounding box to center and radii
                 var centerX = currentEllipse.x + currentEllipse.width / 2;
                 var centerY = currentEllipse.y + currentEllipse.height / 2;
                 var radiusX = currentEllipse.width / 2;
                 var radiusY = currentEllipse.height / 2;
 
-                // Force value evaluation by storing in local variables first
-                // This prevents QML from creating bindings to the settings object
-                var sw = settings ? settings.strokeWidth : 1;
-                var sc = settings ? settings.strokeColor.toString() : "#ffffff";
-                var so = settings ? (settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0) : 1.0;
-                var fc = settings ? settings.fillColor.toString() : "#ffffff";
-                var fo = settings ? settings.fillOpacity : 0.0;
-
+                var style = helper.extractStyle(settings);
                 // Create complete item data object
                 var itemData = {
                     type: "ellipse",
@@ -159,11 +148,11 @@ Item {
                     centerY: centerY,
                     radiusX: radiusX,
                     radiusY: radiusY,
-                    strokeWidth: sw,
-                    strokeColor: sc,
-                    strokeOpacity: so,
-                    fillColor: fc,
-                    fillOpacity: fo
+                    strokeWidth: style.strokeWidth,
+                    strokeColor: style.strokeColor,
+                    strokeOpacity: style.strokeOpacity,
+                    fillColor: style.fillColor,
+                    fillOpacity: style.fillOpacity
                 };
 
                 // Emit signal with complete item data
@@ -172,18 +161,18 @@ Item {
 
             // Clear current ellipse and reset drawing state
             currentEllipse = null;
-            isDrawing = false;
+            helper.reset();
         }
     }
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
-        if (!tool.active || !isDrawing)
+        if (!tool.active || !helper.isDrawing)
             return;
 
         // Calculate distance from start point to current point
-        var deltaX = canvasX - drawStartX;
-        var deltaY = canvasY - drawStartY;
+        var deltaX = canvasX - helper.startX;
+        var deltaY = canvasY - helper.startY;
         var ellipseWidth = Math.abs(deltaX);
         var ellipseHeight = Math.abs(deltaY);
 
@@ -200,12 +189,12 @@ Item {
             // Alt: draw from center - double the dimensions
             ellipseWidth *= 2;
             ellipseHeight *= 2;
-            ellipseX = drawStartX - ellipseWidth / 2;
-            ellipseY = drawStartY - ellipseHeight / 2;
+            ellipseX = helper.startX - ellipseWidth / 2;
+            ellipseY = helper.startY - ellipseHeight / 2;
         } else {
             // Normal: draw from corner
-            ellipseX = deltaX >= 0 ? drawStartX : drawStartX - ellipseWidth;
-            ellipseY = deltaY >= 0 ? drawStartY : drawStartY - ellipseHeight;
+            ellipseX = deltaX >= 0 ? helper.startX : helper.startX - ellipseWidth;
+            ellipseY = deltaY >= 0 ? helper.startY : helper.startY - ellipseHeight;
         }
 
         // Update current ellipse (create new object to trigger binding)
@@ -219,7 +208,7 @@ Item {
 
     // Reset tool state (called when switching tools)
     function reset() {
-        isDrawing = false;
+        helper.reset();
         currentEllipse = null;
     }
 }
