@@ -2492,6 +2492,68 @@ class TestGroupHierarchy:
         assert canvas_model.getItems()[group_index].parent_id is None
 
 
+class TestGroupItemsCommand:
+    """Ensure grouping is atomic and undoable."""
+
+    def test_group_items_sets_parent_and_adds_group(self, canvas_model):
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        canvas_model.addItem(
+            {
+                "type": "ellipse",
+                "centerX": 5,
+                "centerY": 5,
+                "radiusX": 2,
+                "radiusY": 2,
+            }
+        )
+
+        group_idx = canvas_model.groupItems([0, 1])
+        assert group_idx >= 0
+        items = canvas_model.getItems()
+        assert len(items) == 3
+        group = items[group_idx]
+        assert getattr(group, "type", "group") == "group"
+
+        # Children should have parentId set to the group
+        child_parents = [
+            getattr(item, "parent_id", None)
+            for item in items
+            if getattr(item, "type", "") in ("rectangle", "ellipse")
+        ]
+        assert all(pid == group.id for pid in child_parents)
+
+    def test_group_items_undo_redo_single_step(self, canvas_model, qtbot):
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 1, "height": 1}
+        )
+        canvas_model.addItem(
+            {"type": "ellipse", "centerX": 1, "centerY": 1, "radiusX": 1, "radiusY": 1}
+        )
+
+        group_idx = canvas_model.groupItems([0, 1])
+        assert canvas_model.count() == 3
+        assert canvas_model.canUndo is True
+
+        # Undo should remove group and restore two items
+        canvas_model.undo()
+        assert canvas_model.count() == 2
+        assert canvas_model.canRedo is True
+
+        # Redo should recreate group in one step
+        canvas_model.redo()
+        assert canvas_model.count() == 3
+        # Verify children are grouped
+        group = canvas_model.getItems()[group_idx]
+        child_parents = [
+            getattr(item, "parent_id", None)
+            for item in canvas_model.getItems()
+            if getattr(item, "type", "") in ("rectangle", "ellipse")
+        ]
+        assert all(pid == group.id for pid in child_parents)
+
+
 class TestLayerMoveWithChildren:
     """Tests for moving layers with their children as a group."""
 
