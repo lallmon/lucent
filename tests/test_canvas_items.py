@@ -1,5 +1,6 @@
 """Unit tests for canvas_items module."""
 
+import pytest
 from PySide6.QtGui import QPainter
 from lucent.canvas_items import (
     CanvasItem,
@@ -404,6 +405,42 @@ class TestPathItem:
             stroke_opacity=1.0,
             fill_color="#ff0000",
             fill_opacity=0.5,
+            closed=True,
+        )
+        path.paint(painter, zoom_level=1.0)
+        painter.end()
+
+    def test_path_requires_two_points(self):
+        """Constructor should reject fewer than two points."""
+        with pytest.raises(ValueError):
+            PathItem(points=[{"x": 0, "y": 0}])
+
+    def test_path_from_dict_invalid_points_raises(self):
+        """from_dict should reject non-list points."""
+        with pytest.raises(ValueError):
+            PathItem.from_dict({"type": "path", "points": "bad"})
+
+    def test_paint_no_points_returns_early(self):
+        """Paint should no-op gracefully when no points exist."""
+        img = QImage(QSize(10, 10), QImage.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        path = PathItem(points=[{"x": 0, "y": 0}, {"x": 1, "y": 1}])
+        # empty points to trigger early return
+        path.points = []
+        path.paint(painter, zoom_level=1.0)
+        painter.end()
+
+    def test_paint_closed_without_fill(self, qtbot):
+        """Closed path with no fill still renders stroke."""
+        img = QImage(QSize(20, 20), QImage.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        path = PathItem(
+            points=[{"x": -2, "y": -2}, {"x": 2, "y": -2}, {"x": 0, "y": 2}],
+            stroke_width=2,
+            stroke_color="#00ffff",
+            stroke_opacity=1.0,
             closed=True,
         )
         path.paint(painter, zoom_level=1.0)
