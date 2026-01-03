@@ -14,6 +14,7 @@ ApplicationWindow {
     menuBar: MenuBar {
         viewport: viewport
         canvas: canvas
+        onAboutRequested: aboutDialog.open()
     }
 
     footer: StatusBar {
@@ -99,5 +100,14 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    AboutDialog {
+        id: aboutDialog
+        anchors.centerIn: parent
+        appVersion: appInfo ? appInfo.appVersion : ""
+        rendererBackend: appInfo ? appInfo.rendererBackend : ""
+        rendererType: appInfo ? appInfo.rendererType : ""
+        glVendor: appInfo ? appInfo.glVendor : ""
     }
 }

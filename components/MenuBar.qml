@@ -10,6 +10,8 @@ MenuBar {
     property var viewport: null
     // Property to reference the canvas for edit operations
     property var canvas: null
+    // Signal to request About dialog from parent
+    signal aboutRequested
 
     Menu {
         title: qsTr("&File")
@@ -117,6 +119,14 @@ MenuBar {
                     root.viewport.resetZoom();
                 }
             }
+        }
+    }
+
+    Menu {
+        title: qsTr("&Help")
+        Action {
+            text: qsTr("&About")
+            onTriggered: root.aboutRequested()
         }
     }
 }
