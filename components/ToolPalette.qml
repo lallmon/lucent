@@ -79,40 +79,6 @@ Pane {
             }
         }
 
-        // Pen tool button (placed at bottom)
-        ToolButton {
-            id: penButton
-            Layout.preferredWidth: DV.Theme.sizes.toolButtonSize
-            Layout.preferredHeight: DV.Theme.sizes.toolButtonSize
-            Layout.alignment: Qt.AlignHCenter
-            checkable: true
-            checked: root.activeTool === "pen"
-            ButtonGroup.group: toolButtonGroup
-
-            ToolTip.visible: penButton.hovered
-            ToolTip.delay: 500
-            ToolTip.text: "Pen Tool\n\nClick to add points, click first point to close"
-
-            contentItem: Item {
-                anchors.fill: parent
-                PhIcon {
-                    anchors.centerIn: parent
-                    name: "pen-nib"
-                    color: "white"
-                }
-            }
-
-            onClicked: {
-                root.toolSelected(checked ? "pen" : "");
-            }
-
-            background: Rectangle {
-                color: penButton.checked ? DV.Theme.colors.panelActive : (penButton.hovered ? DV.Theme.colors.panelHover : DV.Theme.colors.panelBackground)
-                border.color: penButton.checked ? "#ffffff" : DV.Theme.colors.borderDefault
-                border.width: 1
-                radius: DV.Theme.sizes.radiusMd
-            }
-        }
         ToolButton {
             id: ellipseButton
             Layout.preferredWidth: DV.Theme.sizes.toolButtonSize
@@ -143,6 +109,40 @@ Pane {
             background: Rectangle {
                 color: ellipseButton.checked ? DV.Theme.colors.panelActive : (ellipseButton.hovered ? DV.Theme.colors.panelHover : DV.Theme.colors.panelBackground)
                 border.color: ellipseButton.checked ? "#ffffff" : DV.Theme.colors.borderDefault
+                border.width: 1
+                radius: DV.Theme.sizes.radiusMd
+            }
+        }
+        // Pen tool button (bottom)
+        ToolButton {
+            id: penButton
+            Layout.preferredWidth: DV.Theme.sizes.toolButtonSize
+            Layout.preferredHeight: DV.Theme.sizes.toolButtonSize
+            Layout.alignment: Qt.AlignHCenter
+            checkable: true
+            checked: root.activeTool === "pen"
+            ButtonGroup.group: toolButtonGroup
+
+            ToolTip.visible: penButton.hovered
+            ToolTip.delay: 500
+            ToolTip.text: "Pen Tool\n\nClick to add points, click first point to close"
+
+            contentItem: Item {
+                anchors.fill: parent
+                PhIcon {
+                    anchors.centerIn: parent
+                    name: "pen-nib"
+                    color: "white"
+                }
+            }
+
+            onClicked: {
+                root.toolSelected(checked ? "pen" : "");
+            }
+
+            background: Rectangle {
+                color: penButton.checked ? DV.Theme.colors.panelActive : (penButton.hovered ? DV.Theme.colors.panelHover : DV.Theme.colors.panelBackground)
+                border.color: penButton.checked ? "#ffffff" : DV.Theme.colors.borderDefault
                 border.width: 1
                 radius: DV.Theme.sizes.radiusMd
             }
