@@ -513,6 +513,9 @@ Item {
                                             if (draftName !== delegateRoot.name) {
                                                 canvasModel.renameItem(delegateRoot.modelIndex, draftName);
                                             }
+                                            // Return focus to the list so global shortcuts (undo/redo) work
+                                            nameField.focus = false;
+                                            layerFlickable.forceActiveFocus();
                                         }
 
                                         function cancelEditing() {
@@ -521,6 +524,8 @@ Item {
                                             isEditing = false;
                                             draftName = originalName;
                                             nameField.text = originalName;
+                                            nameField.focus = false;
+                                            layerFlickable.forceActiveFocus();
                                         }
 
                                         HoverHandler {
@@ -577,6 +582,21 @@ Item {
                                                 }
                                             }
                                             onTextChanged: nameEditor.draftName = text
+                                            Keys.onPressed: function (event) {
+                                                if (nameEditor.isEditing)
+                                                    return;
+                                                if (event.matches(StandardKey.Undo)) {
+                                                    if (canvasModel) {
+                                                        canvasModel.undo();
+                                                    }
+                                                    event.accepted = true;
+                                                } else if (event.matches(StandardKey.Redo)) {
+                                                    if (canvasModel) {
+                                                        canvasModel.redo();
+                                                    }
+                                                    event.accepted = true;
+                                                }
+                                            }
                                         }
                                     }
 
