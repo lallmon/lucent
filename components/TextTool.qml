@@ -29,10 +29,7 @@ Item {
     // Signal emitted when a text item is completed
     signal itemCompleted(var itemData)
 
-    // Placeholder text constant
     readonly property string placeholderText: "Type here..."
-
-    // Padding inside the text edit container (in canvas coordinates)
     readonly property real textPadding: 4
 
     // Box preview rectangle (shown while drawing)
@@ -60,19 +57,18 @@ Item {
         }
     }
 
-    // Resize state tracking
+    // Resize state
     property bool isResizing: false
-    property bool justFinishedResizing: false
+    property bool skipNextClick: false
     property real resizeStartX: 0
     property real resizeStartY: 0
     property real resizeStartWidth: 0
     property real resizeStartHeight: 0
 
-    // Text selection state tracking
+    // Text selection state
     property bool isSelectingText: false
     property int selectionAnchor: 0
 
-    // Text editing container (shown after box is created)
     Rectangle {
         id: textEditContainer
         visible: tool.isEditing
@@ -130,36 +126,20 @@ Item {
                 }
             }
 
-            Keys.onReturnPressed: function (event) {
+            function handleEnterKey(event) {
                 if (event.modifiers & Qt.ShiftModifier) {
-                    // Shift+Enter: Insert newline manually to maintain cursor
                     textEdit.insert(textEdit.cursorPosition, "\n");
                     textEdit.forceActiveFocus();
                     textEdit.cursorVisible = true;
-                    event.accepted = true;
-                } else {
-                    // Enter: Commit text
-                    tool.commitText();
-                    event.accepted = true;
-                }
-            }
-
-            Keys.onEnterPressed: function (event) {
-                if (event.modifiers & Qt.ShiftModifier) {
-                    // Shift+Enter: Insert newline manually to maintain cursor
-                    textEdit.insert(textEdit.cursorPosition, "\n");
-                    textEdit.forceActiveFocus();
-                    textEdit.cursorVisible = true;
-                    event.accepted = true;
                 } else {
                     tool.commitText();
-                    event.accepted = true;
                 }
+                event.accepted = true;
             }
 
-            Keys.onEscapePressed: {
-                tool.cancelText();
-            }
+            Keys.onReturnPressed: event => handleEnterKey(event)
+            Keys.onEnterPressed: event => handleEnterKey(event)
+            Keys.onEscapePressed: tool.cancelText()
         }
 
         // Resize handle (bottom-right corner)
@@ -189,7 +169,6 @@ Item {
         }
     }
 
-    // Check if a canvas position is within the resize handle area
     function isInResizeHandle(canvasX, canvasY) {
         if (!tool.isEditing)
             return false;
@@ -201,7 +180,6 @@ Item {
         return canvasX >= handleX && canvasX <= handleX + handleSize && canvasY >= handleY && canvasY <= handleY + handleSize;
     }
 
-    // Check if a canvas position is inside the text area (not resize handle)
     function isInTextArea(canvasX, canvasY) {
         if (!tool.isEditing)
             return false;
@@ -212,7 +190,6 @@ Item {
         return insideX && insideY && !isInResizeHandle(canvasX, canvasY);
     }
 
-    // Handle mouse press (for resize detection and text selection)
     function handleMousePress(canvasX, canvasY, button, modifiers) {
         if (!tool.active || !tool.isEditing)
             return;
@@ -224,11 +201,9 @@ Item {
             tool.resizeStartWidth = tool.boxWidth;
             tool.resizeStartHeight = tool.boxHeight;
         } else if (isInTextArea(canvasX, canvasY)) {
-            // Start text selection
             var localX = canvasX - tool.boxX - tool.textPadding;
             var localY = canvasY - tool.boxY - tool.textPadding;
             var pos = textEdit.positionAt(localX, localY);
-
             tool.isSelectingText = true;
             tool.selectionAnchor = pos;
             textEdit.cursorPosition = pos;
@@ -236,40 +211,33 @@ Item {
         }
     }
 
-    // Handle clicks for text box creation
     function handleClick(canvasX, canvasY) {
         if (!tool.active)
             return;
 
         if (tool.isEditing) {
-            // Check if click is inside the text box
-            var insideX = canvasX >= tool.boxX && canvasX <= tool.boxX + tool.boxWidth;
-            var insideY = canvasY >= tool.boxY && canvasY <= tool.boxY + textEditContainer.height;
-
-            // Skip click if we just finished resizing or selecting (preserve selection)
-            if (tool.justFinishedResizing) {
-                tool.justFinishedResizing = false;
+            if (tool.skipNextClick) {
+                tool.skipNextClick = false;
                 return;
             }
 
+            var insideX = canvasX >= tool.boxX && canvasX <= tool.boxX + tool.boxWidth;
+            var insideY = canvasY >= tool.boxY && canvasY <= tool.boxY + textEditContainer.height;
+
             if (insideX && insideY) {
-                // Click inside: position cursor at click location
-                // Convert canvas coords to TextEdit local coords
                 var localX = canvasX - tool.boxX - tool.textPadding;
                 var localY = canvasY - tool.boxY - tool.textPadding;
-                var pos = textEdit.positionAt(localX, localY);
-                textEdit.cursorPosition = pos;
+                textEdit.cursorPosition = textEdit.positionAt(localX, localY);
                 textEdit.forceActiveFocus();
                 return;
             }
 
-            // Clicking outside: commit and potentially start new
+            // Click outside: commit or cancel, then start new box
             if (textEdit.text.trim().length > 0 && textEdit.text !== tool.placeholderText) {
                 tool.commitText();
             } else {
                 tool.cancelText();
             }
-            // Start drawing new box
             helper.begin(canvasX, canvasY);
             currentBox = {
                 x: canvasX,
@@ -281,7 +249,6 @@ Item {
         }
 
         if (!helper.isDrawing) {
-            // First click: Start drawing the text box
             helper.begin(canvasX, canvasY);
             currentBox = {
                 x: canvasX,
@@ -289,46 +256,37 @@ Item {
                 width: 1,
                 height: 1
             };
+        } else if (currentBox && currentBox.width > 10 && currentBox.height > 10) {
+            tool.boxX = currentBox.x;
+            tool.boxY = currentBox.y;
+            tool.boxWidth = currentBox.width;
+            tool.boxHeight = currentBox.height;
+            tool.isEditing = true;
+            textEdit.text = tool.placeholderText;
+            textEdit.selectAll();
+            textEdit.forceActiveFocus();
+            currentBox = null;
+            helper.reset();
         } else {
-            // Second click: Finalize box and start editing
-            if (currentBox && currentBox.width > 10 && currentBox.height > 10) {
-                tool.boxX = currentBox.x;
-                tool.boxY = currentBox.y;
-                tool.boxWidth = currentBox.width;
-                tool.boxHeight = currentBox.height;
-                tool.isEditing = true;
-
-                // Initialize with placeholder and select it
-                textEdit.text = tool.placeholderText;
-                textEdit.selectAll();
-                textEdit.forceActiveFocus();
-            }
             currentBox = null;
             helper.reset();
         }
     }
 
-    // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
         if (!tool.active)
             return;
 
-        // Handle resize dragging
         if (tool.isResizing) {
-            var deltaX = canvasX - tool.resizeStartX;
-            var deltaY = canvasY - tool.resizeStartY;
-            tool.boxWidth = Math.max(50, tool.resizeStartWidth + deltaX);
-            tool.boxHeight = Math.max(30, tool.resizeStartHeight + deltaY);
+            tool.boxWidth = Math.max(50, tool.resizeStartWidth + canvasX - tool.resizeStartX);
+            tool.boxHeight = Math.max(30, tool.resizeStartHeight + canvasY - tool.resizeStartY);
             return;
         }
 
-        // Handle text selection dragging
         if (tool.isSelectingText) {
             var localX = canvasX - tool.boxX - tool.textPadding;
             var localY = canvasY - tool.boxY - tool.textPadding;
             var pos = textEdit.positionAt(localX, localY);
-
-            // Select from anchor to current position
             var start = Math.min(tool.selectionAnchor, pos);
             var end = Math.max(tool.selectionAnchor, pos);
             textEdit.select(start, end);
@@ -338,24 +296,20 @@ Item {
         if (!helper.isDrawing)
             return;
 
-        // Calculate box dimensions from start to current point
         var deltaX = canvasX - helper.startX;
         var deltaY = canvasY - helper.startY;
         var boxWidth = Math.abs(deltaX);
         var boxHeight = Math.abs(deltaY);
 
-        // Constrain to square when Shift is held
+        // Shift constrains to square
         if (modifiers & Qt.ShiftModifier) {
             var size = Math.max(boxWidth, boxHeight);
             boxWidth = size;
             boxHeight = size;
         }
 
-        // Calculate position based on drag direction
         var boxX = deltaX >= 0 ? helper.startX : helper.startX - boxWidth;
         var boxY = deltaY >= 0 ? helper.startY : helper.startY - boxHeight;
-
-        // Update current box
         currentBox = {
             x: boxX,
             y: boxY,
@@ -364,27 +318,21 @@ Item {
         };
     }
 
-    // Handle mouse release (for resize and text selection completion)
     function handleMouseRelease(canvasX, canvasY) {
         if (tool.isResizing) {
             tool.isResizing = false;
-            tool.justFinishedResizing = true;
+            tool.skipNextClick = true;
             textEdit.forceActiveFocus();
         }
         if (tool.isSelectingText) {
             tool.isSelectingText = false;
-            // If we selected text (not just a click), prevent click handler
-            if (textEdit.selectedText.length > 0) {
-                tool.justFinishedResizing = true;  // Reuse this flag to skip click
-            }
+            if (textEdit.selectedText.length > 0)
+                tool.skipNextClick = true;
         }
     }
 
-    // Commit the text as a canvas item
     function commitText() {
         var finalText = textEdit.text.trim();
-
-        // Don't commit placeholder or empty text
         if (finalText.length === 0 || finalText === tool.placeholderText) {
             tool.cancelText();
             return;
@@ -395,15 +343,12 @@ Item {
         var textColor = settings ? settings.textColor : "#ffffff";
         var textOpacity = settings ? (settings.textOpacity !== undefined ? settings.textOpacity : 1.0) : 1.0;
 
-        // Use actual container height (which grows with content)
-        var actualHeight = textEditContainer.height;
-
         itemCompleted({
             type: "text",
             x: tool.boxX + tool.textPadding,
             y: tool.boxY + tool.textPadding,
             width: tool.boxWidth - (tool.textPadding * 2),
-            height: actualHeight - (tool.textPadding * 2),
+            height: textEditContainer.height - (tool.textPadding * 2),
             text: finalText,
             fontFamily: fontFamily,
             fontSize: fontSize,
@@ -411,12 +356,10 @@ Item {
             textOpacity: textOpacity
         });
 
-        // Reset state
         tool.isEditing = false;
         textEdit.text = "";
     }
 
-    // Cancel text input without creating an item
     function cancelText() {
         tool.isEditing = false;
         textEdit.text = "";
@@ -424,15 +367,13 @@ Item {
         helper.reset();
     }
 
-    // Reset tool state (called when switching tools)
     function reset() {
         if (tool.isEditing) {
             var finalText = textEdit.text.trim();
-            if (finalText.length > 0 && finalText !== tool.placeholderText) {
+            if (finalText.length > 0 && finalText !== tool.placeholderText)
                 tool.commitText();
-            } else {
+            else
                 tool.cancelText();
-            }
         }
         currentBox = null;
         helper.reset();

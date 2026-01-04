@@ -501,37 +501,28 @@ class TextItem(CanvasItem):
         local_x = self.x + offset_x
         local_y = self.y + offset_y
 
-        # Set up font (use point size for typography standard)
         font = QFont(self.font_family)
         font.setPointSizeF(self.font_size)
 
-        # Set up text color with opacity
         text_qcolor = QColor(self.text_color)
         text_qcolor.setAlphaF(self.text_opacity)
 
-        # Create and configure QTextDocument
         doc = QTextDocument()
-        doc.setDocumentMargin(0)  # Remove default margin for precise positioning
+        doc.setDocumentMargin(0)
         doc.setDefaultFont(font)
-        doc.setPlainText(self.text)
-
-        # Set text width for word wrap (0 means no wrap)
         if self.width > 0:
             doc.setTextWidth(self.width)
 
-        # Configure text options (alignment can be extended later)
         option = QTextOption()
         option.setWrapMode(QTextOption.WrapMode.WordWrap)
         doc.setDefaultTextOption(option)
 
-        # Apply text color via stylesheet
+        # Apply color via stylesheet, then set HTML to activate it
         doc.setDefaultStyleSheet(
             f"body {{ color: {text_qcolor.name(QColor.NameFormat.HexArgb)}; }}"
         )
-        # Re-set text to apply stylesheet
         doc.setHtml(f"<body>{self.text.replace(chr(10), '<br>')}</body>")
 
-        # Save painter state, translate to position, draw, restore
         painter.save()
         painter.translate(local_x, local_y)
         doc.drawContents(painter)
@@ -540,13 +531,8 @@ class TextItem(CanvasItem):
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "TextItem":
         """Create TextItem from QML data dictionary."""
-        # Extract and validate font size (must be in range 8-200)
         font_size = max(8.0, min(200.0, float(data.get("fontSize", 16))))
-
-        # Extract and validate text opacity (must be in range 0.0-1.0)
         text_opacity = max(0.0, min(1.0, float(data.get("textOpacity", 1.0))))
-
-        # Extract and validate text box dimensions
         width = max(1.0, float(data.get("width", 100)))
         height = max(0.0, float(data.get("height", 0)))
 
