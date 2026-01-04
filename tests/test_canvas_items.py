@@ -1024,3 +1024,22 @@ class TestTextItem:
         text = TextItem.from_dict(data)
         assert text.width == 100
         assert text.height == 0
+
+    def test_paint_empty_text_returns_early(self, qtbot):
+        """TextItem.paint() should return early when text is empty."""
+        img = QImage(QSize(100, 50), QImage.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        text = TextItem(x=0, y=0, text="")
+        # Should not crash and should return early
+        text.paint(painter, zoom_level=1.0)
+        painter.end()
+
+    def test_paint_multiline_text(self, qtbot):
+        """TextItem.paint() should handle multiline text with newlines."""
+        img = QImage(QSize(200, 100), QImage.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        text = TextItem(x=0, y=0, text="Line 1\nLine 2\nLine 3", width=200)
+        text.paint(painter, zoom_level=1.0)
+        painter.end()

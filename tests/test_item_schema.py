@@ -173,6 +173,13 @@ def test_validate_text_empty_parent_id_becomes_none():
     assert out["parentId"] is None
 
 
+def test_validate_text_invalid_numeric_raises():
+    """validate_text should raise for invalid numeric fields."""
+    data = {"type": "text", "text": "Hello", "fontSize": "not-a-number"}
+    with pytest.raises(ItemSchemaError, match="Invalid text numeric field"):
+        validate_text(data)
+
+
 def test_parse_item_returns_concrete_items():
     rect = parse_item({"type": "rectangle", "width": 1, "height": 1})
     assert isinstance(rect, RectangleItem)
