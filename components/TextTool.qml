@@ -60,6 +60,14 @@ Item {
         }
     }
 
+    // Resize state tracking
+    property bool isResizing: false
+    property bool justFinishedResizing: false
+    property real resizeStartX: 0
+    property real resizeStartY: 0
+    property real resizeStartWidth: 0
+    property real resizeStartHeight: 0
+
     // Text editing container (shown after box is created)
     Rectangle {
         id: textEditContainer
@@ -68,7 +76,7 @@ Item {
         x: tool.boxX
         y: tool.boxY
         width: tool.boxWidth
-        height: Math.max(tool.boxHeight, textEdit.contentHeight)
+        height: Math.max(tool.boxHeight, textEdit.contentHeight + tool.textPadding * 2)
 
         color: "transparent"
         border.color: DV.PaletteBridge.active.highlight
@@ -99,8 +107,8 @@ Item {
 
             wrapMode: TextEdit.Wrap
             selectByMouse: true
-            focus: tool.isEditing
-            cursorVisible: tool.isEditing
+            focus: tool.isEditing && !tool.isResizing
+            cursorVisible: tool.isEditing && !tool.isResizing
 
             // Start with placeholder text selected
             text: tool.placeholderText
@@ -149,12 +157,70 @@ Item {
                 tool.cancelText();
             }
         }
+
+        // Resize handle (bottom-right corner)
+        Rectangle {
+            id: resizeHandle
+            width: 10 / tool.zoomLevel
+            height: 10 / tool.zoomLevel
+            radius: 5 / tool.zoomLevel
+            color: DV.PaletteBridge.active.highlight
+            border.color: DV.PaletteBridge.active.base
+            border.width: 1 / tool.zoomLevel
+
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: -5 / tool.zoomLevel
+            anchors.bottomMargin: -5 / tool.zoomLevel
+
+            MouseArea {
+                id: resizeMouseArea
+                anchors.fill: parent
+                anchors.margins: -6 / tool.zoomLevel  // Larger hit area for hover
+                cursorShape: Qt.SizeFDiagCursor
+                hoverEnabled: true
+                // Don't accept press - let it pass through to Canvas
+                acceptedButtons: Qt.NoButton
+            }
+        }
+    }
+
+    // Check if a canvas position is within the resize handle area
+    function isInResizeHandle(canvasX, canvasY) {
+        if (!tool.isEditing)
+            return false;
+
+        var handleSize = 16 / tool.zoomLevel;  // Generous hit area
+        var handleX = tool.boxX + tool.boxWidth - handleSize / 2;
+        var handleY = tool.boxY + textEditContainer.height - handleSize / 2;
+
+        return canvasX >= handleX && canvasX <= handleX + handleSize && canvasY >= handleY && canvasY <= handleY + handleSize;
+    }
+
+    // Handle mouse press (for resize detection)
+    function handleMousePress(canvasX, canvasY, button, modifiers) {
+        if (!tool.active || !tool.isEditing)
+            return;
+
+        if (isInResizeHandle(canvasX, canvasY)) {
+            tool.isResizing = true;
+            tool.resizeStartX = canvasX;
+            tool.resizeStartY = canvasY;
+            tool.resizeStartWidth = tool.boxWidth;
+            tool.resizeStartHeight = tool.boxHeight;
+        }
     }
 
     // Handle clicks for text box creation
     function handleClick(canvasX, canvasY) {
         if (!tool.active)
             return;
+
+        // Skip click if we just finished resizing (avoid accidental commit)
+        if (tool.justFinishedResizing) {
+            tool.justFinishedResizing = false;
+            return;
+        }
 
         if (tool.isEditing) {
             // If clicking outside current edit, commit and potentially start new
@@ -208,7 +274,19 @@ Item {
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
-        if (!tool.active || !helper.isDrawing)
+        if (!tool.active)
+            return;
+
+        // Handle resize dragging
+        if (tool.isResizing) {
+            var deltaX = canvasX - tool.resizeStartX;
+            var deltaY = canvasY - tool.resizeStartY;
+            tool.boxWidth = Math.max(50, tool.resizeStartWidth + deltaX);
+            tool.boxHeight = Math.max(30, tool.resizeStartHeight + deltaY);
+            return;
+        }
+
+        if (!helper.isDrawing)
             return;
 
         // Calculate box dimensions from start to current point
@@ -235,6 +313,15 @@ Item {
             width: boxWidth,
             height: boxHeight
         };
+    }
+
+    // Handle mouse release (for resize completion)
+    function handleMouseRelease(canvasX, canvasY) {
+        if (tool.isResizing) {
+            tool.isResizing = false;
+            tool.justFinishedResizing = true;
+            textEdit.forceActiveFocus();
+        }
     }
 
     // Commit the text as a canvas item
