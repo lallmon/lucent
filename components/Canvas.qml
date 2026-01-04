@@ -30,7 +30,9 @@ Item {
     }
 
     // Tool settings model - organized by tool type
-    property var toolSettings: toolDefaults.values
+    property var toolSettings: Qt.binding(function () {
+        return toolDefaults.defaults();
+    })
 
     // Current cursor shape (for dynamic cursor changes)
     property int currentCursorShape: Qt.OpenHandCursor

@@ -1,4 +1,5 @@
 import QtQuick
+import "." as DV
 
 // Pen drawing tool component
 Item {
@@ -19,7 +20,6 @@ Item {
     property var points: []
     property var previewPoint: null
     property bool isClosed: false
-
     // How close the click must be to first point to close the path (canvas units)
     readonly property real closeThreshold: 6 / Math.max(zoomLevel, 0.0001)
 
@@ -176,12 +176,12 @@ Item {
 
     function _colorString(value) {
         if (value === null || value === undefined)
-            return DV.PaletteBridge.active.text.toString();
+            return "";
         if (typeof value === "string")
             return value;
         if (value.toString)
             return value.toString();
-        return DV.PaletteBridge.active.text.toString();
+        return "";
     }
 
     function _isNearFirst(x, y) {

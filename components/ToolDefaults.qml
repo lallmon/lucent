@@ -1,29 +1,35 @@
 import QtQuick
 import "." as DV
 
-// Centralizes default tool settings for canvas tools.
 QtObject {
     id: toolDefaults
 
-    property var values: ({
+    readonly property color defaultStrokeColor: DV.PaletteBridge.active.text
+    readonly property color defaultFillColor: DV.PaletteBridge.active.text
+    readonly property real defaultStrokeOpacity: 0
+    readonly property real defaultFillOpacity: 0
+
+    function defaults() {
+        return {
             "rectangle": {
                 strokeWidth: 1,
-                strokeColor: DV.PaletteBridge.active.text,
-                fillColor: DV.PaletteBridge.active.base,
-                fillOpacity: 0.0
+                strokeColor: defaultStrokeColor,
+                fillColor: defaultFillColor,
+                fillOpacity: defaultFillOpacity
             },
             "ellipse": {
                 strokeWidth: 1,
-                strokeColor: DV.PaletteBridge.active.text,
-                fillColor: DV.PaletteBridge.active.base,
-                fillOpacity: 0.0
+                strokeColor: defaultStrokeColor,
+                fillColor: defaultFillColor,
+                fillOpacity: defaultFillOpacity
             },
             "pen": {
                 strokeWidth: 1,
-                strokeColor: DV.PaletteBridge.active.text,
-                strokeOpacity: 1.0,
-                fillColor: DV.PaletteBridge.active.base,
-                fillOpacity: 0.0
+                strokeColor: defaultStrokeColor,
+                strokeOpacity: defaultStrokeOpacity,
+                fillColor: defaultFillColor,
+                fillOpacity: defaultFillOpacity
             }
-        })
+        };
+    }
 }

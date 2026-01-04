@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import "." as DV
 
 // Rectangle drawing tool component
 Item {

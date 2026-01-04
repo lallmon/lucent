@@ -4,37 +4,32 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import "." as DV
 
-// Tool Settings Bar - displays settings for the currently active tool
 ToolBar {
     id: root
     height: 48
+    property ToolDefaults toolDefaults: ToolDefaults {}
 
-    // Properties
     property string activeTool: ""  // Current tool ("select", "rectangle", "ellipse", etc.)
     readonly property SystemPalette palette: DV.PaletteBridge.active
 
-    // Tool-specific settings - Rectangle
     property real rectangleStrokeWidth: 1
-    property color rectangleStrokeColor: palette.text
+    property color rectangleStrokeColor: toolDefaults.defaultStrokeColor
     property real rectangleStrokeOpacity: 1.0
-    property color rectangleFillColor: palette.base
-    property real rectangleFillOpacity: 0.0
+    property color rectangleFillColor: toolDefaults.defaultFillColor
+    property real rectangleFillOpacity: toolDefaults.defaultFillOpacity
 
-    // Tool-specific settings - Ellipse
     property real ellipseStrokeWidth: 1
-    property color ellipseStrokeColor: palette.text
+    property color ellipseStrokeColor: toolDefaults.defaultStrokeColor
     property real ellipseStrokeOpacity: 1.0
-    property color ellipseFillColor: palette.base
-    property real ellipseFillOpacity: 0.0
+    property color ellipseFillColor: toolDefaults.defaultFillColor
+    property real ellipseFillOpacity: toolDefaults.defaultFillOpacity
 
-    // Tool-specific settings - Pen
     property real penStrokeWidth: 1
-    property color penStrokeColor: palette.text
+    property color penStrokeColor: toolDefaults.defaultStrokeColor
     property real penStrokeOpacity: 1.0
-    property color penFillColor: palette.base
-    property real penFillOpacity: 0.0
+    property color penFillColor: toolDefaults.defaultFillColor
+    property real penFillOpacity: toolDefaults.defaultFillOpacity
 
-    // Construct toolSettings object from individual properties
     readonly property var toolSettings: ({
             "rectangle": {
                 strokeWidth: rectangleStrokeWidth,
