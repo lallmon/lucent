@@ -53,7 +53,7 @@ Item {
                 text: qsTr("Layers")
                 font.pixelSize: 12
                 font.bold: true
-                color: palette.highlightedText
+                color: palette.text
                 Layout.fillWidth: true
             }
 

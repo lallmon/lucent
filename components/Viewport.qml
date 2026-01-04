@@ -64,8 +64,9 @@ Item {
         property real zoomLevel: root.zoomLevel
         property real offsetX: root.offsetX
         property real offsetY: root.offsetY
-        property color minorColor: palette.midlight
-        property color majorColor: palette.mid
+        // Use palette roles directly for moderate contrast on light/dark themes.
+        property color minorColor: palette.mid
+        property color majorColor: palette.midlight
         property var viewportSize: Qt.vector2d(width, height)
 
         vertexShader: Qt.resolvedUrl("shaders/grid.vert.qsb")
@@ -197,7 +198,7 @@ Item {
         width: 8
         height: 8
         radius: 4
-        color: "#ff0000"
+        color: palette.highlight
         x: (parent.width / 2) + root.offsetX - 4
         y: (parent.height / 2) + root.offsetY - 4
         z: 1

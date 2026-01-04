@@ -49,7 +49,7 @@ ScrollView {
             text: qsTr("Properties")
             font.pixelSize: 12
             font.bold: true
-            color: "white"
+            color: palette.text
             Layout.fillWidth: true
         }
 
@@ -246,7 +246,7 @@ ScrollView {
                     Label {
                         text: root.selectedItem ? root.selectedItem.name : ""
                         font.pixelSize: root.labelSize
-                        color: "white"
+                        color: palette.text
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -419,7 +419,7 @@ ScrollView {
                         Label {
                             text: Math.round(pathStrokeOpacitySlider.value) + "%"
                             font.pixelSize: 11
-                            color: "white"
+                            color: palette.text
                             Layout.alignment: Qt.AlignVCenter
                         }
                     }
@@ -523,7 +523,7 @@ ScrollView {
                         Label {
                             text: Math.round(pathFillOpacitySlider.value) + "%"
                             font.pixelSize: 11
-                            color: "white"
+                            color: palette.text
                             Layout.alignment: Qt.AlignVCenter
                         }
                     }
@@ -668,7 +668,7 @@ ScrollView {
                         Label {
                             text: Math.round(strokeOpacitySlider.value) + "%"
                             font.pixelSize: 11
-                            color: "white"
+                            color: palette.text
                             Layout.preferredWidth: 40
                         }
                     }
@@ -776,7 +776,7 @@ ScrollView {
                         Label {
                             text: Math.round(opacitySlider.value) + "%"
                             font.pixelSize: 11
-                            color: "white"
+                            color: palette.text
                             Layout.preferredWidth: 40
                         }
                     }

@@ -22,9 +22,9 @@ QtObject {
         // Force evaluation to plain values to avoid unintended bindings
         return {
             strokeWidth: settings ? settings.strokeWidth : 1,
-            strokeColor: settings ? settings.strokeColor.toString() : "#ffffff",
+            strokeColor: settings ? settings.strokeColor.toString() : DV.PaletteBridge.active.text,
             strokeOpacity: settings ? (settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0) : 1.0,
-            fillColor: settings ? settings.fillColor.toString() : "#ffffff",
+            fillColor: settings ? settings.fillColor.toString() : DV.PaletteBridge.active.base,
             fillOpacity: settings ? settings.fillOpacity : 0.0
         };
     }

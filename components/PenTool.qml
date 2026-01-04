@@ -91,8 +91,8 @@ Item {
             radius: width / 2
             x: point.x - width / 2
             y: point.y - height / 2
-            color: "#222222"
-            border.color: "#ffffff"
+            color: DV.PaletteBridge.active.mid
+            border.color: DV.PaletteBridge.active.text
             border.width: 1 / Math.max(tool.zoomLevel, 0.0001)
         }
     }
@@ -176,12 +176,12 @@ Item {
 
     function _colorString(value) {
         if (value === null || value === undefined)
-            return "#ffffff";
+            return DV.PaletteBridge.active.text.toString();
         if (typeof value === "string")
             return value;
         if (value.toString)
             return value.toString();
-        return "#ffffff";
+        return DV.PaletteBridge.active.text.toString();
     }
 
     function _isNearFirst(x, y) {

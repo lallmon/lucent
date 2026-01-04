@@ -41,12 +41,7 @@ Pane {
                 root.toolSelected(checked ? "select" : "");
             }
 
-            background: Rectangle {
-                color: selButton.checked ? palette.highlight : (selButton.hovered ? palette.midlight : palette.base)
-                border.color: selButton.checked ? palette.highlight : palette.mid
-                border.width: 1
-                radius: DV.Styles.rad.md
-            }
+            // No custom background; rely on default ToolButton visuals
         }
 
         // Rectangle tool button
@@ -74,12 +69,7 @@ Pane {
             onClicked: {
                 root.toolSelected(checked ? "rectangle" : "");
             }
-            background: Rectangle {
-                color: rectButton.checked ? palette.highlight : (rectButton.hovered ? palette.midlight : palette.base)
-                border.color: rectButton.checked ? palette.highlight : palette.mid
-                border.width: 1
-                radius: DV.Styles.rad.md
-            }
+            // No custom background; rely on default ToolButton visuals
         }
 
         ToolButton {
@@ -108,13 +98,7 @@ Pane {
                 root.toolSelected(checked ? "ellipse" : "");
             }
 
-            // Visual feedback for active state
-            background: Rectangle {
-                color: ellipseButton.checked ? palette.highlight : (ellipseButton.hovered ? palette.midlight : palette.base)
-                border.color: ellipseButton.checked ? palette.highlight : palette.mid
-                border.width: 1
-                radius: DV.Styles.rad.md
-            }
+            // No custom background; rely on default ToolButton visuals
         }
         // Pen tool button (bottom)
         ToolButton {
@@ -143,12 +127,7 @@ Pane {
                 root.toolSelected(checked ? "pen" : "");
             }
 
-            background: Rectangle {
-                color: penButton.checked ? palette.highlight : (penButton.hovered ? palette.midlight : palette.base)
-                border.color: penButton.checked ? palette.highlight : palette.mid
-                border.width: 1
-                radius: DV.Styles.rad.md
-            }
+            // No custom background; rely on default ToolButton visuals
         }
         Item {
             Layout.fillHeight: true
