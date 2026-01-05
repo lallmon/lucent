@@ -677,6 +677,100 @@ class TestCanvasModelQueries:
         items = canvas_model.getItemsForHitTest()
         assert items == []
 
+    def test_get_items_for_hit_test_includes_model_index(self, canvas_model):
+        """Test that hit test items include their original model index."""
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        canvas_model.addItem(
+            {
+                "type": "ellipse",
+                "centerX": 20,
+                "centerY": 20,
+                "radiusX": 5,
+                "radiusY": 5,
+            }
+        )
+
+        items = canvas_model.getItemsForHitTest()
+        assert len(items) == 2
+        assert items[0]["modelIndex"] == 0
+        assert items[1]["modelIndex"] == 1
+
+    def test_get_items_for_hit_test_model_index_with_layer(self, canvas_model):
+        """Test model index is correct when layers are present."""
+        canvas_model.addLayer()  # model index 0
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )  # model index 1
+        canvas_model.addItem(
+            {
+                "type": "ellipse",
+                "centerX": 20,
+                "centerY": 20,
+                "radiusX": 5,
+                "radiusY": 5,
+            }
+        )  # model index 2
+
+        items = canvas_model.getItemsForHitTest()
+        # All 3 visible items returned (layer included for hit testing containers)
+        assert len(items) == 3
+        # Model indices should reflect actual positions in model
+        assert items[0]["modelIndex"] == 0
+        assert items[1]["modelIndex"] == 1
+        assert items[2]["modelIndex"] == 2
+
+    def test_get_items_for_hit_test_model_index_with_hidden_items(self, canvas_model):
+        """Test model index is correct when some items are hidden."""
+        canvas_model.addItem(
+            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        )  # model index 0
+        canvas_model.addItem(
+            {
+                "type": "rectangle",
+                "x": 20,
+                "y": 20,
+                "width": 10,
+                "height": 10,
+                "visible": False,
+            }
+        )  # model index 1, hidden
+        canvas_model.addItem(
+            {
+                "type": "ellipse",
+                "centerX": 50,
+                "centerY": 50,
+                "radiusX": 5,
+                "radiusY": 5,
+            }
+        )  # model index 2
+
+        items = canvas_model.getItemsForHitTest()
+        # Only 2 visible items returned
+        assert len(items) == 2
+        # Model indices should reflect actual positions
+        assert items[0]["modelIndex"] == 0
+        assert items[1]["modelIndex"] == 2
+
+    def test_get_items_for_hit_test_model_index_with_path(self, canvas_model):
+        """Test model index is correct for path items."""
+        canvas_model.addLayer()  # model index 0
+        canvas_model.addItem(
+            {
+                "type": "path",
+                "points": [{"x": 0, "y": 0}, {"x": 10, "y": 10}],
+                "strokeWidth": 1,
+            }
+        )  # model index 1
+
+        items = canvas_model.getItemsForHitTest()
+        assert len(items) == 2  # layer + path
+        assert items[0]["type"] == "layer"
+        assert items[0]["modelIndex"] == 0
+        assert items[1]["type"] == "path"
+        assert items[1]["modelIndex"] == 1
+
 
 class TestCanvasModelUndo:
     """Tests for undo functionality in CanvasModel."""

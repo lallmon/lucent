@@ -755,7 +755,9 @@ class CanvasModel(QAbstractListModel):
         visible_items: List[Dict[str, Any]] = []
         for idx, item in enumerate(self._items):
             if self._is_effectively_visible(idx):
-                visible_items.append(self._itemToDict(item))
+                item_dict = self._itemToDict(item)
+                item_dict["modelIndex"] = idx
+                visible_items.append(item_dict)
         return visible_items
 
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
