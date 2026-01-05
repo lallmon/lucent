@@ -91,15 +91,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: themePalette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Stroke Color:")
@@ -185,15 +177,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Fill Color:")
@@ -302,14 +286,7 @@ ToolBar {
                 }
             }
 
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Stroke Color:")
@@ -391,15 +368,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Fill Color:")
@@ -525,15 +494,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Stroke Color:")
@@ -617,15 +578,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Fill Color:")
@@ -811,15 +764,7 @@ ToolBar {
                 }
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Size:")
@@ -904,15 +849,7 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            // Separator
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.preferredHeight: 16
-                Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: 6
-                Layout.rightMargin: 6
-                color: palette.mid
-            }
+            ToolSeparator {}
 
             Label {
                 text: qsTr("Color:")
