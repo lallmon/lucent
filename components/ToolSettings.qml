@@ -118,10 +118,45 @@ ToolBar {
                 }
 
                 background: Rectangle {
-                    color: root.rectangleStrokeColor
                     border.color: themePalette.mid
                     border.width: 1
                     radius: DV.Styles.rad.sm
+                    color: "transparent"
+                    clip: true
+
+                    // Checkerboard pattern to show transparency
+                    Canvas {
+                        anchors.fill: parent
+                        z: 0
+                        property color checkerLight: palette.midlight
+                        property color checkerDark: palette.mid
+                        onCheckerLightChanged: requestPaint()
+                        onCheckerDarkChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.clearRect(0, 0, width, height);
+                            var size = 4;
+                            for (var y = 0; y < height; y += size) {
+                                for (var x = 0; x < width; x += size) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+                                        ctx.fillStyle = checkerLight;
+                                    } else {
+                                        ctx.fillStyle = checkerDark;
+                                    }
+                                    ctx.fillRect(x, y, size, size);
+                                }
+                            }
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+
+                    // Stroke color with opacity applied
+                    Rectangle {
+                        anchors.fill: parent
+                        z: 1
+                        color: root.rectangleStrokeColor
+                        opacity: root.rectangleStrokeOpacity
+                    }
                 }
             }
 
@@ -131,68 +166,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: strokeOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 100
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        root.rectangleStrokeOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: {
-                    root.rectangleStrokeOpacity = value / 100.0;
-                }
-
-                Component.onCompleted: {
-                    value = Math.round(root.rectangleStrokeOpacity * 100);
-                }
-
-                Binding {
-                    target: strokeOpacitySlider
-                    property: "value"
-                    value: Math.round(root.rectangleStrokeOpacity * 100)
-                    when: !strokeOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: strokeOpacitySlider.leftPadding
-                    y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: strokeOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: themePalette.base
-
-                    Rectangle {
-                        width: strokeOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: themePalette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: strokeOpacitySlider.leftPadding + strokeOpacitySlider.visualPosition * (strokeOpacitySlider.availableWidth - width)
-                    y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: strokeOpacitySlider.pressed ? themePalette.highlight : themePalette.button
-                    border.color: themePalette.mid
-                    border.width: 1
-                }
+                opacityValue: root.rectangleStrokeOpacity
+                onValueUpdated: newOpacity => root.rectangleStrokeOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -285,73 +262,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: opacitySlider
-                Layout.preferredWidth: 80
-                // When we customize handle/background, the Slider can lose its implicit height,
-                // which causes RowLayout to give it ~0 height (no hit area). Explicitly size it.
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 0
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        // Update property when slider is released
-                        root.rectangleFillOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: {
-                    // Update property as slider moves
-                    root.rectangleFillOpacity = value / 100.0;
-                }
-
-                Component.onCompleted: {
-                    value = Math.round(root.rectangleFillOpacity * 100);
-                }
-
-                Binding {
-                    target: opacitySlider
-                    property: "value"
-                    value: Math.round(root.rectangleFillOpacity * 100)
-                    when: !opacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: opacitySlider.leftPadding
-                    y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    width: opacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    // Provide implicit sizes so the control has a non-zero implicitHeight/Width in layouts
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: opacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
-                    y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: opacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.rectangleFillOpacity
+                onValueUpdated: newOpacity => root.rectangleFillOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -412,10 +326,43 @@ ToolBar {
                 onClicked: penStrokeColorDialog.open()
 
                 background: Rectangle {
-                    color: root.penStrokeColor
                     border.color: palette.mid
                     border.width: 1
                     radius: DV.Styles.rad.sm
+                    color: "transparent"
+                    clip: true
+
+                    Canvas {
+                        anchors.fill: parent
+                        z: 0
+                        property color checkerLight: palette.midlight
+                        property color checkerDark: palette.mid
+                        onCheckerLightChanged: requestPaint()
+                        onCheckerDarkChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.clearRect(0, 0, width, height);
+                            var size = 4;
+                            for (var y = 0; y < height; y += size) {
+                                for (var x = 0; x < width; x += size) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+                                        ctx.fillStyle = checkerLight;
+                                    } else {
+                                        ctx.fillStyle = checkerDark;
+                                    }
+                                    ctx.fillRect(x, y, size, size);
+                                }
+                            }
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        z: 1
+                        color: root.penStrokeColor
+                        opacity: root.penStrokeOpacity
+                    }
                 }
             }
 
@@ -425,64 +372,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: penStrokeOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 100
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        root.penStrokeOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: root.penStrokeOpacity = value / 100.0
-
-                Component.onCompleted: value = Math.round(root.penStrokeOpacity * 100)
-
-                Binding {
-                    target: penStrokeOpacitySlider
-                    property: "value"
-                    value: Math.round(root.penStrokeOpacity * 100)
-                    when: !penStrokeOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: penStrokeOpacitySlider.leftPadding
-                    y: penStrokeOpacitySlider.topPadding + penStrokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: penStrokeOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: penStrokeOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: penStrokeOpacitySlider.leftPadding + penStrokeOpacitySlider.visualPosition * (penStrokeOpacitySlider.availableWidth - width)
-                    y: penStrokeOpacitySlider.topPadding + penStrokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: penStrokeOpacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.penStrokeOpacity
+                onValueUpdated: newOpacity => root.penStrokeOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -570,64 +463,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: penFillOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 0
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        root.penFillOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: root.penFillOpacity = value / 100.0
-
-                Component.onCompleted: value = Math.round(root.penFillOpacity * 100)
-
-                Binding {
-                    target: penFillOpacitySlider
-                    property: "value"
-                    value: Math.round(root.penFillOpacity * 100)
-                    when: !penFillOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: penFillOpacitySlider.leftPadding
-                    y: penFillOpacitySlider.topPadding + penFillOpacitySlider.availableHeight / 2 - height / 2
-                    width: penFillOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: penFillOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: penFillOpacitySlider.leftPadding + penFillOpacitySlider.visualPosition * (penFillOpacitySlider.availableWidth - width)
-                    y: penFillOpacitySlider.topPadding + penFillOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: penFillOpacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.penFillOpacity
+                onValueUpdated: newOpacity => root.penFillOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -713,10 +552,43 @@ ToolBar {
                 }
 
                 background: Rectangle {
-                    color: root.ellipseStrokeColor
                     border.color: palette.mid
                     border.width: 1
                     radius: DV.Styles.rad.sm
+                    color: "transparent"
+                    clip: true
+
+                    Canvas {
+                        anchors.fill: parent
+                        z: 0
+                        property color checkerLight: palette.midlight
+                        property color checkerDark: palette.mid
+                        onCheckerLightChanged: requestPaint()
+                        onCheckerDarkChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.clearRect(0, 0, width, height);
+                            var size = 4;
+                            for (var y = 0; y < height; y += size) {
+                                for (var x = 0; x < width; x += size) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+                                        ctx.fillStyle = checkerLight;
+                                    } else {
+                                        ctx.fillStyle = checkerDark;
+                                    }
+                                    ctx.fillRect(x, y, size, size);
+                                }
+                            }
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        z: 1
+                        color: root.ellipseStrokeColor
+                        opacity: root.ellipseStrokeOpacity
+                    }
                 }
             }
 
@@ -726,68 +598,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: ellipseStrokeOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 100
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        root.ellipseStrokeOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: {
-                    root.ellipseStrokeOpacity = value / 100.0;
-                }
-
-                Component.onCompleted: {
-                    value = Math.round(root.ellipseStrokeOpacity * 100);
-                }
-
-                Binding {
-                    target: ellipseStrokeOpacitySlider
-                    property: "value"
-                    value: Math.round(root.ellipseStrokeOpacity * 100)
-                    when: !ellipseStrokeOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: ellipseStrokeOpacitySlider.leftPadding
-                    y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: ellipseStrokeOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: ellipseStrokeOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: ellipseStrokeOpacitySlider.leftPadding + ellipseStrokeOpacitySlider.visualPosition * (ellipseStrokeOpacitySlider.availableWidth - width)
-                    y: ellipseStrokeOpacitySlider.topPadding + ellipseStrokeOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: ellipseStrokeOpacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.ellipseStrokeOpacity
+                onValueUpdated: newOpacity => root.ellipseStrokeOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -880,70 +694,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: ellipseOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 0
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        // Update property when slider is released
-                        root.ellipseFillOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: {
-                    // Update property as slider moves
-                    root.ellipseFillOpacity = value / 100.0;
-                }
-
-                Component.onCompleted: {
-                    value = Math.round(root.ellipseFillOpacity * 100);
-                }
-
-                Binding {
-                    target: ellipseOpacitySlider
-                    property: "value"
-                    value: Math.round(root.ellipseFillOpacity * 100)
-                    when: !ellipseOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: ellipseOpacitySlider.leftPadding
-                    y: ellipseOpacitySlider.topPadding + ellipseOpacitySlider.availableHeight / 2 - height / 2
-                    width: ellipseOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: ellipseOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: ellipseOpacitySlider.leftPadding + ellipseOpacitySlider.visualPosition * (ellipseOpacitySlider.availableWidth - width)
-                    y: ellipseOpacitySlider.topPadding + ellipseOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: ellipseOpacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.ellipseFillOpacity
+                onValueUpdated: newOpacity => root.ellipseFillOpacity = newOpacity
             }
 
             DV.LabeledNumericField {
@@ -1175,10 +929,43 @@ ToolBar {
                 onClicked: textColorDialog.open()
 
                 background: Rectangle {
-                    color: root.textColor
                     border.color: palette.mid
                     border.width: 1
                     radius: DV.Styles.rad.sm
+                    color: "transparent"
+                    clip: true
+
+                    Canvas {
+                        anchors.fill: parent
+                        z: 0
+                        property color checkerLight: palette.midlight
+                        property color checkerDark: palette.mid
+                        onCheckerLightChanged: requestPaint()
+                        onCheckerDarkChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.clearRect(0, 0, width, height);
+                            var size = 4;
+                            for (var y = 0; y < height; y += size) {
+                                for (var x = 0; x < width; x += size) {
+                                    if ((Math.floor(x / size) + Math.floor(y / size)) % 2 === 0) {
+                                        ctx.fillStyle = checkerLight;
+                                    } else {
+                                        ctx.fillStyle = checkerDark;
+                                    }
+                                    ctx.fillRect(x, y, size, size);
+                                }
+                            }
+                        }
+                        Component.onCompleted: requestPaint()
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        z: 1
+                        color: root.textColor
+                        opacity: root.textOpacity
+                    }
                 }
             }
 
@@ -1188,64 +975,10 @@ ToolBar {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Slider {
+            DV.OpacitySlider {
                 id: textOpacitySlider
-                Layout.preferredWidth: 80
-                Layout.preferredHeight: DV.Styles.height.sm
-                implicitHeight: DV.Styles.height.sm
-                Layout.alignment: Qt.AlignVCenter
-                from: 0
-                to: 100
-                stepSize: 1
-                value: 100
-
-                onPressedChanged: {
-                    if (!pressed) {
-                        root.textOpacity = value / 100.0;
-                    }
-                }
-
-                onValueChanged: root.textOpacity = value / 100.0
-
-                Component.onCompleted: value = Math.round(root.textOpacity * 100)
-
-                Binding {
-                    target: textOpacitySlider
-                    property: "value"
-                    value: Math.round(root.textOpacity * 100)
-                    when: !textOpacitySlider.pressed
-                }
-
-                background: Rectangle {
-                    x: textOpacitySlider.leftPadding
-                    y: textOpacitySlider.topPadding + textOpacitySlider.availableHeight / 2 - height / 2
-                    width: textOpacitySlider.availableWidth
-                    height: DV.Styles.height.xxxsm
-                    implicitWidth: 80
-                    implicitHeight: DV.Styles.height.xxxsm
-                    radius: DV.Styles.rad.sm
-                    color: palette.base
-
-                    Rectangle {
-                        width: textOpacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: palette.highlight
-                        radius: DV.Styles.rad.sm
-                    }
-                }
-
-                handle: Rectangle {
-                    x: textOpacitySlider.leftPadding + textOpacitySlider.visualPosition * (textOpacitySlider.availableWidth - width)
-                    y: textOpacitySlider.topPadding + textOpacitySlider.availableHeight / 2 - height / 2
-                    width: DV.Styles.height.xs
-                    height: DV.Styles.height.xs
-                    implicitWidth: DV.Styles.height.xs
-                    implicitHeight: DV.Styles.height.xs
-                    radius: DV.Styles.rad.lg
-                    color: textOpacitySlider.pressed ? palette.highlight : palette.button
-                    border.color: palette.mid
-                    border.width: 1
-                }
+                opacityValue: root.textOpacity
+                onValueUpdated: newOpacity => root.textOpacity = newOpacity
             }
 
             DV.LabeledNumericField {

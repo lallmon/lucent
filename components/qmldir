@@ -3,4 +3,5 @@ singleton SelectionManager SelectionManager.qml
 singleton Themed Themed.qml
 ToolIconButton 1.0 ToolIconButton.qml
 LabeledNumericField 1.0 LabeledNumericField.qml
+OpacitySlider 1.0 OpacitySlider.qml
 Viewport 1.0 Viewport.qml
