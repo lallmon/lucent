@@ -7,7 +7,6 @@ ToolBar {
     id: root
     height: 48
 
-    property ToolDefaults toolDefaults: ToolDefaults {}
     property string activeTool: ""
     readonly property SystemPalette themePalette: DV.Themed.palette
 
@@ -42,30 +41,6 @@ ToolBar {
             }
         })
 
-    // Backward compatibility aliases for direct property access
-    property alias rectangleStrokeWidth: rectangleSettings.strokeWidth
-    property alias rectangleStrokeColor: rectangleSettings.strokeColor
-    property alias rectangleStrokeOpacity: rectangleSettings.strokeOpacity
-    property alias rectangleFillColor: rectangleSettings.fillColor
-    property alias rectangleFillOpacity: rectangleSettings.fillOpacity
-
-    property alias ellipseStrokeWidth: ellipseSettings.strokeWidth
-    property alias ellipseStrokeColor: ellipseSettings.strokeColor
-    property alias ellipseStrokeOpacity: ellipseSettings.strokeOpacity
-    property alias ellipseFillColor: ellipseSettings.fillColor
-    property alias ellipseFillOpacity: ellipseSettings.fillOpacity
-
-    property alias penStrokeWidth: penSettings.strokeWidth
-    property alias penStrokeColor: penSettings.strokeColor
-    property alias penStrokeOpacity: penSettings.strokeOpacity
-    property alias penFillColor: penSettings.fillColor
-    property alias penFillOpacity: penSettings.fillOpacity
-
-    property alias textFontFamily: textSettings.fontFamily
-    property alias textFontSize: textSettings.fontSize
-    property alias textColor: textSettings.textColor
-    property alias textOpacity: textSettings.textOpacity
-
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: 8
@@ -75,31 +50,21 @@ ToolBar {
         DV.RectangleToolSettings {
             id: rectangleSettings
             visible: root.activeTool === "rectangle"
-            strokeColor: root.toolDefaults.defaultStrokeColor
-            fillColor: root.toolDefaults.defaultFillColor
-            fillOpacity: root.toolDefaults.defaultFillOpacity
         }
 
         DV.EllipseToolSettings {
             id: ellipseSettings
             visible: root.activeTool === "ellipse"
-            strokeColor: root.toolDefaults.defaultStrokeColor
-            fillColor: root.toolDefaults.defaultFillColor
-            fillOpacity: root.toolDefaults.defaultFillOpacity
         }
 
         DV.PenToolSettings {
             id: penSettings
             visible: root.activeTool === "pen"
-            strokeColor: root.toolDefaults.defaultStrokeColor
-            fillColor: root.toolDefaults.defaultFillColor
-            fillOpacity: root.toolDefaults.defaultFillOpacity
         }
 
         DV.TextToolSettings {
             id: textSettings
             visible: root.activeTool === "text"
-            textColor: root.toolDefaults.defaultStrokeColor
         }
 
         // Select tool settings (empty for now)

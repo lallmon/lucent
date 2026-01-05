@@ -6,11 +6,11 @@ import "." as DV
 RowLayout {
     id: root
 
-    // Tool settings properties
+    // Tool settings properties with theme-aware defaults
     property real strokeWidth: 1
-    property color strokeColor: "#000000"
+    property color strokeColor: DV.Themed.palette.text
     property real strokeOpacity: 1.0
-    property color fillColor: "#ffffff"
+    property color fillColor: DV.Themed.palette.text
     property real fillOpacity: 0.0
 
     Layout.fillHeight: true

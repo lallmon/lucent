@@ -22,17 +22,12 @@ Item {
     // Drawing mode
     property string drawingMode: ""  // "" for pan, "rectangle" for drawing rectangles, "ellipse" for drawing ellipses
 
-    ToolDefaults {
-        id: toolDefaults
-    }
     HitTestHelper {
         id: hitTestHelper
     }
 
-    // Tool settings model - organized by tool type
-    property var toolSettings: Qt.binding(function () {
-        return toolDefaults.defaults();
-    })
+    // Tool settings - bound from parent (App.qml)
+    property var toolSettings: null
 
     // Current cursor shape (for dynamic cursor changes)
     property int currentCursorShape: Qt.OpenHandCursor

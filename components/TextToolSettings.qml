@@ -6,10 +6,10 @@ import "." as DV
 RowLayout {
     id: root
 
-    // Tool settings properties
+    // Tool settings properties with theme-aware defaults
     property string fontFamily: "Sans Serif"
     property real fontSize: 16
-    property color textColor: "#000000"
+    property color textColor: DV.Themed.palette.text
     property real textOpacity: 1.0
 
     Layout.fillHeight: true
