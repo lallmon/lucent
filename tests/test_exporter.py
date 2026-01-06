@@ -5,7 +5,13 @@ from PySide6.QtCore import QRectF
 from PySide6.QtGui import QImage
 import xml.etree.ElementTree as ET
 
-from lucent.canvas_items import RectangleItem, EllipseItem, PathItem
+from lucent.canvas_items import (
+    RectangleItem,
+    EllipseItem,
+    PathItem,
+    TextItem,
+    LayerItem,
+)
 from lucent.exporter import ExportOptions, export_png, export_svg, compute_bounds
 
 
@@ -54,6 +60,12 @@ class TestComputeBounds:
     def test_empty_items(self):
         """compute_bounds returns empty rect for no items."""
         bounds = compute_bounds([], padding=0)
+        assert bounds.isEmpty()
+
+    def test_items_with_empty_bounds(self):
+        """compute_bounds returns empty rect when all items have empty bounds."""
+        items = [LayerItem(name="Empty Layer")]
+        bounds = compute_bounds(items, padding=0)
         assert bounds.isEmpty()
 
 
@@ -125,6 +137,24 @@ class TestExportPng:
         invalid_path = Path("/nonexistent/directory/file.png")
 
         result = export_png(items, bounds, invalid_path, ExportOptions())
+
+        assert result is False
+
+    def test_export_empty_bounds_returns_false(self, qtbot):
+        """export_png returns False when bounds are empty."""
+        items = [RectangleItem(x=0, y=0, width=50, height=50)]
+        bounds = QRectF()
+
+        result = export_png(items, bounds, Path("/tmp/test.png"), ExportOptions())
+
+        assert result is False
+
+    def test_export_zero_dimension_returns_false(self, qtbot):
+        """export_png returns False when scaled dimensions are zero."""
+        items = [RectangleItem(x=0, y=0, width=1, height=1)]
+        bounds = QRectF(0, 0, 0.5, 0.5)
+
+        result = export_png(items, bounds, Path("/tmp/test.png"), ExportOptions())
 
         assert result is False
 
@@ -210,3 +240,63 @@ class TestExportSvg:
         result = export_svg(items, bounds, invalid_path, ExportOptions())
 
         assert result is False
+
+    def test_export_empty_bounds_returns_false(self):
+        """export_svg returns False when bounds are empty."""
+        items = [RectangleItem(x=0, y=0, width=50, height=50)]
+        bounds = QRectF()
+
+        result = export_svg(items, bounds, Path("/tmp/test.svg"), ExportOptions())
+
+        assert result is False
+
+    def test_export_text_item(self, tmp_path):
+        """export_svg renders text as text element."""
+        items = [TextItem(x=10, y=20, text="Hello World", font_size=16)]
+        bounds = QRectF(10, 20, 100, 30)
+        output_path = tmp_path / "test.svg"
+
+        export_svg(items, bounds, output_path, ExportOptions())
+
+        content = output_path.read_text()
+        assert "<text " in content
+        assert "Hello World" in content
+
+    def test_export_closed_path(self, tmp_path):
+        """export_svg renders closed path with Z command."""
+        items = [
+            PathItem(
+                points=[{"x": 0, "y": 0}, {"x": 50, "y": 0}, {"x": 25, "y": 50}],
+                closed=True,
+            )
+        ]
+        bounds = QRectF(0, 0, 50, 50)
+        output_path = tmp_path / "test.svg"
+
+        export_svg(items, bounds, output_path, ExportOptions())
+
+        content = output_path.read_text()
+        assert " Z" in content
+
+    def test_export_with_background(self, tmp_path):
+        """export_svg adds background rect when background is specified."""
+        items = [RectangleItem(x=0, y=0, width=50, height=50)]
+        bounds = QRectF(0, 0, 50, 50)
+        output_path = tmp_path / "test.svg"
+
+        export_svg(items, bounds, output_path, ExportOptions(background="#ff0000"))
+
+        content = output_path.read_text()
+        assert 'fill="#ff0000"' in content
+
+    def test_export_unknown_item_type_skipped(self, tmp_path):
+        """export_svg skips unknown item types gracefully."""
+        items = [LayerItem(name="Layer"), RectangleItem(x=0, y=0, width=50, height=50)]
+        bounds = QRectF(0, 0, 50, 50)
+        output_path = tmp_path / "test.svg"
+
+        result = export_svg(items, bounds, output_path, ExportOptions())
+
+        assert result is True
+        content = output_path.read_text()
+        assert "<rect " in content
