@@ -1,16 +1,16 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 Pane {
     id: root
     width: 48
-    padding: DV.Styles.pad.md
+    padding: Lucent.Styles.pad.md
 
     signal toolSelected(string toolName)
     property string activeTool: ""
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     ButtonGroup {
         id: toolButtonGroup
@@ -18,7 +18,7 @@ Pane {
     }
 
     contentItem: ColumnLayout {
-        DV.ToolIconButton {
+        Lucent.ToolIconButton {
             id: selButton
             toolName: "select"
             iconName: "hand-pointing"
@@ -32,7 +32,7 @@ Pane {
             }
         }
 
-        DV.ToolIconButton {
+        Lucent.ToolIconButton {
             id: rectButton
             toolName: "rectangle"
             iconName: "rectangle"
@@ -44,7 +44,7 @@ Pane {
             }
         }
 
-        DV.ToolIconButton {
+        Lucent.ToolIconButton {
             id: ellipseButton
             toolName: "ellipse"
             iconName: "circle"
@@ -56,7 +56,7 @@ Pane {
             }
         }
 
-        DV.ToolIconButton {
+        Lucent.ToolIconButton {
             id: penButton
             toolName: "pen"
             iconName: "pen-nib"
@@ -68,7 +68,7 @@ Pane {
             }
         }
 
-        DV.ToolIconButton {
+        Lucent.ToolIconButton {
             id: textButton
             toolName: "text"
             iconName: "text-t"

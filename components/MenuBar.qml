@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "." as DV
+import "." as Lucent
 
 // Main menu bar component
 MenuBar {
@@ -53,9 +53,9 @@ MenuBar {
         Action {
             text: qsTr("Export &Layer... (Ctrl+E)")
             shortcut: "Ctrl+E"
-            enabled: DV.SelectionManager.selectedItem && DV.SelectionManager.selectedItem.type === "layer"
+            enabled: Lucent.SelectionManager.selectedItem && Lucent.SelectionManager.selectedItem.type === "layer"
             onTriggered: {
-                var item = DV.SelectionManager.selectedItem;
+                var item = Lucent.SelectionManager.selectedItem;
                 if (item && item.type === "layer") {
                     root.exportLayerRequested(item.id, item.name || "Layer");
                 }
@@ -90,7 +90,7 @@ MenuBar {
         Action {
             text: qsTr("&Duplicate Selection (Ctrl+D)")
             shortcut: StandardKey.Duplicate
-            enabled: root.canvas && DV.SelectionManager.hasSelection()
+            enabled: root.canvas && Lucent.SelectionManager.hasSelection()
             onTriggered: {
                 if (root.canvas) {
                     root.canvas.duplicateSelectedItem();
@@ -100,35 +100,35 @@ MenuBar {
         Action {
             text: qsTr("&Group Selection (Ctrl+G)")
             shortcut: "Ctrl+G"
-            enabled: canvasModel && DV.SelectionManager.hasSelection()
+            enabled: canvasModel && Lucent.SelectionManager.hasSelection()
             onTriggered: {
                 if (!canvasModel)
                     return;
-                let indices = DV.SelectionManager.currentSelectionIndices();
+                let indices = Lucent.SelectionManager.currentSelectionIndices();
                 if (indices.length === 0)
                     return;
                 const finalGroupIndex = canvasModel.groupItems(indices);
                 if (finalGroupIndex >= 0) {
-                    DV.SelectionManager.setSelection([finalGroupIndex]);
+                    Lucent.SelectionManager.setSelection([finalGroupIndex]);
                 }
             }
         }
         Action {
             text: qsTr("&Ungroup (Ctrl+Shift+G)")
             shortcut: "Ctrl+Shift+G"
-            enabled: canvasModel && DV.SelectionManager.selectedItem && DV.SelectionManager.selectedItem.type === "group"
+            enabled: canvasModel && Lucent.SelectionManager.selectedItem && Lucent.SelectionManager.selectedItem.type === "group"
             onTriggered: {
                 if (!canvasModel)
                     return;
-                const groupIndex = DV.SelectionManager.selectedItemIndex;
+                const groupIndex = Lucent.SelectionManager.selectedItemIndex;
                 if (groupIndex < 0)
                     return;
                 const groupData = canvasModel.getItemData(groupIndex);
                 if (!groupData || groupData.type !== "group")
                     return;
                 canvasModel.ungroup(groupIndex);
-                DV.SelectionManager.selectedItemIndex = -1;
-                DV.SelectionManager.selectedItem = null;
+                Lucent.SelectionManager.selectedItemIndex = -1;
+                Lucent.SelectionManager.selectedItem = null;
             }
         }
     }

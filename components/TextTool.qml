@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "." as DV
+import "." as Lucent
 
 // Text tool component for creating text boxes on the canvas
 Item {
@@ -43,7 +43,7 @@ Item {
         height: currentBox ? currentBox.height : 0
 
         color: "transparent"
-        border.color: DV.Themed.palette.highlight
+        border.color: Lucent.Themed.palette.highlight
         border.width: 2 / tool.zoomLevel
 
         // Dashed border effect using inner rectangle
@@ -51,7 +51,7 @@ Item {
             anchors.fill: parent
             anchors.margins: 1 / tool.zoomLevel
             color: "transparent"
-            border.color: DV.Themed.palette.base
+            border.color: Lucent.Themed.palette.base
             border.width: 1 / tool.zoomLevel
             opacity: 0.5
         }
@@ -79,7 +79,7 @@ Item {
         height: Math.max(tool.boxHeight, textEdit.contentHeight + tool.textPadding * 2)
 
         color: "transparent"
-        border.color: DV.Themed.palette.highlight
+        border.color: Lucent.Themed.palette.highlight
         border.width: 2 / tool.zoomLevel
         radius: 2 / tool.zoomLevel
 
@@ -98,12 +98,12 @@ Item {
             font.pointSize: settings ? settings.fontSize : 16
             color: {
                 if (!settings)
-                    return DV.Themed.palette.text;
+                    return Lucent.Themed.palette.text;
                 var c = Qt.color(settings.textColor);
                 c.a = settings.textOpacity !== undefined ? settings.textOpacity : 1.0;
                 return c;
             }
-            selectionColor: DV.Themed.palette.highlight
+            selectionColor: Lucent.Themed.palette.highlight
 
             wrapMode: TextEdit.Wrap
             selectByMouse: true
@@ -148,8 +148,8 @@ Item {
             width: 10 / tool.zoomLevel
             height: 10 / tool.zoomLevel
             radius: 5 / tool.zoomLevel
-            color: DV.Themed.palette.highlight
-            border.color: DV.Themed.palette.base
+            color: Lucent.Themed.palette.highlight
+            border.color: Lucent.Themed.palette.base
             border.width: 1 / tool.zoomLevel
 
             anchors.right: parent.right

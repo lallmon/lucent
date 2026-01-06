@@ -1,5 +1,5 @@
 import QtQuick
-import "." as DV
+import "." as Lucent
 
 // Pen drawing tool component
 Item {
@@ -91,8 +91,8 @@ Item {
             radius: width / 2
             x: point.x - width / 2
             y: point.y - height / 2
-            color: DV.Themed.palette.mid
-            border.color: DV.Themed.palette.text
+            color: Lucent.Themed.palette.mid
+            border.color: Lucent.Themed.palette.text
             border.width: 1 / Math.max(tool.zoomLevel, 0.0001)
         }
     }

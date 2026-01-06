@@ -1,14 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 Dialog {
     id: root
     modal: true
     focus: true
     standardButtons: Dialog.Ok
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     // Inputs
     property string appVersion: ""
@@ -18,7 +18,7 @@ Dialog {
 
     background: Rectangle {
         color: themePalette.base
-        radius: DV.Styles.rad.sm
+        radius: Lucent.Styles.rad.sm
         border.color: themePalette.mid
         border.width: 1
     }

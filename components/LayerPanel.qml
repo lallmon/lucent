@@ -1,11 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 Item {
     id: root
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     signal exportLayerRequested(string layerId, string layerName)
 
@@ -25,7 +25,7 @@ Item {
     property real lastDragYInFlick: 0
 
     function setSelectionFromDelegate(modelIndex, multi) {
-        DV.SelectionManager.toggleSelection(modelIndex, multi);
+        Lucent.SelectionManager.toggleSelection(modelIndex, multi);
     }
 
     ColumnLayout {
@@ -51,10 +51,10 @@ Item {
                     id: addLayerButton
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    radius: DV.Styles.rad.sm
+                    radius: Lucent.Styles.rad.sm
                     color: addLayerHover.hovered ? themePalette.midlight : "transparent"
 
-                    DV.PhIcon {
+                    Lucent.PhIcon {
                         anchors.centerIn: parent
                         name: "stack-plus"
                         size: 18
@@ -75,10 +75,10 @@ Item {
                     id: addGroupButton
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    radius: DV.Styles.rad.sm
+                    radius: Lucent.Styles.rad.sm
                     color: addGroupHover.hovered ? themePalette.midlight : "transparent"
 
-                    DV.PhIcon {
+                    Lucent.PhIcon {
                         anchors.centerIn: parent
                         name: "folder-simple-plus"
                         size: 18
@@ -96,7 +96,7 @@ Item {
                                 "type": "group"
                             });
                             const idx = canvasModel.count() - 1;
-                            DV.SelectionManager.setSelection([idx]);
+                            Lucent.SelectionManager.setSelection([idx]);
                         }
                     }
                 }
@@ -105,10 +105,10 @@ Item {
                     id: addGroupFromSelectionButton
                     Layout.preferredWidth: 24
                     Layout.preferredHeight: 24
-                    radius: DV.Styles.rad.sm
+                    radius: Lucent.Styles.rad.sm
                     color: addGroupFromSelectionHover.hovered ? themePalette.midlight : "transparent"
 
-                    DV.PhIcon {
+                    Lucent.PhIcon {
                         anchors.centerIn: parent
                         name: "folders"
                         size: 18
@@ -122,12 +122,12 @@ Item {
 
                     TapHandler {
                         onTapped: {
-                            var indices = DV.SelectionManager.currentSelectionIndices();
+                            var indices = Lucent.SelectionManager.currentSelectionIndices();
                             if (indices.length === 0)
                                 return;
                             var finalGroupIndex = canvasModel.groupItems(indices);
                             if (finalGroupIndex >= 0) {
-                                DV.SelectionManager.setSelection([finalGroupIndex]);
+                                Lucent.SelectionManager.setSelection([finalGroupIndex]);
                             }
                         }
                     }
@@ -222,7 +222,7 @@ Item {
                             property int modelIndex: index
                             // Visual order is reversed so top of the list is highest Z.
                             property int displayIndex: layerRepeater.count - 1 - modelIndex
-                            property bool isSelected: DV.SelectionManager.selectedIndices && DV.SelectionManager.selectedIndices.indexOf(modelIndex) !== -1
+                            property bool isSelected: Lucent.SelectionManager.selectedIndices && Lucent.SelectionManager.selectedIndices.indexOf(modelIndex) !== -1
                             property bool isBeingDragged: root.draggedIndex === modelIndex
                             property real dragOffsetY: 0
                             property bool hasParent: !!parentId
@@ -240,7 +240,7 @@ Item {
                             Rectangle {
                                 id: background
                                 anchors.fill: parent
-                                radius: DV.Styles.rad.sm
+                                radius: Lucent.Styles.rad.sm
                                 color: delegateRoot.isDropTarget ? themePalette.highlight : delegateRoot.isSelected ? themePalette.highlight : nameHoverHandler.hovered ? themePalette.midlight : "transparent"
                                 border.width: delegateRoot.isDropTarget ? 2 : 0
                                 border.color: themePalette.highlight
@@ -267,7 +267,7 @@ Item {
                                         Layout.preferredWidth: 28
                                         Layout.fillHeight: true
 
-                                        DV.PhIcon {
+                                        Lucent.PhIcon {
                                             anchors.centerIn: parent
                                             name: {
                                                 if (delegateRoot.itemType === "layer")
@@ -555,9 +555,9 @@ Item {
                                                 Action {
                                                     text: qsTr("Delete")
                                                     onTriggered: {
-                                                        DV.SelectionManager.selectedIndices = [delegateRoot.modelIndex];
-                                                        DV.SelectionManager.selectedItemIndex = delegateRoot.modelIndex;
-                                                        DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.modelIndex);
+                                                        Lucent.SelectionManager.selectedIndices = [delegateRoot.modelIndex];
+                                                        Lucent.SelectionManager.selectedItemIndex = delegateRoot.modelIndex;
+                                                        Lucent.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.modelIndex);
                                                         canvasModel.removeItem(delegateRoot.modelIndex);
                                                     }
                                                 }
@@ -638,9 +638,9 @@ Item {
                                         Rectangle {
                                             anchors.fill: parent
                                             color: visibilityHover.hovered ? themePalette.midlight : "transparent"
-                                            radius: DV.Styles.rad.sm
+                                            radius: Lucent.Styles.rad.sm
 
-                                            DV.PhIcon {
+                                            Lucent.PhIcon {
                                                 anchors.centerIn: parent
                                                 name: delegateRoot.modelVisible ? "eye" : "eye-closed"
                                                 size: 16
@@ -671,9 +671,9 @@ Item {
                                         Rectangle {
                                             anchors.fill: parent
                                             color: lockHover.hovered ? themePalette.midlight : "transparent"
-                                            radius: DV.Styles.rad.sm
+                                            radius: Lucent.Styles.rad.sm
 
-                                            DV.PhIcon {
+                                            Lucent.PhIcon {
                                                 anchors.centerIn: parent
                                                 name: delegateRoot.modelLocked ? "lock" : "lock-open"
                                                 size: 16
@@ -698,9 +698,9 @@ Item {
                                             preventStealing: true
                                             onClicked: {
                                                 // Ensure selection reflects the target being deleted
-                                                DV.SelectionManager.selectedIndices = [delegateRoot.modelIndex];
-                                                DV.SelectionManager.selectedItemIndex = delegateRoot.modelIndex;
-                                                DV.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.modelIndex);
+                                                Lucent.SelectionManager.selectedIndices = [delegateRoot.modelIndex];
+                                                Lucent.SelectionManager.selectedItemIndex = delegateRoot.modelIndex;
+                                                Lucent.SelectionManager.selectedItem = canvasModel.getItemData(delegateRoot.modelIndex);
                                                 canvasModel.removeItem(delegateRoot.modelIndex);
                                             }
                                         }
@@ -708,9 +708,9 @@ Item {
                                         Rectangle {
                                             anchors.fill: parent
                                             color: deleteHover.hovered ? themePalette.midlight : "transparent"
-                                            radius: DV.Styles.rad.sm
+                                            radius: Lucent.Styles.rad.sm
 
-                                            DV.PhIcon {
+                                            Lucent.PhIcon {
                                                 anchors.centerIn: parent
                                                 name: "trash"
                                                 size: 16

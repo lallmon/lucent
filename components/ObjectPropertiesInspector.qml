@@ -2,14 +2,14 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import "." as DV
+import "." as Lucent
 
 // Inspector component displaying properties of selected object
 ScrollView {
     id: root
     clip: true
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     property var selectedItem: null
     property string originalStrokeColor: ""
@@ -21,14 +21,14 @@ ScrollView {
     readonly property bool isTextSelected: !!selectedItem && selectedItem.type === "text"
 
     // Helper to check if selected item is effectively locked (own state or parent layer locked)
-    readonly property bool isLocked: (DV.SelectionManager.selectedItemIndex >= 0) && canvasModel && canvasModel.isEffectivelyLocked(DV.SelectionManager.selectedItemIndex)
+    readonly property bool isLocked: (Lucent.SelectionManager.selectedItemIndex >= 0) && canvasModel && canvasModel.isEffectivelyLocked(Lucent.SelectionManager.selectedItemIndex)
 
     readonly property int labelSize: 11
     readonly property color labelColor: themePalette.text
 
     function updateProperty(property, value) {
-        if (selectedItem && DV.SelectionManager.selectedItemIndex >= 0) {
-            canvasModel.updateItem(DV.SelectionManager.selectedItemIndex, {
+        if (selectedItem && Lucent.SelectionManager.selectedItemIndex >= 0) {
+            canvasModel.updateItem(Lucent.SelectionManager.selectedItemIndex, {
                 [property]: value
             });
         }
@@ -369,7 +369,7 @@ ScrollView {
                         Slider {
                             id: pathStrokeOpacitySlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: DV.Styles.height.sm
+                            Layout.preferredHeight: Lucent.Styles.height.sm
                             from: 0
                             to: 100
                             stepSize: 1
@@ -389,28 +389,28 @@ ScrollView {
                                 x: pathStrokeOpacitySlider.leftPadding
                                 y: pathStrokeOpacitySlider.topPadding + pathStrokeOpacitySlider.availableHeight / 2 - height / 2
                                 width: pathStrokeOpacitySlider.availableWidth
-                                height: DV.Styles.height.xxxsm
+                                height: Lucent.Styles.height.xxxsm
                                 implicitWidth: 80
-                                implicitHeight: DV.Styles.height.xxxsm
-                                radius: DV.Styles.rad.sm
+                                implicitHeight: Lucent.Styles.height.xxxsm
+                                radius: Lucent.Styles.rad.sm
                                 color: themePalette.midlight
 
                                 Rectangle {
                                     width: pathStrokeOpacitySlider.visualPosition * parent.width
                                     height: parent.height
                                     color: themePalette.highlight
-                                    radius: DV.Styles.rad.sm
+                                    radius: Lucent.Styles.rad.sm
                                 }
                             }
 
                             handle: Rectangle {
                                 x: pathStrokeOpacitySlider.leftPadding + pathStrokeOpacitySlider.visualPosition * (pathStrokeOpacitySlider.availableWidth - width)
                                 y: pathStrokeOpacitySlider.topPadding + pathStrokeOpacitySlider.availableHeight / 2 - height / 2
-                                width: DV.Styles.height.xs
-                                height: DV.Styles.height.xs
-                                implicitWidth: DV.Styles.height.xs
-                                implicitHeight: DV.Styles.height.xs
-                                radius: DV.Styles.rad.lg
+                                width: Lucent.Styles.height.xs
+                                height: Lucent.Styles.height.xs
+                                implicitWidth: Lucent.Styles.height.xs
+                                implicitHeight: Lucent.Styles.height.xs
+                                radius: Lucent.Styles.rad.lg
                                 color: pathStrokeOpacitySlider.pressed ? themePalette.highlight : themePalette.text
                                 border.color: themePalette.mid
                                 border.width: 1
@@ -473,7 +473,7 @@ ScrollView {
                         Slider {
                             id: pathFillOpacitySlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: DV.Styles.height.sm
+                            Layout.preferredHeight: Lucent.Styles.height.sm
                             from: 0
                             to: 100
                             stepSize: 1
@@ -493,28 +493,28 @@ ScrollView {
                                 x: pathFillOpacitySlider.leftPadding
                                 y: pathFillOpacitySlider.topPadding + pathFillOpacitySlider.availableHeight / 2 - height / 2
                                 width: pathFillOpacitySlider.availableWidth
-                                height: DV.Styles.height.xxxsm
+                                height: Lucent.Styles.height.xxxsm
                                 implicitWidth: 80
-                                implicitHeight: DV.Styles.height.xxxsm
-                                radius: DV.Styles.rad.sm
+                                implicitHeight: Lucent.Styles.height.xxxsm
+                                radius: Lucent.Styles.rad.sm
                                 color: themePalette.midlight
 
                                 Rectangle {
                                     width: pathFillOpacitySlider.visualPosition * parent.width
                                     height: parent.height
                                     color: themePalette.highlight
-                                    radius: DV.Styles.rad.sm
+                                    radius: Lucent.Styles.rad.sm
                                 }
                             }
 
                             handle: Rectangle {
                                 x: pathFillOpacitySlider.leftPadding + pathFillOpacitySlider.visualPosition * (pathFillOpacitySlider.availableWidth - width)
                                 y: pathFillOpacitySlider.topPadding + pathFillOpacitySlider.availableHeight / 2 - height / 2
-                                width: DV.Styles.height.xs
-                                height: DV.Styles.height.xs
-                                implicitWidth: DV.Styles.height.xs
-                                implicitHeight: DV.Styles.height.xs
-                                radius: DV.Styles.rad.lg
+                                width: Lucent.Styles.height.xs
+                                height: Lucent.Styles.height.xs
+                                implicitWidth: Lucent.Styles.height.xs
+                                implicitHeight: Lucent.Styles.height.xs
+                                radius: Lucent.Styles.rad.lg
                                 color: pathFillOpacitySlider.pressed ? themePalette.highlight : themePalette.text
                                 border.color: themePalette.mid
                                 border.width: 1
@@ -739,7 +739,7 @@ ScrollView {
                         Slider {
                             id: textOpacitySlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: DV.Styles.height.sm
+                            Layout.preferredHeight: Lucent.Styles.height.sm
                             from: 0
                             to: 100
                             stepSize: 1
@@ -759,28 +759,28 @@ ScrollView {
                                 x: textOpacitySlider.leftPadding
                                 y: textOpacitySlider.topPadding + textOpacitySlider.availableHeight / 2 - height / 2
                                 width: textOpacitySlider.availableWidth
-                                height: DV.Styles.height.xxxsm
+                                height: Lucent.Styles.height.xxxsm
                                 implicitWidth: 80
-                                implicitHeight: DV.Styles.height.xxxsm
-                                radius: DV.Styles.rad.sm
+                                implicitHeight: Lucent.Styles.height.xxxsm
+                                radius: Lucent.Styles.rad.sm
                                 color: themePalette.midlight
 
                                 Rectangle {
                                     width: textOpacitySlider.visualPosition * parent.width
                                     height: parent.height
                                     color: themePalette.highlight
-                                    radius: DV.Styles.rad.sm
+                                    radius: Lucent.Styles.rad.sm
                                 }
                             }
 
                             handle: Rectangle {
                                 x: textOpacitySlider.leftPadding + textOpacitySlider.visualPosition * (textOpacitySlider.availableWidth - width)
                                 y: textOpacitySlider.topPadding + textOpacitySlider.availableHeight / 2 - height / 2
-                                width: DV.Styles.height.xs
-                                height: DV.Styles.height.xs
-                                implicitWidth: DV.Styles.height.xs
-                                implicitHeight: DV.Styles.height.xs
-                                radius: DV.Styles.rad.lg
+                                width: Lucent.Styles.height.xs
+                                height: Lucent.Styles.height.xs
+                                implicitWidth: Lucent.Styles.height.xs
+                                implicitHeight: Lucent.Styles.height.xs
+                                radius: Lucent.Styles.rad.lg
                                 color: textOpacitySlider.pressed ? themePalette.highlight : themePalette.text
                                 border.color: themePalette.mid
                                 border.width: 1
@@ -874,7 +874,7 @@ ScrollView {
                                 color: root.isShapeSelected ? root.selectedItem.strokeColor : "transparent"
                                 border.color: themePalette.mid
                                 border.width: 1
-                                radius: DV.Styles.rad.sm
+                                radius: Lucent.Styles.rad.sm
                             }
                         }
                         TextField {
@@ -897,8 +897,8 @@ ScrollView {
                         Slider {
                             id: strokeOpacitySlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: DV.Styles.height.sm
-                            implicitHeight: DV.Styles.height.sm
+                            Layout.preferredHeight: Lucent.Styles.height.sm
+                            implicitHeight: Lucent.Styles.height.sm
                             from: 0
                             to: 100
                             stepSize: 1
@@ -920,26 +920,26 @@ ScrollView {
                                 x: strokeOpacitySlider.leftPadding
                                 y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
                                 width: strokeOpacitySlider.availableWidth
-                                height: DV.Styles.height.xxxsm
+                                height: Lucent.Styles.height.xxxsm
                                 implicitWidth: 80
-                                implicitHeight: DV.Styles.height.xxxsm
-                                radius: DV.Styles.rad.sm
+                                implicitHeight: Lucent.Styles.height.xxxsm
+                                radius: Lucent.Styles.rad.sm
                                 color: themePalette.midlight
                                 Rectangle {
                                     width: strokeOpacitySlider.visualPosition * parent.width
                                     height: parent.height
                                     color: themePalette.highlight
-                                    radius: DV.Styles.rad.sm
+                                    radius: Lucent.Styles.rad.sm
                                 }
                             }
                             handle: Rectangle {
                                 x: strokeOpacitySlider.leftPadding + strokeOpacitySlider.visualPosition * (strokeOpacitySlider.availableWidth - width)
                                 y: strokeOpacitySlider.topPadding + strokeOpacitySlider.availableHeight / 2 - height / 2
-                                width: DV.Styles.height.xs
-                                height: DV.Styles.height.xs
-                                implicitWidth: DV.Styles.height.xs
-                                implicitHeight: DV.Styles.height.xs
-                                radius: DV.Styles.rad.lg
+                                width: Lucent.Styles.height.xs
+                                height: Lucent.Styles.height.xs
+                                implicitWidth: Lucent.Styles.height.xs
+                                implicitHeight: Lucent.Styles.height.xs
+                                radius: Lucent.Styles.rad.lg
                                 color: strokeOpacitySlider.pressed ? themePalette.highlight : themePalette.text
                                 border.color: themePalette.mid
                                 border.width: 1
@@ -982,7 +982,7 @@ ScrollView {
                                 color: root.isShapeSelected ? root.selectedItem.fillColor : "transparent"
                                 border.color: themePalette.mid
                                 border.width: 1
-                                radius: DV.Styles.rad.sm
+                                radius: Lucent.Styles.rad.sm
                             }
                         }
                         TextField {
@@ -1005,8 +1005,8 @@ ScrollView {
                         Slider {
                             id: opacitySlider
                             Layout.fillWidth: true
-                            Layout.preferredHeight: DV.Styles.height.sm
-                            implicitHeight: DV.Styles.height.sm
+                            Layout.preferredHeight: Lucent.Styles.height.sm
+                            implicitHeight: Lucent.Styles.height.sm
                             from: 0
                             to: 100
                             stepSize: 1
@@ -1028,26 +1028,26 @@ ScrollView {
                                 x: opacitySlider.leftPadding
                                 y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
                                 width: opacitySlider.availableWidth
-                                height: DV.Styles.height.xxxsm
+                                height: Lucent.Styles.height.xxxsm
                                 implicitWidth: 80
-                                implicitHeight: DV.Styles.height.xxxsm
-                                radius: DV.Styles.rad.sm
+                                implicitHeight: Lucent.Styles.height.xxxsm
+                                radius: Lucent.Styles.rad.sm
                                 color: themePalette.midlight
                                 Rectangle {
                                     width: opacitySlider.visualPosition * parent.width
                                     height: parent.height
                                     color: themePalette.highlight
-                                    radius: DV.Styles.rad.sm
+                                    radius: Lucent.Styles.rad.sm
                                 }
                             }
                             handle: Rectangle {
                                 x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
                                 y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                                width: DV.Styles.height.xs
-                                height: DV.Styles.height.xs
-                                implicitWidth: DV.Styles.height.xs
-                                implicitHeight: DV.Styles.height.xs
-                                radius: DV.Styles.rad.lg
+                                width: Lucent.Styles.height.xs
+                                height: Lucent.Styles.height.xs
+                                implicitWidth: Lucent.Styles.height.xs
+                                implicitHeight: Lucent.Styles.height.xs
+                                radius: Lucent.Styles.rad.lg
                                 color: opacitySlider.pressed ? themePalette.highlight : themePalette.text
                                 border.color: themePalette.mid
                                 border.width: 1
