@@ -81,6 +81,13 @@ ApplicationWindow {
                 documentManager.setViewport(viewport.zoomLevel, viewport.offsetX, viewport.offsetY);
                 documentManager.saveDocumentAs(file);
             }
+            if (root.isClosing) {
+                root.forceClose = true;
+                root.close();
+            }
+        }
+        onRejected: {
+            root.isClosing = false;
         }
     }
 
@@ -92,6 +99,7 @@ ApplicationWindow {
 
         onSaveClicked: {
             if (documentManager.filePath === "") {
+                root.isClosing = true;
                 saveDialog.open();
             } else {
                 documentManager.setViewport(viewport.zoomLevel, viewport.offsetX, viewport.offsetY);
