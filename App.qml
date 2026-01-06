@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.platform as Platform
 import "components"
-import "components" as DV
+import "components" as Lucent
 
 ApplicationWindow {
     id: root
@@ -12,7 +12,7 @@ ApplicationWindow {
     visible: true
     title: (documentManager && documentManager.dirty ? "• " : "") + (documentManager ? documentManager.documentTitle : "Untitled") + " — Lucent"
     font: Qt.application.font
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     readonly property var systemFont: Qt.application.font
 

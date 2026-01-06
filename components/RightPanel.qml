@@ -1,12 +1,12 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 Pane {
     id: root
     padding: 0
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     signal exportLayerRequested(string layerId, string layerName)
 
@@ -49,18 +49,18 @@ Pane {
 
     // Keep inspector selection in sync without introducing a binding loop
     Component.onCompleted: {
-        propertiesInspector.selectedItem = DV.SelectionManager.selectedItem;
+        propertiesInspector.selectedItem = Lucent.SelectionManager.selectedItem;
     }
     Connections {
-        target: DV.SelectionManager
+        target: Lucent.SelectionManager
         function onSelectedItemChanged() {
-            propertiesInspector.selectedItem = DV.SelectionManager.selectedItem;
+            propertiesInspector.selectedItem = Lucent.SelectionManager.selectedItem;
         }
         function onSelectedItemIndexChanged() {
-            propertiesInspector.selectedItem = DV.SelectionManager.selectedItem;
+            propertiesInspector.selectedItem = Lucent.SelectionManager.selectedItem;
         }
         function onSelectedIndicesChanged() {
-            propertiesInspector.selectedItem = DV.SelectionManager.selectedItem;
+            propertiesInspector.selectedItem = Lucent.SelectionManager.selectedItem;
         }
     }
 }

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 RowLayout {
     id: root
@@ -13,7 +13,7 @@ RowLayout {
     property int decimals: 1
     property string suffix: ""
     property real fieldWidth: 50
-    property real fieldHeight: DV.Styles.height.md
+    property real fieldHeight: Lucent.Styles.height.md
     property alias textField: input
 
     signal committed(real newValue)
@@ -59,10 +59,10 @@ RowLayout {
         }
 
         background: Rectangle {
-            color: DV.Themed.palette.base
-            border.color: input.activeFocus ? DV.Themed.palette.highlight : DV.Themed.palette.mid
+            color: Lucent.Themed.palette.base
+            border.color: input.activeFocus ? Lucent.Themed.palette.highlight : Lucent.Themed.palette.mid
             border.width: 1
-            radius: DV.Styles.rad.sm
+            radius: Lucent.Styles.rad.sm
         }
     }
 

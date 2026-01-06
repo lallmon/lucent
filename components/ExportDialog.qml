@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.platform as Platform
-import "." as DV
+import "." as Lucent
 
 Dialog {
     id: root
@@ -118,7 +118,7 @@ Dialog {
                     text: qsTr("Transparent")
                     checked: true
                 }
-                DV.ColorPickerButton {
+                Lucent.ColorPickerButton {
                     id: bgColorPicker
                     color: "#ffffff"
                     visible: !transparentCheck.checked

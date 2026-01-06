@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "." as DV
+import "." as Lucent
 
 // Rectangle drawing tool component
 Item {
@@ -28,8 +28,8 @@ Item {
         width: 12 / tool.zoomLevel
         height: 12 / tool.zoomLevel
         radius: 6 / tool.zoomLevel
-        color: DV.Themed.palette.text
-        border.color: DV.Themed.palette.base
+        color: Lucent.Themed.palette.text
+        border.color: Lucent.Themed.palette.base
         border.width: 1 / tool.zoomLevel
     }
 
@@ -44,7 +44,7 @@ Item {
         property real strokeW: (settings ? settings.strokeWidth : 1) / tool.zoomLevel
         property color strokeColor: {
             if (!settings)
-                return DV.Themed.palette.text;
+                return Lucent.Themed.palette.text;
             var c = Qt.color(settings.strokeColor);
             c.a = settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0;
             return c;

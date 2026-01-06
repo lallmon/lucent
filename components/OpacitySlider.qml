@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 Slider {
     id: root
@@ -14,11 +14,11 @@ Slider {
     // Fires on release for final commit (useful for undo history)
     signal valueCommitted(real newOpacity)
 
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     Layout.preferredWidth: 80
-    Layout.preferredHeight: DV.Styles.height.sm
-    implicitHeight: DV.Styles.height.sm
+    Layout.preferredHeight: Lucent.Styles.height.sm
+    implicitHeight: Lucent.Styles.height.sm
     Layout.alignment: Qt.AlignVCenter
 
     from: 0
@@ -52,28 +52,28 @@ Slider {
         x: root.leftPadding
         y: root.topPadding + root.availableHeight / 2 - height / 2
         width: root.availableWidth
-        height: DV.Styles.height.xxxsm
+        height: Lucent.Styles.height.xxxsm
         implicitWidth: 80
-        implicitHeight: DV.Styles.height.xxxsm
-        radius: DV.Styles.rad.sm
+        implicitHeight: Lucent.Styles.height.xxxsm
+        radius: Lucent.Styles.rad.sm
         color: root.themePalette.base
 
         Rectangle {
             width: root.visualPosition * parent.width
             height: parent.height
             color: root.themePalette.highlight
-            radius: DV.Styles.rad.sm
+            radius: Lucent.Styles.rad.sm
         }
     }
 
     handle: Rectangle {
         x: root.leftPadding + root.visualPosition * (root.availableWidth - width)
         y: root.topPadding + root.availableHeight / 2 - height / 2
-        width: DV.Styles.height.xs
-        height: DV.Styles.height.xs
-        implicitWidth: DV.Styles.height.xs
-        implicitHeight: DV.Styles.height.xs
-        radius: DV.Styles.rad.lg
+        width: Lucent.Styles.height.xs
+        height: Lucent.Styles.height.xs
+        implicitWidth: Lucent.Styles.height.xs
+        implicitHeight: Lucent.Styles.height.xs
+        radius: Lucent.Styles.rad.lg
         color: root.pressed ? root.themePalette.highlight : root.themePalette.button
         border.color: root.themePalette.mid
         border.width: 1

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "." as DV
+import "." as Lucent
 
 // Select tool component - handles panning and object selection
 Item {
@@ -55,17 +55,17 @@ Item {
             lastModifiers = modifiers;
             lastModifiers = modifiers;
 
-            if (hitTestCallback && viewportToCanvasCallback && DV.SelectionManager.selectedItemIndex >= 0) {
+            if (hitTestCallback && viewportToCanvasCallback && Lucent.SelectionManager.selectedItemIndex >= 0) {
                 var canvasCoords = viewportToCanvasCallback(screenX, screenY);
                 var hitIndex = hitTestCallback(canvasCoords.x, canvasCoords.y);
-                if (hitIndex === DV.SelectionManager.selectedItemIndex) {
+                if (hitIndex === Lucent.SelectionManager.selectedItemIndex) {
                     clickedOnSelectedObject = true;
                 }
                 // For groups/layers: check if click is inside the selected item's bounding box
                 if (!clickedOnSelectedObject && getBoundsCallback) {
-                    var selectedItem = DV.SelectionManager.selectedItem;
+                    var selectedItem = Lucent.SelectionManager.selectedItem;
                     if (selectedItem && (selectedItem.type === "group" || selectedItem.type === "layer")) {
-                        var bounds = getBoundsCallback(DV.SelectionManager.selectedItemIndex);
+                        var bounds = getBoundsCallback(Lucent.SelectionManager.selectedItemIndex);
                         if (bounds && bounds.width >= 0 && bounds.height >= 0) {
                             if (canvasCoords.x >= bounds.x && canvasCoords.x <= bounds.x + bounds.width && canvasCoords.y >= bounds.y && canvasCoords.y <= bounds.y + bounds.height) {
                                 clickedOnSelectedObject = true;
@@ -151,7 +151,7 @@ Item {
             return true;
         }
 
-        if (isSelecting && clickedOnSelectedObject && DV.SelectionManager.selectedItemIndex >= 0) {
+        if (isSelecting && clickedOnSelectedObject && Lucent.SelectionManager.selectedItemIndex >= 0) {
             var dx = Math.abs(screenX - selectPressX);
             var dy = Math.abs(screenY - selectPressY);
 

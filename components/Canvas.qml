@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import CanvasRendering 1.0
-import "." as DV
+import "." as Lucent
 
 // Canvas component focused on data management and tool coordination
 Item {
@@ -59,10 +59,10 @@ Item {
         SelectionOverlay {
             id: selectionOverlay
             selectionPadding: 8  // Padding around selected object in canvas units
-            selectedItem: DV.SelectionManager.selectedItem
+            selectedItem: Lucent.SelectionManager.selectedItem
             boundsOverride: root.selectionBounds()
             zoomLevel: root.zoomLevel
-            accentColor: DV.Themed.palette.highlight
+            accentColor: Lucent.Themed.palette.highlight
         }
 
         // Select tool for object selection (panning handled by Viewport)
@@ -207,9 +207,9 @@ Item {
 
         // Select the newly created item (it's at the end of the list)
         var newIndex = canvasModel.count() - 1;
-        DV.SelectionManager.selectedIndices = [newIndex];
-        DV.SelectionManager.selectedItemIndex = newIndex;
-        DV.SelectionManager.selectedItem = canvasModel.getItemData(newIndex);
+        Lucent.SelectionManager.selectedIndices = [newIndex];
+        Lucent.SelectionManager.selectedItemIndex = newIndex;
+        Lucent.SelectionManager.selectedItem = canvasModel.getItemData(newIndex);
         refreshSelectionOverlayBounds();
     }
 
@@ -234,8 +234,8 @@ Item {
 
         // Clear selection when switching to drawing tools
         if (drawingMode !== "") {
-            DV.SelectionManager.selectedItemIndex = -1;
-            DV.SelectionManager.selectedItem = null;
+            Lucent.SelectionManager.selectedItemIndex = -1;
+            Lucent.SelectionManager.selectedItem = null;
         }
     }
 
@@ -254,7 +254,7 @@ Item {
     }
 
     function selectionBounds() {
-        var indices = DV.SelectionManager.selectedIndices;
+        var indices = Lucent.SelectionManager.selectedIndices;
         if (!indices || indices.length === 0)
             return null;
         var bounds = null;
@@ -281,11 +281,11 @@ Item {
     }
 
     function updateSelection(hitIndex, multiSelect) {
-        DV.SelectionManager.toggleSelection(hitIndex, multiSelect);
+        Lucent.SelectionManager.toggleSelection(hitIndex, multiSelect);
     }
 
     function updateSelectedItemPosition(canvasDx, canvasDy) {
-        var indices = DV.SelectionManager.selectedIndices || [];
+        var indices = Lucent.SelectionManager.selectedIndices || [];
         if (indices.length === 0)
             return;
 
@@ -356,7 +356,7 @@ Item {
     }
 
     Connections {
-        target: DV.SelectionManager
+        target: Lucent.SelectionManager
         function onSelectedItemChanged() {
             refreshSelectionOverlayBounds();
         }
@@ -369,7 +369,7 @@ Item {
     }
 
     function deleteSelectedItem() {
-        var indices = DV.SelectionManager.currentSelectionIndices();
+        var indices = Lucent.SelectionManager.currentSelectionIndices();
         if (indices.length === 0)
             return;
         indices.sort(function (a, b) {
@@ -381,17 +381,17 @@ Item {
                 continue;
             canvasModel.removeItem(idx);
         }
-        DV.SelectionManager.setSelection([]);
+        Lucent.SelectionManager.setSelection([]);
     }
 
     function duplicateSelectedItem() {
-        var indices = DV.SelectionManager.currentSelectionIndices();
+        var indices = Lucent.SelectionManager.currentSelectionIndices();
         if (indices.length === 0)
             return;
         var newIndices = canvasModel.duplicateItems(indices);
         if (!newIndices || newIndices.length === 0)
             return;
-        DV.SelectionManager.setSelection(newIndices);
+        Lucent.SelectionManager.setSelection(newIndices);
         refreshSelectionOverlayBounds();
     }
 

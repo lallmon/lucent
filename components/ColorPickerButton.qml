@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import "." as DV
+import "." as Lucent
 
 Button {
     id: root
@@ -13,7 +13,7 @@ Button {
 
     signal colorPicked(color newColor)
 
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     Layout.preferredWidth: 16
     Layout.preferredHeight: 16
@@ -24,7 +24,7 @@ Button {
     background: Rectangle {
         border.color: root.themePalette.mid
         border.width: 1
-        radius: DV.Styles.rad.sm
+        radius: Lucent.Styles.rad.sm
         color: "transparent"
         clip: true
 

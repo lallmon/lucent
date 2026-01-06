@@ -1,17 +1,17 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
-import "." as DV
+import "." as Lucent
 
 Item {
     id: root
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     // Icon name (without extension), e.g. "cursor" or "square"
     property string name: ""
     // Icon weight directory under assets/phosphor/, defaults to "regular"
     property string weight: "regular"
     // Icon pixel size (width and height)
-    property real size: DV.Styles.height.lg
+    property real size: Lucent.Styles.height.lg
     // Tint color; set to "transparent" to keep original SVG color
     property color color: "white"
 
@@ -53,7 +53,7 @@ Item {
         visible: image.status === Image.Error
         color: "#00000000"
         border.color: themePalette.highlight
-        radius: DV.Styles.rad.sm
+        radius: Lucent.Styles.rad.sm
 
         Text {
             anchors.centerIn: parent

@@ -1,12 +1,12 @@
 import QtQuick
 import QtQuick.Controls
-import "." as DV
+import "." as Lucent
 
 // Viewport component responsible for zoom, pan, and camera controls
 Item {
     id: root
     clip: true  // Constrain rendering to viewport boundaries
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     // Zoom/pan state (camera controls)
     property real zoomLevel: 0.7  // Start at 70%

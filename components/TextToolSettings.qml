@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 RowLayout {
     id: root
@@ -9,7 +9,7 @@ RowLayout {
     // Tool settings properties with theme-aware defaults
     property string fontFamily: "Sans Serif"
     property real fontSize: 16
-    property color textColor: DV.Themed.palette.text
+    property color textColor: Lucent.Themed.palette.text
     property real textOpacity: 1.0
 
     Layout.fillHeight: true
@@ -25,7 +25,7 @@ RowLayout {
     ComboBox {
         id: fontFamilyCombo
         Layout.preferredWidth: 160
-        Layout.preferredHeight: DV.Styles.height.md
+        Layout.preferredHeight: Lucent.Styles.height.md
         Layout.alignment: Qt.AlignVCenter
         model: fontProvider ? fontProvider.fonts : []
         currentIndex: fontProvider ? fontProvider.indexOf(root.fontFamily) : 0
@@ -46,7 +46,7 @@ RowLayout {
             color: palette.base
             border.color: fontFamilyCombo.activeFocus ? palette.highlight : palette.mid
             border.width: 1
-            radius: DV.Styles.rad.sm
+            radius: Lucent.Styles.rad.sm
         }
 
         contentItem: Text {
@@ -71,7 +71,7 @@ RowLayout {
     ComboBox {
         id: fontSizeCombo
         Layout.preferredWidth: 70
-        Layout.preferredHeight: DV.Styles.height.md
+        Layout.preferredHeight: Lucent.Styles.height.md
         Layout.alignment: Qt.AlignVCenter
         editable: true
         model: [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72, 96, 128]
@@ -117,7 +117,7 @@ RowLayout {
             color: palette.base
             border.color: fontSizeCombo.activeFocus ? palette.highlight : palette.mid
             border.width: 1
-            radius: DV.Styles.rad.sm
+            radius: Lucent.Styles.rad.sm
         }
 
         contentItem: TextInput {
@@ -150,7 +150,7 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.ColorPickerButton {
+    Lucent.ColorPickerButton {
         color: root.textColor
         colorOpacity: root.textOpacity
         dialogTitle: qsTr("Choose Text Color")
@@ -163,12 +163,12 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.OpacitySlider {
+    Lucent.OpacitySlider {
         opacityValue: root.textOpacity
         onValueUpdated: newOpacity => root.textOpacity = newOpacity
     }
 
-    DV.LabeledNumericField {
+    Lucent.LabeledNumericField {
         labelText: ""
         value: Math.round(root.textOpacity * 100)
         minimum: 0

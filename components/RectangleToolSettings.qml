@@ -1,23 +1,23 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 RowLayout {
     id: root
 
     // Tool settings properties with theme-aware defaults
     property real strokeWidth: 1
-    property color strokeColor: DV.Themed.palette.text
+    property color strokeColor: Lucent.Themed.palette.text
     property real strokeOpacity: 1.0
-    property color fillColor: DV.Themed.palette.text
+    property color fillColor: Lucent.Themed.palette.text
     property real fillOpacity: 0.0
 
     Layout.fillHeight: true
     Layout.alignment: Qt.AlignVCenter
     spacing: 6
 
-    DV.LabeledNumericField {
+    Lucent.LabeledNumericField {
         labelText: qsTr("Stroke Width:")
         value: root.strokeWidth
         minimum: 0.1
@@ -35,7 +35,7 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.ColorPickerButton {
+    Lucent.ColorPickerButton {
         color: root.strokeColor
         colorOpacity: root.strokeOpacity
         dialogTitle: qsTr("Choose Stroke Color")
@@ -48,12 +48,12 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.OpacitySlider {
+    Lucent.OpacitySlider {
         opacityValue: root.strokeOpacity
         onValueUpdated: newOpacity => root.strokeOpacity = newOpacity
     }
 
-    DV.LabeledNumericField {
+    Lucent.LabeledNumericField {
         labelText: ""
         value: Math.round(root.strokeOpacity * 100)
         minimum: 0
@@ -72,7 +72,7 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.ColorPickerButton {
+    Lucent.ColorPickerButton {
         color: root.fillColor
         colorOpacity: root.fillOpacity
         dialogTitle: qsTr("Choose Fill Color")
@@ -85,12 +85,12 @@ RowLayout {
         Layout.alignment: Qt.AlignVCenter
     }
 
-    DV.OpacitySlider {
+    Lucent.OpacitySlider {
         opacityValue: root.fillOpacity
         onValueUpdated: newOpacity => root.fillOpacity = newOpacity
     }
 
-    DV.LabeledNumericField {
+    Lucent.LabeledNumericField {
         labelText: ""
         value: Math.round(root.fillOpacity * 100)
         minimum: 0

@@ -1,14 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "." as DV
+import "." as Lucent
 
 ToolBar {
     id: root
     height: 48
 
     property string activeTool: ""
-    readonly property SystemPalette themePalette: DV.Themed.palette
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     // Expose tool settings for external access (e.g., when creating shapes)
     readonly property var toolSettings: ({
@@ -47,22 +47,22 @@ ToolBar {
         anchors.rightMargin: 8
         spacing: 8
 
-        DV.RectangleToolSettings {
+        Lucent.RectangleToolSettings {
             id: rectangleSettings
             visible: root.activeTool === "rectangle"
         }
 
-        DV.EllipseToolSettings {
+        Lucent.EllipseToolSettings {
             id: ellipseSettings
             visible: root.activeTool === "ellipse"
         }
 
-        DV.PenToolSettings {
+        Lucent.PenToolSettings {
             id: penSettings
             visible: root.activeTool === "pen"
         }
 
-        DV.TextToolSettings {
+        Lucent.TextToolSettings {
             id: textSettings
             visible: root.activeTool === "text"
         }
