@@ -61,10 +61,10 @@ Item {
                 if (hitIndex === Lucent.SelectionManager.selectedItemIndex) {
                     clickedOnSelectedObject = true;
                 }
-                // For groups/layers: check if click is inside the selected item's bounding box
+                // Check if click is inside the selected item's bounding box
                 if (!clickedOnSelectedObject && getBoundsCallback) {
                     var selectedItem = Lucent.SelectionManager.selectedItem;
-                    if (selectedItem && (selectedItem.type === "group" || selectedItem.type === "layer")) {
+                    if (selectedItem) {
                         var bounds = getBoundsCallback(Lucent.SelectionManager.selectedItemIndex);
                         if (bounds && bounds.width >= 0 && bounds.height >= 0) {
                             if (canvasCoords.x >= bounds.x && canvasCoords.x <= bounds.x + bounds.width && canvasCoords.y >= bounds.y && canvasCoords.y <= bounds.y + bounds.height) {
