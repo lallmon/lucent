@@ -273,3 +273,78 @@ class TestTransform:
         result = qtransform.map(origin)
         assert abs(result.x() - 10) < 0.001
         assert abs(result.y() - 20) < 0.001
+
+
+class TestTransformOrigin:
+    """Tests for transform origin point handling."""
+
+    def test_origin_defaults_to_zero(self):
+        """Default origin should be (0, 0) = top-left."""
+        transform = Transform()
+        assert transform.origin_x == 0
+        assert transform.origin_y == 0
+
+    def test_origin_in_constructor(self):
+        """Origin can be set in constructor."""
+        transform = Transform(origin_x=0.5, origin_y=0.5)
+        assert transform.origin_x == 0.5
+        assert transform.origin_y == 0.5
+
+    def test_origin_serialization(self):
+        """Origin is serialized to dict."""
+        transform = Transform(origin_x=0.5, origin_y=1.0)
+        data = transform.to_dict()
+        assert data["originX"] == 0.5
+        assert data["originY"] == 1.0
+
+    def test_origin_deserialization(self):
+        """Origin is deserialized from dict."""
+        data = {"originX": 0.25, "originY": 0.75}
+        transform = Transform.from_dict(data)
+        assert transform.origin_x == 0.25
+        assert transform.origin_y == 0.75
+
+    def test_origin_defaults_in_deserialization(self):
+        """Missing origin defaults to 0."""
+        data = {"rotate": 45}
+        transform = Transform.from_dict(data)
+        assert transform.origin_x == 0
+        assert transform.origin_y == 0
+
+    def test_rotation_around_topleft_origin(self):
+        """Rotation around top-left moves the shape."""
+        # Rect from (0,0) to (100, 50), rotate around top-left (0,0)
+        transform = Transform(rotate=90)
+        qtransform = transform.to_qtransform_centered(0, 0)
+
+        # Top-left stays at origin
+        top_left = QPointF(0, 0)
+        result = qtransform.map(top_left)
+        assert abs(result.x()) < 0.001
+        assert abs(result.y()) < 0.001
+
+        # Bottom-right (100, 50) rotates 90 degrees around origin
+        bottom_right = QPointF(100, 50)
+        result = qtransform.map(bottom_right)
+        assert abs(result.x() + 50) < 0.001  # y becomes -x
+        assert abs(result.y() - 100) < 0.001  # x becomes y
+
+    def test_rotation_around_bottomright_origin(self):
+        """Rotation around bottom-right corner."""
+        # For a rect (0,0,100,50), bottom-right is (100, 50)
+        transform = Transform(rotate=180)
+        qtransform = transform.to_qtransform_centered(100, 50)
+
+        # Bottom-right stays at (100, 50)
+        bottom_right = QPointF(100, 50)
+        result = qtransform.map(bottom_right)
+        assert abs(result.x() - 100) < 0.001
+        assert abs(result.y() - 50) < 0.001
+
+        # Top-left (0, 0) rotates 180 degrees around (100, 50)
+        # Distance from pivot: (-100, -50), rotated 180: (100, 50)
+        # Final position: (100 + 100, 50 + 50) = (200, 100)
+        top_left = QPointF(0, 0)
+        result = qtransform.map(top_left)
+        assert abs(result.x() - 200) < 0.001
+        assert abs(result.y() - 100) < 0.001

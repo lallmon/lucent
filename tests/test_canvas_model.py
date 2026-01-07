@@ -796,3 +796,94 @@ class TestCanvasModelGetGeometryBounds:
         """getGeometryBounds returns None for layers (no geometry)."""
         canvas_model.addItem(make_layer(name="Layer"))
         assert canvas_model.getGeometryBounds(0) is None
+
+
+class TestCanvasModelBoundingBoxWithTransforms:
+    """Tests for getBoundingBox with transformed items."""
+
+    def test_bounding_box_with_translation(self, canvas_model):
+        """getBoundingBox includes translation in bounds."""
+        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+        rect_data["transform"] = {"translateX": 50, "translateY": 25}
+        canvas_model.addItem(rect_data)
+
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox["x"] == 50  # Translated
+        assert bbox["y"] == 25
+        assert bbox["width"] == 100
+        assert bbox["height"] == 50
+
+    def test_bounding_box_with_rotation(self, canvas_model):
+        """getBoundingBox expands for rotated items."""
+        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+        rect_data["transform"] = {
+            "rotate": 45,
+            "originX": 0.5,
+            "originY": 0.5,
+        }
+        canvas_model.addItem(rect_data)
+
+        bbox = canvas_model.getBoundingBox(0)
+        # Rotated rectangle should have larger bounding box
+        assert bbox["width"] > 100
+        assert bbox["height"] > 50
+
+    def test_bounding_box_90_degree_rotation(self, canvas_model):
+        """90 degree rotation swaps width and height."""
+        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+        rect_data["transform"] = {
+            "rotate": 90,
+            "originX": 0.5,
+            "originY": 0.5,
+        }
+        canvas_model.addItem(rect_data)
+
+        bbox = canvas_model.getBoundingBox(0)
+        # Width and height should swap (with small tolerance for floating point)
+        assert abs(bbox["width"] - 50) < 0.01
+        assert abs(bbox["height"] - 100) < 0.01
+
+    def test_bounding_box_with_origin_affects_position(self, canvas_model):
+        """Different origin points affect bounding box position after rotation."""
+        # Rotation around top-left origin
+        rect_tl = make_rectangle(x=0, y=0, width=100, height=100)
+        rect_tl["transform"] = {"rotate": 180, "originX": 0, "originY": 0}
+        canvas_model.addItem(rect_tl)
+        bbox_tl = canvas_model.getBoundingBox(0)
+
+        canvas_model.removeItem(0)
+
+        # Rotation around center origin
+        rect_center = make_rectangle(x=0, y=0, width=100, height=100)
+        rect_center["transform"] = {"rotate": 180, "originX": 0.5, "originY": 0.5}
+        canvas_model.addItem(rect_center)
+        bbox_center = canvas_model.getBoundingBox(0)
+
+        # Top-left rotation moves shape to negative quadrant
+        assert bbox_tl["x"] == -100
+        assert bbox_tl["y"] == -100
+
+        # Center rotation keeps shape at origin
+        assert abs(bbox_center["x"]) < 0.01
+        assert abs(bbox_center["y"]) < 0.01
+
+    def test_geometry_bounds_unchanged_by_transform(self, canvas_model):
+        """getGeometryBounds returns untransformed bounds."""
+        rect_data = make_rectangle(x=10, y=20, width=100, height=50)
+        rect_data["transform"] = {
+            "translateX": 50,
+            "translateY": 25,
+            "rotate": 45,
+        }
+        canvas_model.addItem(rect_data)
+
+        # Geometry bounds should be original values
+        geom_bounds = canvas_model.getGeometryBounds(0)
+        assert geom_bounds["x"] == 10
+        assert geom_bounds["y"] == 20
+        assert geom_bounds["width"] == 100
+        assert geom_bounds["height"] == 50
+
+        # Bounding box should be different (transformed)
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox["x"] != 10 or bbox["y"] != 20

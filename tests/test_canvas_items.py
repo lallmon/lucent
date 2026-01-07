@@ -643,3 +643,95 @@ class TestShapeItemWithTransform:
         )
         rect.paint(painter, zoom_level=1.0)
         painter.end()
+
+    def test_rotation_expands_bounds(self):
+        """Rotated shape should have expanded axis-aligned bounding box."""
+        import math
+
+        # 100x50 rectangle at origin
+        geometry = RectGeometry(x=0, y=0, width=100, height=50)
+        # Rotate 45 degrees around center (default origin 0,0 = top-left)
+        transform = Transform(rotate=45, origin_x=0.5, origin_y=0.5)
+        rect = RectangleItem(
+            geometry=geometry, appearances=default_appearances(), transform=transform
+        )
+        bounds = rect.get_bounds()
+
+        # 45 degree rotation of 100x50 rect should produce larger bounding box
+        # Diagonal of rectangle determines the new width/height
+        diagonal = math.sqrt(100**2 + 50**2)
+        # The bounds should be approximately the diagonal in both dimensions
+        # (actually slightly less because it's not a square)
+        assert bounds.width() > 100  # Wider than original
+        assert bounds.height() > 50  # Taller than original
+        assert bounds.width() < diagonal + 1  # But not larger than diagonal
+
+    def test_rotation_with_topleft_origin(self):
+        """Rotation around top-left origin produces different bounds than center."""
+        # Rectangle at (50, 50) with size 100x50
+        geometry = RectGeometry(x=50, y=50, width=100, height=50)
+
+        # Rotate around top-left (default origin 0,0)
+        transform_tl = Transform(rotate=90, origin_x=0, origin_y=0)
+        rect_tl = RectangleItem(
+            geometry=geometry, appearances=default_appearances(), transform=transform_tl
+        )
+        bounds_tl = rect_tl.get_bounds()
+
+        # Rotate around center
+        transform_center = Transform(rotate=90, origin_x=0.5, origin_y=0.5)
+        rect_center = RectangleItem(
+            geometry=geometry,
+            appearances=default_appearances(),
+            transform=transform_center,
+        )
+        bounds_center = rect_center.get_bounds()
+
+        # Bounds should be different positions
+        assert bounds_tl.x() != bounds_center.x() or bounds_tl.y() != bounds_center.y()
+
+    def test_combined_translate_and_rotate_bounds(self):
+        """Combined translation and rotation produces correct bounds."""
+        geometry = RectGeometry(x=0, y=0, width=100, height=50)
+        # Translate then rotate around center
+        transform = Transform(
+            translate_x=100, translate_y=100, rotate=90, origin_x=0.5, origin_y=0.5
+        )
+        rect = RectangleItem(
+            geometry=geometry, appearances=default_appearances(), transform=transform
+        )
+        bounds = rect.get_bounds()
+
+        # After 90 degree rotation around center, width and height swap
+        # Translation shifts the whole thing
+        assert abs(bounds.width() - 50) < 0.01  # Width becomes height
+        assert abs(bounds.height() - 100) < 0.01  # Height becomes width
+        # Center should be at (50 + 100, 25 + 100) = (150, 125)
+        center_x = bounds.x() + bounds.width() / 2
+        center_y = bounds.y() + bounds.height() / 2
+        assert abs(center_x - 150) < 0.01
+        assert abs(center_y - 125) < 0.01
+
+    def test_origin_affects_rotation_pivot(self):
+        """Different origin points produce different rotation results."""
+        geometry = RectGeometry(x=0, y=0, width=100, height=100)
+
+        # Rotate 180 degrees around top-left - shape moves to negative quadrant
+        transform_tl = Transform(rotate=180, origin_x=0, origin_y=0)
+        rect_tl = RectangleItem(
+            geometry=geometry, appearances=default_appearances(), transform=transform_tl
+        )
+        bounds_tl = rect_tl.get_bounds()
+        assert bounds_tl.x() == -100  # Rotated to left
+        assert bounds_tl.y() == -100  # Rotated up
+
+        # Rotate 180 degrees around center - shape stays in same position
+        transform_center = Transform(rotate=180, origin_x=0.5, origin_y=0.5)
+        rect_center = RectangleItem(
+            geometry=geometry,
+            appearances=default_appearances(),
+            transform=transform_center,
+        )
+        bounds_center = rect_center.get_bounds()
+        assert abs(bounds_center.x()) < 0.01  # Stays at origin
+        assert abs(bounds_center.y()) < 0.01

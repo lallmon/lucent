@@ -30,44 +30,25 @@ QtObject {
             // For boundingBoxCallback, always use modelIndex since it expects model indices
             var bbIndex = (item.modelIndex !== undefined) ? item.modelIndex : i;
 
-            // Get geometry (new nested format)
-            var geom = item.geometry;
+            // Use bounding box for all item types - this correctly accounts for transforms
+            if (!boundingBoxCallback)
+                continue;
 
-            if (item.type === "rectangle" && geom) {
-                if (canvasX >= geom.x && canvasX <= geom.x + geom.width && canvasY >= geom.y && canvasY <= geom.y + geom.height) {
-                    return resultIndex;
-                }
-            } else if (item.type === "ellipse" && geom) {
-                var dx = (canvasX - geom.centerX) / geom.radiusX;
-                var dy = (canvasY - geom.centerY) / geom.radiusY;
-                if (dx * dx + dy * dy <= 1.0) {
-                    return resultIndex;
-                }
-            } else if (item.type === "path") {
-                // Hit test path using bounding box (consistent with text/group/layer)
-                if (boundingBoxCallback) {
-                    var pathBounds = boundingBoxCallback(bbIndex);
-                    if (pathBounds && pathBounds.width >= 0 && pathBounds.height >= 0) {
-                        var strokeWidth = getStrokeWidth(item);
-                        var pathExpand = strokeWidth * 0.5 + 2;
-                        if (canvasX >= pathBounds.x - pathExpand && canvasX <= pathBounds.x + pathBounds.width + pathExpand && canvasY >= pathBounds.y - pathExpand && canvasY <= pathBounds.y + pathBounds.height + pathExpand) {
-                            return resultIndex;
-                        }
-                    }
-                }
-            } else if (item.type === "text") {
-                // Hit test text using bounding box from model
-                if (boundingBoxCallback) {
-                    var textBounds = boundingBoxCallback(bbIndex);
-                    if (textBounds && textBounds.width >= 0 && textBounds.height >= 0) {
-                        if (canvasX >= textBounds.x && canvasX <= textBounds.x + textBounds.width && canvasY >= textBounds.y && canvasY <= textBounds.y + textBounds.height) {
-                            return resultIndex;
-                        }
-                    }
-                }
+            var bounds = boundingBoxCallback(bbIndex);
+            if (!bounds || bounds.width < 0 || bounds.height < 0)
+                continue;
+
+            // Expand hit area slightly for paths (stroke width + tolerance)
+            var expand = 0;
+            if (item.type === "path") {
+                var strokeWidth = getStrokeWidth(item);
+                expand = strokeWidth * 0.5 + 2;
+            }
+
+            if (canvasX >= bounds.x - expand && canvasX <= bounds.x + bounds.width + expand && canvasY >= bounds.y - expand && canvasY <= bounds.y + bounds.height + expand) {
+                return resultIndex;
             }
             // Groups and layers are not hit-testable on canvas - select via Layer Panel
-            // This allows clicking on shapes inside groups to select them directly
         }
         return -1;
     }
