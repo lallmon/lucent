@@ -23,12 +23,16 @@ class Transform:
         rotate: float = 0,
         scale_x: float = 1,
         scale_y: float = 1,
+        origin_x: float = 0,  # 0=left, 0.5=center, 1=right (relative to bounds)
+        origin_y: float = 0,  # 0=top, 0.5=center, 1=bottom (relative to bounds)
     ) -> None:
         self.translate_x = float(translate_x)
         self.translate_y = float(translate_y)
         self.rotate = float(rotate)  # degrees
         self.scale_x = float(scale_x)
         self.scale_y = float(scale_y)
+        self.origin_x = float(origin_x)
+        self.origin_y = float(origin_y)
 
     def is_identity(self) -> bool:
         """Check if this transform is the identity transform."""
@@ -91,6 +95,8 @@ class Transform:
             "rotate": self.rotate,
             "scaleX": self.scale_x,
             "scaleY": self.scale_y,
+            "originX": self.origin_x,
+            "originY": self.origin_y,
         }
 
     @staticmethod
@@ -102,4 +108,6 @@ class Transform:
             rotate=float(data.get("rotate", 0)),
             scale_x=float(data.get("scaleX", 1)),
             scale_y=float(data.get("scaleY", 1)),
+            origin_x=float(data.get("originX", 0)),
+            origin_y=float(data.get("originY", 0)),
         )

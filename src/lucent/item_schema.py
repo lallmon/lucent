@@ -119,6 +119,8 @@ def _parse_transform(data: Dict[str, Any]) -> Dict[str, Any] | None:
     rotate = float(t.get("rotate", 0))
     scale_x = float(t.get("scaleX", 1))
     scale_y = float(t.get("scaleY", 1))
+    origin_x = float(t.get("originX", 0))
+    origin_y = float(t.get("originY", 0))
 
     # Return None for identity transforms to keep serialized data clean
     if (
@@ -127,6 +129,8 @@ def _parse_transform(data: Dict[str, Any]) -> Dict[str, Any] | None:
         and rotate == 0
         and scale_x == 1
         and scale_y == 1
+        and origin_x == 0
+        and origin_y == 0
     ):
         return None
 
@@ -136,6 +140,8 @@ def _parse_transform(data: Dict[str, Any]) -> Dict[str, Any] | None:
         "rotate": rotate,
         "scaleX": scale_x,
         "scaleY": scale_y,
+        "originX": origin_x,
+        "originY": origin_y,
     }
 
 
@@ -349,6 +355,8 @@ def _create_transform(data: Dict[str, Any]) -> Transform | None:
         rotate=t["rotate"],
         scale_x=t["scaleX"],
         scale_y=t["scaleY"],
+        origin_x=t.get("originX", 0),
+        origin_y=t.get("originY", 0),
     )
 
 

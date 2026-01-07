@@ -117,10 +117,11 @@ class ShapeItem(CanvasItem):
 
         path = self.geometry.to_painter_path()
         if not self.transform.is_identity():
-            # Apply transform around geometry center
+            # Apply transform around stored origin point
             bounds = self.geometry.get_bounds()
-            center = bounds.center()
-            qtransform = self.transform.to_qtransform_centered(center.x(), center.y())
+            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
+            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
+            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
             path = qtransform.map(path)
 
         for appearance in self.appearances:
@@ -130,9 +131,10 @@ class ShapeItem(CanvasItem):
         """Return bounding rectangle in canvas coordinates."""
         bounds = self.geometry.get_bounds()
         if not self.transform.is_identity():
-            # Apply transform around geometry center
-            center = bounds.center()
-            qtransform = self.transform.to_qtransform_centered(center.x(), center.y())
+            # Apply transform around stored origin point
+            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
+            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
+            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
             return qtransform.mapRect(bounds)
         return bounds
 

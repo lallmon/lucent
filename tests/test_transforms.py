@@ -121,6 +121,8 @@ class TestTransform:
             "rotate": 45,
             "scaleX": 2.0,
             "scaleY": 0.5,
+            "originX": 0.0,
+            "originY": 0.0,
         }
 
     def test_from_dict(self):

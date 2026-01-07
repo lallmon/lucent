@@ -90,16 +90,52 @@ Item {
             translateY: currentTransform.translateY || 0,
             rotate: currentTransform.rotate || 0,
             scaleX: currentTransform.scaleX || 1,
-            scaleY: currentTransform.scaleY || 1
+            scaleY: currentTransform.scaleY || 1,
+            originX: currentTransform.originX || 0,
+            originY: currentTransform.originY || 0
         } : {
             translateX: 0,
             translateY: 0,
             rotate: 0,
             scaleX: 1,
-            scaleY: 1
+            scaleY: 1,
+            originX: 0,
+            originY: 0
         };
         newTransform[property] = value;
         canvasModel.setItemTransform(idx, newTransform);
+    }
+
+    function setOrigin(ox, oy) {
+        console.log("setOrigin called with:", ox, oy);
+        var idx = Lucent.SelectionManager.selectedItemIndex;
+        console.log("selectedItemIndex:", idx);
+        if (idx < 0 || !canvasModel) {
+            console.log("No selection, returning early");
+            return;
+        }
+
+        var newTransform = currentTransform ? {
+            translateX: currentTransform.translateX || 0,
+            translateY: currentTransform.translateY || 0,
+            rotate: currentTransform.rotate || 0,
+            scaleX: currentTransform.scaleX || 1,
+            scaleY: currentTransform.scaleY || 1,
+            originX: ox,
+            originY: oy
+        } : {
+            translateX: 0,
+            translateY: 0,
+            rotate: 0,
+            scaleX: 1,
+            scaleY: 1,
+            originX: ox,
+            originY: oy
+        };
+        console.log("Calling setItemTransform");
+        canvasModel.setItemTransform(idx, newTransform);
+        console.log("setItemTransform called, refreshing transform");
+        refreshTransform();
     }
 
     implicitHeight: contentLayout.implicitHeight
@@ -241,6 +277,102 @@ Item {
                     color: rotationSlider.pressed ? root.themePalette.highlight : root.themePalette.button
                     border.color: root.themePalette.mid
                     border.width: 1
+                }
+            }
+        }
+
+        // Origin anchor grid row
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            Layout.bottomMargin: 8
+            spacing: 8
+            enabled: root.controlsEnabled
+            opacity: root.controlsEnabled ? 1.0 : 0.5
+
+            Label {
+                text: qsTr("Origin:")
+                font.pixelSize: root.labelSize
+                color: root.labelColor
+            }
+
+            // 9-point anchor grid using ButtonGroup
+            ButtonGroup {
+                id: originGroup
+                exclusive: true
+            }
+
+            Grid {
+                columns: 3
+                spacing: 2
+
+                Repeater {
+                    model: [
+                        {
+                            ox: 0,
+                            oy: 0
+                        },
+                        {
+                            ox: 0.5,
+                            oy: 0
+                        },
+                        {
+                            ox: 1,
+                            oy: 0
+                        },
+                        {
+                            ox: 0,
+                            oy: 0.5
+                        },
+                        {
+                            ox: 0.5,
+                            oy: 0.5
+                        },
+                        {
+                            ox: 1,
+                            oy: 0.5
+                        },
+                        {
+                            ox: 0,
+                            oy: 1
+                        },
+                        {
+                            ox: 0.5,
+                            oy: 1
+                        },
+                        {
+                            ox: 1,
+                            oy: 1
+                        }
+                    ]
+
+                    delegate: Button {
+                        required property var modelData
+                        required property int index
+
+                        width: 16
+                        height: 16
+                        checkable: true
+                        checked: {
+                            var t = root.currentTransform;
+                            var curX = t ? (t.originX !== undefined ? t.originX : 0) : 0;
+                            var curY = t ? (t.originY !== undefined ? t.originY : 0) : 0;
+                            return curX === modelData.ox && curY === modelData.oy;
+                        }
+                        ButtonGroup.group: originGroup
+
+                        onClicked: {
+                            console.log("Origin button clicked:", modelData.ox, modelData.oy);
+                            root.setOrigin(modelData.ox, modelData.oy);
+                        }
+
+                        background: Rectangle {
+                            color: parent.checked ? root.themePalette.highlight : root.themePalette.button
+                            border.color: root.themePalette.mid
+                            border.width: 1
+                            radius: 2
+                        }
+                    }
                 }
             }
         }

@@ -22,6 +22,8 @@ Rectangle {
     readonly property real _rotation: itemTransform ? (itemTransform.rotate || 0) : 0
     readonly property real _translateX: itemTransform ? (itemTransform.translateX || 0) : 0
     readonly property real _translateY: itemTransform ? (itemTransform.translateY || 0) : 0
+    readonly property real _originX: itemTransform ? (itemTransform.originX || 0) : 0
+    readonly property real _originY: itemTransform ? (itemTransform.originY || 0) : 0
 
     visible: geometryBounds !== null && geometryBounds !== undefined
 
@@ -35,10 +37,10 @@ Rectangle {
     border.color: accentColor
     border.width: (zoomLevel > 0 ? 1 / zoomLevel : 0)
 
-    // Apply rotation around the center of the geometry
+    // Apply rotation around the stored origin point
     transform: Rotation {
-        origin.x: selectionOverlay.width / 2
-        origin.y: selectionOverlay.height / 2
+        origin.x: selectionOverlay.width * selectionOverlay._originX
+        origin.y: selectionOverlay.height * selectionOverlay._originY
         angle: selectionOverlay._rotation
     }
 }
