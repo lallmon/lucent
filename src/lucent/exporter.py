@@ -120,44 +120,52 @@ def _item_to_svg_element(item: "CanvasItem") -> Optional[ET.Element]:
 
     if isinstance(item, RectangleItem):
         elem = ET.Element("rect")
-        elem.set("x", str(item.x))
-        elem.set("y", str(item.y))
-        elem.set("width", str(item.width))
-        elem.set("height", str(item.height))
-        elem.set("stroke", item.stroke_color)
-        elem.set("stroke-width", str(item.stroke_width))
-        elem.set("stroke-opacity", str(item.stroke_opacity))
-        elem.set("fill", item.fill_color)
-        elem.set("fill-opacity", str(item.fill_opacity))
+        elem.set("x", str(item.geometry.x))
+        elem.set("y", str(item.geometry.y))
+        elem.set("width", str(item.geometry.width))
+        elem.set("height", str(item.geometry.height))
+        stroke = item.stroke
+        fill = item.fill
+        elem.set("stroke", stroke.color if stroke else "none")
+        elem.set("stroke-width", str(stroke.width if stroke else 0))
+        elem.set("stroke-opacity", str(stroke.opacity if stroke else 0))
+        elem.set("fill", fill.color if fill else "none")
+        elem.set("fill-opacity", str(fill.opacity if fill else 0))
         return elem
 
     if isinstance(item, EllipseItem):
         elem = ET.Element("ellipse")
-        elem.set("cx", str(item.center_x))
-        elem.set("cy", str(item.center_y))
-        elem.set("rx", str(item.radius_x))
-        elem.set("ry", str(item.radius_y))
-        elem.set("stroke", item.stroke_color)
-        elem.set("stroke-width", str(item.stroke_width))
-        elem.set("stroke-opacity", str(item.stroke_opacity))
-        elem.set("fill", item.fill_color)
-        elem.set("fill-opacity", str(item.fill_opacity))
+        elem.set("cx", str(item.geometry.center_x))
+        elem.set("cy", str(item.geometry.center_y))
+        elem.set("rx", str(item.geometry.radius_x))
+        elem.set("ry", str(item.geometry.radius_y))
+        stroke = item.stroke
+        fill = item.fill
+        elem.set("stroke", stroke.color if stroke else "none")
+        elem.set("stroke-width", str(stroke.width if stroke else 0))
+        elem.set("stroke-opacity", str(stroke.opacity if stroke else 0))
+        elem.set("fill", fill.color if fill else "none")
+        elem.set("fill-opacity", str(fill.opacity if fill else 0))
         return elem
 
     if isinstance(item, PathItem):
         elem = ET.Element("path")
-        if item.points:
-            d_parts = [f"M {item.points[0]['x']} {item.points[0]['y']}"]
-            for p in item.points[1:]:
+        points = item.geometry.points
+        if points:
+            d_parts = [f"M {points[0]['x']} {points[0]['y']}"]
+            for p in points[1:]:
                 d_parts.append(f"L {p['x']} {p['y']}")
-            if item.closed:
+            if item.geometry.closed:
                 d_parts.append("Z")
             elem.set("d", " ".join(d_parts))
-        elem.set("stroke", item.stroke_color)
-        elem.set("stroke-width", str(item.stroke_width))
-        elem.set("stroke-opacity", str(item.stroke_opacity))
-        elem.set("fill", item.fill_color if item.fill_opacity > 0 else "none")
-        elem.set("fill-opacity", str(item.fill_opacity))
+        stroke = item.stroke
+        fill = item.fill
+        fill_opacity = fill.opacity if fill else 0
+        elem.set("stroke", stroke.color if stroke else "none")
+        elem.set("stroke-width", str(stroke.width if stroke else 0))
+        elem.set("stroke-opacity", str(stroke.opacity if stroke else 0))
+        elem.set("fill", fill.color if fill and fill_opacity > 0 else "none")
+        elem.set("fill-opacity", str(fill_opacity))
         return elem
 
     if isinstance(item, TextItem):

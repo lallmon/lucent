@@ -11,6 +11,7 @@ Rectangle {
     property color accentColor: "lightblue"
 
     readonly property bool _hasBounds: boundsOverride !== null && boundsOverride !== undefined
+    readonly property var _geom: selectedItem ? selectedItem.geometry : null
 
     visible: selectedItem !== null && selectedItem !== undefined
 
@@ -20,10 +21,10 @@ Rectangle {
         if (_hasBounds) {
             return boundsOverride.x - selectionPadding;
         }
-        if (selectedItem.type === "rectangle") {
-            return selectedItem.x - selectionPadding;
-        } else if (selectedItem.type === "ellipse") {
-            return selectedItem.centerX - selectedItem.radiusX - selectionPadding;
+        if (_geom && selectedItem.type === "rectangle") {
+            return _geom.x - selectionPadding;
+        } else if (_geom && selectedItem.type === "ellipse") {
+            return _geom.centerX - _geom.radiusX - selectionPadding;
         }
         return 0;
     }
@@ -34,10 +35,10 @@ Rectangle {
         if (_hasBounds) {
             return boundsOverride.y - selectionPadding;
         }
-        if (selectedItem.type === "rectangle") {
-            return selectedItem.y - selectionPadding;
-        } else if (selectedItem.type === "ellipse") {
-            return selectedItem.centerY - selectedItem.radiusY - selectionPadding;
+        if (_geom && selectedItem.type === "rectangle") {
+            return _geom.y - selectionPadding;
+        } else if (_geom && selectedItem.type === "ellipse") {
+            return _geom.centerY - _geom.radiusY - selectionPadding;
         }
         return 0;
     }
@@ -48,10 +49,10 @@ Rectangle {
         if (_hasBounds) {
             return boundsOverride.width + selectionPadding * 2;
         }
-        if (selectedItem.type === "rectangle") {
-            return selectedItem.width + selectionPadding * 2;
-        } else if (selectedItem.type === "ellipse") {
-            return selectedItem.radiusX * 2 + selectionPadding * 2;
+        if (_geom && selectedItem.type === "rectangle") {
+            return _geom.width + selectionPadding * 2;
+        } else if (_geom && selectedItem.type === "ellipse") {
+            return _geom.radiusX * 2 + selectionPadding * 2;
         }
         return 0;
     }
@@ -62,10 +63,10 @@ Rectangle {
         if (_hasBounds) {
             return boundsOverride.height + selectionPadding * 2;
         }
-        if (selectedItem.type === "rectangle") {
-            return selectedItem.height + selectionPadding * 2;
-        } else if (selectedItem.type === "ellipse") {
-            return selectedItem.radiusY * 2 + selectionPadding * 2;
+        if (_geom && selectedItem.type === "rectangle") {
+            return _geom.height + selectionPadding * 2;
+        } else if (_geom && selectedItem.type === "ellipse") {
+            return _geom.radiusY * 2 + selectionPadding * 2;
         }
         return 0;
     }

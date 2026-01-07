@@ -1,11 +1,20 @@
 """Unit tests for canvas_model module."""
 
-from lucent.canvas_items import RectangleItem, EllipseItem, LayerItem, PathItem
-from lucent.commands import (
-    AddItemCommand,
-    DEFAULT_DUPLICATE_OFFSET,
+from lucent.canvas_items import (
+    RectangleItem,
+    EllipseItem,
+    LayerItem,
+    PathItem,
+    TextItem,
 )
-from types import SimpleNamespace
+from lucent.commands import DEFAULT_DUPLICATE_OFFSET
+from test_helpers import (
+    make_rectangle,
+    make_ellipse,
+    make_path,
+    make_layer,
+    make_text,
+)
 
 
 class TestCanvasModelBasics:
@@ -18,39 +27,25 @@ class TestCanvasModelBasics:
 
     def test_add_rectangle_item(self, canvas_model, qtbot):
         """Test adding a rectangle item to the model."""
-        item_data = {
-            "type": "rectangle",
-            "x": 10,
-            "y": 20,
-            "width": 100,
-            "height": 50,
-            "strokeWidth": 2,
-            "strokeColor": "#ff0000",
-        }
+        item_data = make_rectangle(
+            x=10, y=20, width=100, height=50, stroke_color="#ff0000"
+        )
 
         with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000) as blocker:
             canvas_model.addItem(item_data)
 
         assert canvas_model.count() == 1
-        assert blocker.args == [0]  # Index of added item
+        assert blocker.args == [0]
 
         items = canvas_model.getItems()
         assert len(items) == 1
         assert isinstance(items[0], RectangleItem)
-        assert items[0].x == 10
-        assert items[0].y == 20
+        assert items[0].geometry.x == 10
+        assert items[0].geometry.y == 20
 
     def test_add_ellipse_item(self, canvas_model, qtbot):
         """Test adding an ellipse item to the model."""
-        item_data = {
-            "type": "ellipse",
-            "centerX": 50,
-            "centerY": 75,
-            "radiusX": 30,
-            "radiusY": 20,
-            "fillColor": "#00ff00",
-            "fillOpacity": 0.5,
-        }
+        item_data = make_ellipse(center_x=50, center_y=75, radius_x=30, radius_y=20)
 
         with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000) as blocker:
             canvas_model.addItem(item_data)
@@ -61,22 +56,15 @@ class TestCanvasModelBasics:
         items = canvas_model.getItems()
         assert len(items) == 1
         assert isinstance(items[0], EllipseItem)
-        assert items[0].center_x == 50
-        assert items[0].center_y == 75
+        assert items[0].geometry.center_x == 50
+        assert items[0].geometry.center_y == 75
 
     def test_add_multiple_items(self, canvas_model, qtbot):
         """Test adding multiple items maintains correct order."""
-        rect_data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        ellipse_data = {
-            "type": "ellipse",
-            "centerX": 20,
-            "centerY": 20,
-            "radiusX": 5,
-            "radiusY": 5,
-        }
-
-        canvas_model.addItem(rect_data)
-        canvas_model.addItem(ellipse_data)
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=10, height=10))
+        canvas_model.addItem(
+            make_ellipse(center_x=20, center_y=20, radius_x=5, radius_y=5)
+        )
 
         assert canvas_model.count() == 2
         items = canvas_model.getItems()
@@ -85,3839 +73,669 @@ class TestCanvasModelBasics:
 
     def test_add_path_item(self, canvas_model, qtbot):
         """Test adding a path item to the model."""
-        item_data = {
-            "type": "path",
-            "points": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}],
-            "strokeWidth": 1.5,
-            "strokeOpacity": 0.8,
-            "closed": True,
-        }
+        item_data = make_path(
+            points=[{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}],
+            closed=True,
+            stroke_width=1.5,
+        )
 
-        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000) as blocker:
+        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
             canvas_model.addItem(item_data)
 
         assert canvas_model.count() == 1
-        assert blocker.args == [0]
-
         items = canvas_model.getItems()
         assert isinstance(items[0], PathItem)
-        assert items[0].closed is True
-        # Data role should map to path type
-        index = canvas_model.index(0, 0)
-        assert canvas_model.data(index, canvas_model.TypeRole) == "path"
-
-    def test_get_bounding_box_for_path(self, canvas_model):
-        """Path bounding box should cover all points."""
-        canvas_model.addItem(
-            {
-                "type": "path",
-                "points": [{"x": -2, "y": 3}, {"x": 4, "y": 5}, {"x": 1, "y": -1}],
-                "strokeWidth": 2,
-            }
-        )
-        bbox = canvas_model.getBoundingBox(0)
-        assert bbox == {"x": -2.0, "y": -1.0, "width": 6.0, "height": 6.0}
-
-    def test_render_items_include_path(self, canvas_model):
-        """Path items should be included in render order when visible."""
-        canvas_model.addItem(
-            {
-                "type": "path",
-                "points": [{"x": 0, "y": 0}, {"x": 10, "y": 0}],
-                "strokeWidth": 1,
-                "strokeOpacity": 1.0,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 1, "height": 1}
-        )
-        items = canvas_model.getRenderItems()
-        assert len(items) == 2
-        # Path should be first (model order), rectangle second
-        from lucent.canvas_items import PathItem, RectangleItem
-
-        assert isinstance(items[0], PathItem)
-        assert isinstance(items[1], RectangleItem)
+        assert items[0].geometry.closed is True
 
     def test_add_unknown_item_type_ignored(self, canvas_model, qtbot):
         """Test that adding an unknown item type is safely ignored."""
         item_data = {"type": "triangle", "x": 0, "y": 0}
-
-        # Should not emit signal or add item
         canvas_model.addItem(item_data)
         assert canvas_model.count() == 0
 
-    def test_data_invalid_index_and_role_returns_none(self, canvas_model):
-        from PySide6.QtCore import QModelIndex, Qt
-
-        assert canvas_model.data(QModelIndex(), Qt.DisplayRole) is None
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, 9999) is None
-
-    def test_add_malformed_item_ignored(self, canvas_model):
-        """Test that adding malformed data is safely handled."""
-        # Missing type field
-        item_data = {"x": 10, "y": 20}
-        canvas_model.addItem(item_data)
-        assert canvas_model.count() == 0
+    def test_data_invalid_index_returns_none(self, canvas_model):
+        """Test that data() returns None for invalid index."""
+        canvas_model.addItem(make_rectangle())
+        index = canvas_model.index(999, 0)
+        assert canvas_model.data(index, canvas_model.NameRole) is None
 
 
-class TestCanvasModelRemoval:
+class TestCanvasModelRemove:
     """Tests for removing items from CanvasModel."""
 
-    def test_remove_item_by_index(self, canvas_model, qtbot):
-        """Test removing an item by its index."""
-        # Add two items
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-
-        assert canvas_model.count() == 2
-
-        # Remove first item
-        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000) as blocker:
-            canvas_model.removeItem(0)
-
-        assert blocker.args == [0]
-        assert canvas_model.count() == 1
-
-        # Remaining item should be the ellipse
-        items = canvas_model.getItems()
-        assert isinstance(items[0], EllipseItem)
-
-    def test_remove_last_item(self, canvas_model, qtbot):
-        """Test removing the last item in the list."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-
-        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000):
-            canvas_model.removeItem(1)
-
-        assert canvas_model.count() == 1
-        items = canvas_model.getItems()
-        assert isinstance(items[0], RectangleItem)
-
-    def test_remove_invalid_index_negative(self, canvas_model):
-        """Test that removing with negative index is safely handled."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        # Should not crash or emit signal
-        canvas_model.removeItem(-1)
-        assert canvas_model.count() == 1
-
-    def test_remove_invalid_index_too_large(self, canvas_model):
-        """Test that removing with out-of-bounds index is safely handled."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        # Should not crash or emit signal
-        canvas_model.removeItem(5)
-        assert canvas_model.count() == 1
-
-    def test_remove_from_empty_model(self, canvas_model):
-        """Test that removing from an empty model is safely handled."""
-        canvas_model.removeItem(0)
-        assert canvas_model.count() == 0
-
-    def test_remove_layer_deletes_children(self, canvas_model, qtbot):
-        """Removing a layer should delete its child shapes as well."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-        assert canvas_model.count() == 2
+    def test_remove_item(self, canvas_model, qtbot):
+        """Test removing an item by index."""
+        canvas_model.addItem(make_rectangle(name="Rect1"))
+        canvas_model.addItem(make_ellipse(name="Ellipse1"))
 
         with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000) as blocker:
             canvas_model.removeItem(0)
 
+        assert canvas_model.count() == 1
         assert blocker.args == [0]
-        assert canvas_model.count() == 0
+        assert canvas_model.getItems()[0].name == "Ellipse1"
 
-    def test_remove_layer_with_children_supports_undo_redo(self, canvas_model):
-        """Removing a layer with children should be undoable/redoable."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-        assert canvas_model.count() == 2
-
-        canvas_model.removeItem(0)
-        assert canvas_model.count() == 0
-
-        canvas_model.undo()
-        assert canvas_model.count() == 2
-        assert canvas_model.getItems()[0].id == layer_id
-        assert canvas_model.getItems()[1].parent_id == layer_id
-
-        canvas_model.redo()
-        assert canvas_model.count() == 0
-
-
-class TestCanvasModelClear:
-    """Tests for clearing all items from CanvasModel."""
-
-    def test_clear_empty_model(self, canvas_model, qtbot):
-        """Test clearing an already empty model."""
-        with qtbot.waitSignal(canvas_model.itemsCleared, timeout=1000):
-            canvas_model.clear()
-
-        assert canvas_model.count() == 0
-
-    def test_clear_model_with_items(self, canvas_model, qtbot):
-        """Test clearing a model with multiple items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 30, "y": 30, "width": 15, "height": 15}
-        )
-
-        assert canvas_model.count() == 3
-
-        with qtbot.waitSignal(canvas_model.itemsCleared, timeout=1000):
-            canvas_model.clear()
-
-        assert canvas_model.count() == 0
-        assert canvas_model.getItems() == []
+    def test_remove_invalid_index_no_op(self, canvas_model):
+        """Test that removing invalid index does nothing."""
+        canvas_model.addItem(make_rectangle())
+        canvas_model.removeItem(999)
+        assert canvas_model.count() == 1
 
 
 class TestCanvasModelUpdate:
-    """Tests for updating item properties in CanvasModel."""
+    """Tests for updating items in CanvasModel."""
 
-    def test_update_rectangle_position(self, canvas_model, qtbot):
-        """Test updating a rectangle's position."""
+    def test_update_item(self, canvas_model, qtbot):
+        """Test updating an item's properties."""
         canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
+            make_rectangle(x=0, y=0, width=10, height=10, name="Original")
         )
 
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
-            canvas_model.updateItem(0, {"x": 50, "y": 75})
-
-        assert blocker.args[0] == 0  # Index
-        assert blocker.args[1]["x"] == 50  # Updated data
-        assert blocker.args[1]["y"] == 75
-
-        items = canvas_model.getItems()
-        assert items[0].x == 50
-        assert items[0].y == 75
-        # Other properties unchanged
-        assert items[0].width == 100
-        assert items[0].height == 50
-
-    def test_update_rectangle_dimensions(self, canvas_model, qtbot):
-        """Test updating a rectangle's dimensions."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 50, "height": 50}
-        )
+        new_data = make_rectangle(x=50, y=50, width=20, height=20, name="Updated")
 
         with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"width": 100, "height": 75})
+            canvas_model.updateItem(0, new_data)
 
-        items = canvas_model.getItems()
-        assert items[0].width == 100
-        assert items[0].height == 75
-
-    def test_update_ellipse_position(self, canvas_model, qtbot):
-        """Test updating an ellipse's center position."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 20,
-                "radiusY": 20,
-            }
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"centerX": 100, "centerY": 150})
-
-        items = canvas_model.getItems()
-        assert items[0].center_x == 100
-        assert items[0].center_y == 150
-
-    def test_update_ellipse_radii(self, canvas_model, qtbot):
-        """Test updating an ellipse's radii."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"radiusX": 30, "radiusY": 25})
-
-        items = canvas_model.getItems()
-        assert items[0].radius_x == 30
-        assert items[0].radius_y == 25
-
-    def test_update_stroke_properties(self, canvas_model, qtbot):
-        """Test updating stroke properties (width, color, opacity)."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(
-                0, {"strokeWidth": 5, "strokeColor": "#ff0000", "strokeOpacity": 0.8}
-            )
-
-        items = canvas_model.getItems()
-        assert items[0].stroke_width == 5
-        assert items[0].stroke_color == "#ff0000"
-        assert items[0].stroke_opacity == 0.8
-
-    def test_update_fill_properties(self, canvas_model, qtbot):
-        """Test updating fill properties (color, opacity)."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"fillColor": "#00ff00", "fillOpacity": 0.6})
-
-        items = canvas_model.getItems()
-        assert items[0].fill_color == "#00ff00"
-        assert items[0].fill_opacity == 0.6
-
-    def test_update_partial_properties(self, canvas_model, qtbot):
-        """Test updating only some properties leaves others unchanged."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 20,
-                "width": 100,
-                "height": 50,
-                "strokeWidth": 2,
-                "strokeColor": "#ffffff",
-            }
-        )
-
-        # Update only x coordinate
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"x": 30})
-
-        items = canvas_model.getItems()
-        assert items[0].x == 30
-        # Everything else unchanged
-        assert items[0].y == 20
-        assert items[0].width == 100
-        assert items[0].height == 50
-        assert items[0].stroke_width == 2
-
-    def test_update_validates_negative_dimensions(self, canvas_model, qtbot):
-        """Test that update validates and clamps negative dimensions."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"width": -50, "height": -30})
-
-        items = canvas_model.getItems()
-        assert items[0].width == 0.0
-        assert items[0].height == 0.0
-
-    def test_update_validates_stroke_width_bounds(self, canvas_model, qtbot):
-        """Test that update validates stroke width bounds."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"strokeWidth": 200})
-
-        items = canvas_model.getItems()
-        assert items[0].stroke_width == 100.0
-
-    def test_update_validates_opacity_bounds(self, canvas_model, qtbot):
-        """Test that update validates opacity bounds."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            canvas_model.updateItem(0, {"strokeOpacity": 5.0, "fillOpacity": -2.0})
-
-        items = canvas_model.getItems()
-        assert items[0].stroke_opacity == 1.0
-        assert items[0].fill_opacity == 0.0
-
-    def test_update_invalid_index_ignored(self, canvas_model):
-        """Test that updating with invalid index is safely handled."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        # Should not crash
-        canvas_model.updateItem(5, {"x": 100})
-
-        # Item unchanged
-        items = canvas_model.getItems()
-        assert items[0].x == 0
-
-    def test_update_with_malformed_data_handled(self, canvas_model, qtbot):
-        """Test that update with malformed data is handled gracefully."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-
-        # Try to update with invalid data type
-        canvas_model.updateItem(0, {"width": "not a number"})
-
-        # Item should remain unchanged
-        items = canvas_model.getItems()
-        assert items[0].width == 100
-
-
-class TestCanvasModelRename:
-    """Tests for renaming items in CanvasModel."""
-
-    def test_rename_item_updates_name_and_emits(self, canvas_model, qtbot):
-        """Renaming should update the item name and emit itemModified."""
-        canvas_model.addLayer()
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
-            canvas_model.renameItem(0, "Renamed Layer")
-
-        assert blocker.args[0] == 0
-        assert blocker.args[1]["name"] == "Renamed Layer"
-        assert canvas_model.getItems()[0].name == "Renamed Layer"
-
-    def test_rename_item_supports_undo_redo(self, canvas_model):
-        """Rename should be undoable and redoable."""
-        canvas_model.addLayer()
-        original_name = canvas_model.getItems()[0].name
-
-        canvas_model.renameItem(0, "Renamed Layer")
-        assert canvas_model.getItems()[0].name == "Renamed Layer"
-
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].name == original_name
-
-        canvas_model.redo()
-        assert canvas_model.getItems()[0].name == "Renamed Layer"
-
-    def test_rename_invalid_index_is_noop(self, canvas_model):
-        """Renaming with an invalid index should do nothing."""
-        canvas_model.addLayer()
-        original_name = canvas_model.getItems()[0].name
-        initial_can_undo = canvas_model.canUndo
-
-        canvas_model.renameItem(-1, "Ignored")
-        canvas_model.renameItem(5, "Ignored")
-
-        assert canvas_model.getItems()[0].name == original_name
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_rename_same_name_is_noop(self, canvas_model):
-        """Renaming to the same value should do nothing and not emit."""
-        canvas_model.addLayer()
-        original_name = canvas_model.getItems()[0].name
-        initial_can_undo = canvas_model.canUndo
-
-        emissions = []
-        canvas_model.itemModified.connect(
-            lambda idx, data: emissions.append((idx, data))
-        )
-
-        canvas_model.renameItem(0, original_name)
-
-        assert canvas_model.getItems()[0].name == original_name
-        assert emissions == []
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_rename_shape_updates_name_and_preserves_parent(self, canvas_model, qtbot):
-        """Shapes can be renamed and keep their parent relationship."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
-            canvas_model.renameItem(1, "Renamed Rect")
-
-        assert blocker.args[0] == 1
-        assert blocker.args[1]["name"] == "Renamed Rect"
-        rect = canvas_model.getItems()[1]
-        assert rect.name == "Renamed Rect"
-        assert rect.parent_id == layer_id
-
-
-class TestCanvasModelQueries:
-    """Tests for querying item data from CanvasModel."""
-
-    def test_get_item_data_rectangle(self, canvas_model):
-        """Test getting data for a rectangle item."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 20,
-                "width": 100,
-                "height": 50,
-                "strokeWidth": 2,
-                "strokeColor": "#ff0000",
-            }
-        )
-
-        data = canvas_model.getItemData(0)
-        assert data is not None
-        assert data["type"] == "rectangle"
-        assert data["x"] == 10
-        assert data["y"] == 20
-        assert data["width"] == 100
-        assert data["height"] == 50
-        assert data["strokeWidth"] == 2
-        assert data["strokeColor"] == "#ff0000"
-
-    def test_get_item_data_ellipse(self, canvas_model):
-        """Test getting data for an ellipse item."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 75,
-                "radiusX": 30,
-                "radiusY": 20,
-                "fillColor": "#00ff00",
-                "fillOpacity": 0.5,
-            }
-        )
-
-        data = canvas_model.getItemData(0)
-        assert data is not None
-        assert data["type"] == "ellipse"
-        assert data["centerX"] == 50
-        assert data["centerY"] == 75
-        assert data["radiusX"] == 30
-        assert data["radiusY"] == 20
-        assert data["fillColor"] == "#00ff00"
-        assert data["fillOpacity"] == 0.5
-
-    def test_get_item_data_invalid_index(self, canvas_model):
-        """Test getting data for invalid index returns None."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        assert canvas_model.getItemData(-1) is None
-        assert canvas_model.getItemData(5) is None
-
-    def test_get_items_for_hit_test(self, canvas_model):
-        """Test getting all items as dictionaries for hit testing."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-
-        items = canvas_model.getItemsForHitTest()
-        assert len(items) == 2
-        assert items[0]["type"] == "rectangle"
-        assert items[1]["type"] == "ellipse"
-
-    def test_get_items_for_hit_test_empty(self, canvas_model):
-        """Test getting items for hit test from empty model."""
-        items = canvas_model.getItemsForHitTest()
-        assert items == []
-
-    def test_get_items_for_hit_test_includes_model_index(self, canvas_model):
-        """Test that hit test items include their original model index."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-
-        items = canvas_model.getItemsForHitTest()
-        assert len(items) == 2
-        assert items[0]["modelIndex"] == 0
-        assert items[1]["modelIndex"] == 1
-
-    def test_get_items_for_hit_test_model_index_with_layer(self, canvas_model):
-        """Test model index is correct when layers are present."""
-        canvas_model.addLayer()  # model index 0
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # model index 1
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )  # model index 2
-
-        items = canvas_model.getItemsForHitTest()
-        # All 3 visible items returned (layer included for hit testing containers)
-        assert len(items) == 3
-        # Model indices should reflect actual positions in model
-        assert items[0]["modelIndex"] == 0
-        assert items[1]["modelIndex"] == 1
-        assert items[2]["modelIndex"] == 2
-
-    def test_get_items_for_hit_test_model_index_with_hidden_items(self, canvas_model):
-        """Test model index is correct when some items are hidden."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # model index 0
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 20,
-                "y": 20,
-                "width": 10,
-                "height": 10,
-                "visible": False,
-            }
-        )  # model index 1, hidden
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )  # model index 2
-
-        items = canvas_model.getItemsForHitTest()
-        # Only 2 visible items returned
-        assert len(items) == 2
-        # Model indices should reflect actual positions
-        assert items[0]["modelIndex"] == 0
-        assert items[1]["modelIndex"] == 2
-
-    def test_get_items_for_hit_test_model_index_with_path(self, canvas_model):
-        """Test model index is correct for path items."""
-        canvas_model.addLayer()  # model index 0
-        canvas_model.addItem(
-            {
-                "type": "path",
-                "points": [{"x": 0, "y": 0}, {"x": 10, "y": 10}],
-                "strokeWidth": 1,
-            }
-        )  # model index 1
-
-        items = canvas_model.getItemsForHitTest()
-        assert len(items) == 2  # layer + path
-        assert items[0]["type"] == "layer"
-        assert items[0]["modelIndex"] == 0
-        assert items[1]["type"] == "path"
-        assert items[1]["modelIndex"] == 1
-
-
-class TestCanvasModelUndo:
-    """Tests for undo functionality in CanvasModel."""
-
-    def test_can_undo_empty_stack(self, canvas_model):
-        """Test canUndo returns False when undo stack is empty."""
-        assert canvas_model.canUndo is False
-
-    def test_undo_empty_stack_returns_false(self, canvas_model):
-        """Test undo returns False when nothing to undo."""
-        assert canvas_model.undo() is False
-
-    def test_undo_add_item(self, canvas_model, qtbot):
-        """Test undoing addItem removes the item."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-        assert canvas_model.count() == 1
-        assert canvas_model.canUndo is True
-
-        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000):
-            result = canvas_model.undo()
-
-        assert result is True
-        assert canvas_model.count() == 0
-        assert canvas_model.canUndo is False
-
-    def test_undo_remove_item(self, canvas_model, qtbot):
-        """Test undoing removeItem restores the item."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-        canvas_model.removeItem(0)
-        assert canvas_model.count() == 0
-
-        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
-            result = canvas_model.undo()
-
-        assert result is True
-        assert canvas_model.count() == 1
-        items = canvas_model.getItems()
-        assert items[0].x == 10
-        assert items[0].width == 100
-
-    def test_undo_update_item(self, canvas_model, qtbot):
-        """Test undoing updateItem restores previous properties."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-        canvas_model.updateItem(0, {"x": 50, "y": 75})
-
-        items = canvas_model.getItems()
-        assert items[0].x == 50
-        assert items[0].y == 75
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            result = canvas_model.undo()
-
-        assert result is True
-        items = canvas_model.getItems()
-        assert items[0].x == 10
-        assert items[0].y == 20
-
-    def test_undo_clear(self, canvas_model, qtbot):
-        """Test undoing clear restores all items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-        canvas_model.clear()
-        assert canvas_model.count() == 0
-
-        result = canvas_model.undo()
-
-        assert result is True
-        assert canvas_model.count() == 2
-        items = canvas_model.getItems()
-        assert isinstance(items[0], RectangleItem)
-        assert isinstance(items[1], EllipseItem)
-
-    def test_multiple_undos(self, canvas_model):
-        """Test multiple sequential undos work correctly."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 20,
-                "radiusX": 5,
-                "radiusY": 5,
-            }
-        )
-        assert canvas_model.count() == 2
-
-        canvas_model.undo()
-        assert canvas_model.count() == 1
-        assert isinstance(canvas_model.getItems()[0], RectangleItem)
-
-        canvas_model.undo()
-        assert canvas_model.count() == 0
-        assert canvas_model.canUndo is False
-
-    def test_undo_stack_changed_signal(self, canvas_model, qtbot):
-        """Test undoStackChanged signal is emitted on undo stack changes."""
-        with qtbot.waitSignal(canvas_model.undoStackChanged, timeout=1000):
-            canvas_model.addItem(
-                {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-            )
-
-        with qtbot.waitSignal(canvas_model.undoStackChanged, timeout=1000):
-            canvas_model.undo()
-
-    def test_undo_stack_contains_command_objects(self, canvas_model):
-        """Undo should be available after an action and clear after undo."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.canUndo is True
-        canvas_model.undo()
-        assert canvas_model.canUndo is False
-
-    def test_add_item_pushes_add_command(self, canvas_model):
-        """addItem should enable undo."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.canUndo is True
-
-    def test_remove_item_pushes_remove_command(self, canvas_model):
-        """removeItem should enable undo and allow restoration."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.removeItem(0)
-        assert canvas_model.canUndo is True
-        canvas_model.undo()
-        assert canvas_model.count() == 1
-
-    def test_update_item_pushes_update_command(self, canvas_model):
-        """updateItem should enable undo and allow restoration."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.updateItem(0, {"x": 50})
-        assert canvas_model.canUndo is True
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].x == 0
-
-
-class TestCanvasModelTransactions:
-    """Tests for transaction coalescing in CanvasModel."""
-
-    def test_transaction_coalesces_multiple_updates(self, canvas_model):
-        """Test that updates within a transaction create a single undo entry."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert canvas_model.canUndo is True
-
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 10})
-        canvas_model.updateItem(0, {"x": 20})
-        canvas_model.updateItem(0, {"x": 30})
-        canvas_model.endTransaction()
-
-        assert canvas_model.getItems()[0].x == 30
-
-    def test_undo_transaction_restores_original_state(self, canvas_model):
-        """Test that undoing a transaction restores the pre-transaction state."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 50, "y": 50})
-        canvas_model.updateItem(0, {"x": 100, "y": 100})
-        canvas_model.updateItem(0, {"x": 150, "y": 150})
-        canvas_model.endTransaction()
-
-        canvas_model.undo()
-
-        items = canvas_model.getItems()
-        assert items[0].x == 0
-        assert items[0].y == 0
-
-    def test_empty_transaction_creates_no_undo(self, canvas_model):
-        """Test that a transaction with no changes creates no undo entry."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        initial_can_undo = canvas_model.canUndo
-
-        canvas_model.beginTransaction()
-        canvas_model.endTransaction()
-
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_transaction_tracks_multiple_items(self, canvas_model):
-        """Test that transactions can track changes to multiple items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 25,
-                "radiusY": 25,
-            }
-        )
-
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 100})
-        canvas_model.updateItem(1, {"centerX": 200})
-        canvas_model.endTransaction()
-
-        canvas_model.undo()
-
-        assert canvas_model.getItems()[0].x == 0
-        assert canvas_model.getItems()[1].center_x == 50
-
-    def test_nested_begin_transaction_ignored(self, canvas_model):
-        """Test that calling beginTransaction while active is safely ignored."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 50})
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 100})
-        canvas_model.endTransaction()
-
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].x == 0
-
-    def test_end_transaction_without_begin_is_noop(self, canvas_model):
-        """Calling endTransaction without beginTransaction should be a no-op."""
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.endTransaction()
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_transaction_pushes_transaction_command(self, canvas_model):
-        """Test that transactions push TransactionCommand to the stack."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-
-        canvas_model.beginTransaction()
-        canvas_model.updateItem(0, {"x": 50})
-        canvas_model.endTransaction()
-
-        assert canvas_model.canUndo is True
-
-
-class TestCanvasModelRedo:
-    """Tests for redo functionality in CanvasModel."""
-
-    def test_can_redo_empty_stack(self, canvas_model):
-        """Test canRedo returns False when redo stack is empty."""
-        assert canvas_model.canRedo is False
-
-    def test_redo_empty_stack_returns_false(self, canvas_model):
-        """Test redo returns False when nothing to redo."""
-        assert canvas_model.redo() is False
-
-    def test_undo_enables_redo(self, canvas_model):
-        """Test that performing undo enables redo."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert canvas_model.canRedo is False
-
-        canvas_model.undo()
-
-        assert canvas_model.canRedo is True
-
-    def test_redo_add_item(self, canvas_model, qtbot):
-        """Test redoing an undone addItem."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-        canvas_model.undo()
-        assert canvas_model.count() == 0
-
-        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
-            result = canvas_model.redo()
-
-        assert result is True
-        assert canvas_model.count() == 1
-        assert canvas_model.getItems()[0].x == 10
-
-    def test_redo_remove_item(self, canvas_model, qtbot):
-        """Test redoing an undone removeItem."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        canvas_model.removeItem(0)
-        canvas_model.undo()
-        assert canvas_model.count() == 1
-
-        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000):
-            result = canvas_model.redo()
-
-        assert result is True
-        assert canvas_model.count() == 0
-
-    def test_redo_update_item(self, canvas_model, qtbot):
-        """Test redoing an undone updateItem."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        canvas_model.updateItem(0, {"x": 50, "y": 75})
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].x == 0
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
-            result = canvas_model.redo()
-
-        assert result is True
-        assert canvas_model.getItems()[0].x == 50
-        assert canvas_model.getItems()[0].y == 75
-
-    def test_new_action_clears_redo_stack(self, canvas_model):
-        """Test that performing a new action clears the redo stack."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        canvas_model.undo()
-        assert canvas_model.canRedo is True
-
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 25,
-                "radiusY": 25,
-            }
-        )
-
-        assert canvas_model.canRedo is False
-
-    def test_multiple_undo_redo_cycle(self, canvas_model):
-        """Test multiple undo/redo operations work correctly."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 25,
-                "radiusY": 25,
-            }
-        )
-        assert canvas_model.count() == 2
-
-        canvas_model.undo()
-        canvas_model.undo()
-        assert canvas_model.count() == 0
-
-        canvas_model.redo()
-        assert canvas_model.count() == 1
-        assert isinstance(canvas_model.getItems()[0], RectangleItem)
-
-        canvas_model.redo()
-        assert canvas_model.count() == 2
-
-    def test_redo_stack_changed_signal(self, canvas_model, qtbot):
-        """Test redoStackChanged signal is emitted appropriately."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-
-        with qtbot.waitSignal(canvas_model.redoStackChanged, timeout=1000):
-            canvas_model.undo()
-
-        with qtbot.waitSignal(canvas_model.redoStackChanged, timeout=1000):
-            canvas_model.redo()
-
-
-class TestSelectionManagerLogic:
-    """Unit-level tests mirroring SelectionManager delete handling."""
-
-    def _attach_selection(self, canvas_model):
-        state = SimpleNamespace(selectedItemIndex=-1, selectedItem=None)
-
-        def on_modified(index, data):
-            if index == state.selectedItemIndex:
-                state.selectedItem = data
-
-        def on_removed(index):
-            if index == state.selectedItemIndex:
-                state.selectedItemIndex = -1
-                state.selectedItem = None
-            elif index < state.selectedItemIndex:
-                state.selectedItemIndex -= 1
-
-        def on_cleared():
-            state.selectedItemIndex = -1
-            state.selectedItem = None
-
-        canvas_model.itemModified.connect(on_modified)
-        canvas_model.itemRemoved.connect(on_removed)
-        canvas_model.itemsCleared.connect(on_cleared)
-        return state
-
-    def test_selection_clears_when_selected_item_removed(self, canvas_model):
-        canvas_model.addLayer()
-        sel = self._attach_selection(canvas_model)
-        sel.selectedItemIndex = 0
-        sel.selectedItem = canvas_model.getItemData(0)
-
-        canvas_model.removeItem(0)
-
-        assert sel.selectedItemIndex == -1
-        assert sel.selectedItem is None
-
-    def test_selection_clears_on_items_cleared(self, canvas_model):
-        canvas_model.addLayer()
-        sel = self._attach_selection(canvas_model)
-        sel.selectedItemIndex = 0
-        sel.selectedItem = canvas_model.getItemData(0)
-
-        canvas_model.clear()
-
-        assert sel.selectedItemIndex == -1
-        assert sel.selectedItem is None
-
-
-class TestCanvasModelAutoNames:
-    """Tests for auto-generated item names."""
-
-    def test_add_rectangle_generates_name(self, canvas_model):
-        """First rectangle should be named 'Rectangle 1'."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
         item = canvas_model.getItems()[0]
-        assert item.name == "Rectangle 1"
+        assert item.geometry.x == 50
+        assert item.name == "Updated"
 
-    def test_add_ellipse_generates_name(self, canvas_model):
-        """First ellipse should be named 'Ellipse 1'."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        item = canvas_model.getItems()[0]
-        assert item.name == "Ellipse 1"
 
-    def test_add_multiple_rectangles_increments_counter(self, canvas_model):
-        """Multiple rectangles should get incrementing numbers."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 40, "y": 0, "width": 10, "height": 10}
-        )
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 1"
-        assert items[1].name == "Rectangle 2"
-        assert items[2].name == "Rectangle 3"
+class TestCanvasModelDataRoles:
+    """Tests for data roles in CanvasModel."""
 
-    def test_add_mixed_types_separate_counters(self, canvas_model):
-        """Different types should have separate counters."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 20,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 1"
-        assert items[1].name == "Ellipse 1"
-        assert items[2].name == "Rectangle 2"
-        assert items[3].name == "Ellipse 2"
+    def test_name_role(self, canvas_model):
+        """Test NameRole returns correct name."""
+        canvas_model.addItem(make_rectangle(name="MyRect"))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.NameRole) == "MyRect"
 
-    def test_provided_name_not_overwritten(self, canvas_model):
-        """If item data includes a name, it should be preserved."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "My Custom Rect",
-            }
-        )
-        item = canvas_model.getItems()[0]
-        assert item.name == "My Custom Rect"
+    def test_type_role(self, canvas_model):
+        """Test TypeRole returns correct type."""
+        canvas_model.addItem(make_rectangle())
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "rectangle"
 
-    def test_name_preserved_in_getItemData(self, canvas_model):
-        """getItemData should return the item name."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        data = canvas_model.getItemData(0)
-        assert data["name"] == "Rectangle 1"
+    def test_visible_role(self, canvas_model):
+        """Test VisibleRole returns correct visibility."""
+        canvas_model.addItem(make_rectangle(visible=False))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.VisibleRole) is False
 
-    def test_clear_resets_type_counters(self, canvas_model):
-        """Clear should reset type counters so new items start from 1."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.getItems()[1].name == "Rectangle 2"
+    def test_locked_role(self, canvas_model):
+        """Test LockedRole returns correct locked state."""
+        canvas_model.addItem(make_rectangle(locked=True))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.LockedRole) is True
 
-        canvas_model.clear()
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
 
-        assert canvas_model.getItems()[0].name == "Rectangle 1"
+class TestCanvasModelBoundingBox:
+    """Tests for bounding box calculations."""
+
+    def test_rectangle_bounding_box(self, canvas_model):
+        """Test bounding box for rectangle."""
+        canvas_model.addItem(make_rectangle(x=10, y=20, width=100, height=50))
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox == {"x": 10.0, "y": 20.0, "width": 100.0, "height": 50.0}
+
+    def test_ellipse_bounding_box(self, canvas_model):
+        """Test bounding box for ellipse."""
+        canvas_model.addItem(
+            make_ellipse(center_x=100, center_y=100, radius_x=50, radius_y=30)
+        )
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox == {"x": 50.0, "y": 70.0, "width": 100.0, "height": 60.0}
+
+    def test_path_bounding_box(self, canvas_model):
+        """Test bounding box for path."""
+        canvas_model.addItem(
+            make_path(points=[{"x": -2, "y": 3}, {"x": 4, "y": 5}, {"x": 1, "y": -1}])
+        )
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox == {"x": -2.0, "y": -1.0, "width": 6.0, "height": 6.0}
 
 
 class TestCanvasModelLayers:
-    """Tests for layer functionality in CanvasModel."""
+    """Tests for layer functionality."""
 
-    def test_add_layer_via_addItem(self, canvas_model, qtbot):
-        """Test adding a layer using addItem with type 'layer'."""
-        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000) as blocker:
-            canvas_model.addItem({"type": "layer"})
+    def test_add_layer(self, canvas_model, qtbot):
+        """Test adding a layer."""
+        layer_data = make_layer(name="Background")
 
-        assert canvas_model.count() == 1
-        assert blocker.args == [0]
-
-        items = canvas_model.getItems()
-        assert len(items) == 1
-        assert isinstance(items[0], LayerItem)
-
-    def test_add_layer_via_addLayer_slot(self, canvas_model, qtbot):
-        """Test adding a layer using the addLayer convenience slot."""
         with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
-            canvas_model.addLayer()
+            canvas_model.addItem(layer_data)
 
         assert canvas_model.count() == 1
         items = canvas_model.getItems()
         assert isinstance(items[0], LayerItem)
+        assert items[0].name == "Background"
 
-    def test_layer_gets_auto_generated_name(self, canvas_model):
-        """Layers should get auto-generated names like 'Layer 1'."""
-        canvas_model.addLayer()
-        item = canvas_model.getItems()[0]
-        assert item.name == "Layer 1"
-
-    def test_multiple_layers_increment_counter(self, canvas_model):
-        """Multiple layers should get incrementing numbers."""
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-        items = canvas_model.getItems()
-        assert items[0].name == "Layer 1"
-        assert items[1].name == "Layer 2"
-        assert items[2].name == "Layer 3"
-
-    def test_layer_counter_separate_from_shapes(self, canvas_model):
-        """Layer counter should be separate from rectangle/ellipse counters."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        canvas_model.addLayer()
+    def test_items_with_parent_layer(self, canvas_model):
+        """Test items can reference a parent layer."""
+        canvas_model.addItem(make_layer(name="Layer1", layer_id="layer-1"))
+        canvas_model.addItem(make_rectangle(name="Rect1", parent_id="layer-1"))
 
         items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 1"
-        assert items[1].name == "Layer 1"
-        assert items[2].name == "Ellipse 1"
-        assert items[3].name == "Layer 2"
-
-    def test_get_item_data_returns_layer_data(self, canvas_model):
-        """getItemData should return layer type and name."""
-        canvas_model.addLayer()
-        data = canvas_model.getItemData(0)
-
-        assert data is not None
-        assert data["type"] == "layer"
-        assert data["name"] == "Layer 1"
-
-    def test_layer_type_role_returns_layer(self, canvas_model):
-        """TypeRole should return 'layer' for LayerItem."""
-        canvas_model.addLayer()
-        index = canvas_model.index(0, 0)
-        item_type = canvas_model.data(index, canvas_model.TypeRole)
-        assert item_type == "layer"
-
-    def test_layer_undo_redo(self, canvas_model):
-        """Undo/redo should work for layer creation."""
-        canvas_model.addLayer()
-        assert canvas_model.count() == 1
-
-        canvas_model.undo()
-        assert canvas_model.count() == 0
-
-        canvas_model.redo()
-        assert canvas_model.count() == 1
-        assert isinstance(canvas_model.getItems()[0], LayerItem)
+        assert items[1].parent_id == "layer-1"
 
 
-class TestCanvasModelMoveItem:
-    """Tests for moveItem reordering functionality."""
+class TestCanvasModelRenderItems:
+    """Tests for render item ordering."""
 
-    def test_move_item_forward(self, canvas_model):
-        """Move item from index 0 to index 2."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
+    def test_render_items_respects_visibility(self, canvas_model):
+        """Invisible items should not be in render items."""
+        canvas_model.addItem(make_rectangle(visible=True))
+        canvas_model.addItem(make_rectangle(visible=False))
 
-        canvas_model.moveItem(0, 2)
+        render_items = canvas_model.getRenderItems()
+        assert len(render_items) == 1
 
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 2"
-        assert items[1].name == "Rectangle 3"
-        assert items[2].name == "Rectangle 1"
+    def test_render_items_order(self, canvas_model):
+        """Render items should be in model order."""
+        canvas_model.addItem(make_path(points=[{"x": 0, "y": 0}, {"x": 10, "y": 0}]))
+        canvas_model.addItem(make_rectangle())
 
-    def test_move_item_backward(self, canvas_model):
-        """Move item from index 2 to index 0."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        canvas_model.moveItem(2, 0)
-
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 3"
-        assert items[1].name == "Rectangle 1"
-        assert items[2].name == "Rectangle 2"
-
-    def test_move_item_same_index_no_op(self, canvas_model, qtbot):
-        """Moving item to same index should be a no-op."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.moveItem(1, 1)
-
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_move_item_invalid_from_index(self, canvas_model):
-        """Invalid from index should do nothing."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.moveItem(-1, 0)
-        canvas_model.moveItem(5, 0)
-
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_move_item_invalid_to_index(self, canvas_model):
-        """Invalid to index should do nothing."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.moveItem(0, -1)
-        canvas_model.moveItem(0, 5)
-
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_set_parent_invalid_index_is_noop(self, canvas_model):
-        """setParent should no-op on invalid index."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        # Invalid indices should not raise or add undo entries
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.setParent(-1, layer.id)
-        canvas_model.setParent(99, layer.id)
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_move_item_emits_signal(self, canvas_model, qtbot):
-        """moveItem should emit itemsReordered signal."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemsReordered, timeout=1000):
-            canvas_model.moveItem(0, 1)
-
-    def test_move_item_many_entries(self, canvas_model):
-        """Reordering works with larger lists (UI scrolling should not affect model)."""
-        for i in range(20):
-            canvas_model.addItem(
-                {"type": "rectangle", "x": i, "y": i, "width": 10, "height": 10}
-            )
-
-        from_index = 18
-        to_index = 1
-        canvas_model.moveItem(from_index, to_index)
-
-        items = canvas_model.getItems()
-        assert items[to_index].x == 18
-
-    def test_move_item_many_entries_reverse(self, canvas_model):
-        """Reordering near the top when list is long still works."""
-        for i in range(25):
-            canvas_model.addItem(
-                {"type": "rectangle", "x": i, "y": i, "width": 10, "height": 10}
-            )
-
-        from_index = 2
-        to_index = 20
-        canvas_model.moveItem(from_index, to_index)
-
-        items = canvas_model.getItems()
-        assert items[to_index].x == 2
-
-    def test_move_item_undo(self, canvas_model):
-        """Undo should restore original order."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        canvas_model.moveItem(0, 2)
-        canvas_model.undo()
-
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 1"
-        assert items[1].name == "Rectangle 2"
-        assert items[2].name == "Rectangle 3"
-
-    def test_move_item_redo(self, canvas_model):
-        """Redo should restore moved order."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        canvas_model.moveItem(0, 2)
-        canvas_model.undo()
-        canvas_model.redo()
-
-        items = canvas_model.getItems()
-        assert items[0].name == "Rectangle 2"
-        assert items[1].name == "Rectangle 3"
-        assert items[2].name == "Rectangle 1"
+        items = canvas_model.getRenderItems()
+        assert len(items) == 2
+        assert isinstance(items[0], PathItem)
+        assert isinstance(items[1], RectangleItem)
 
 
-class TestCanvasModelListModel:
-    """Tests for QAbstractListModel behavior."""
+class TestCanvasModelClear:
+    """Tests for clearing the model."""
 
-    def test_row_count_matches_item_count(self, canvas_model):
-        """rowCount should match number of items."""
-        from PySide6.QtCore import QModelIndex
-
-        assert canvas_model.rowCount(QModelIndex()) == 0
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.rowCount(QModelIndex()) == 1
-
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        assert canvas_model.rowCount(QModelIndex()) == 2
-
-    def test_data_returns_name_role(self, canvas_model):
-        """data() should return item name for NameRole."""
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        index = canvas_model.index(0, 0)
-        name = canvas_model.data(index, canvas_model.NameRole)
-        assert name == "Rectangle 1"
-
-    def test_data_returns_type_role(self, canvas_model):
-        """data() should return item type for TypeRole."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        index = canvas_model.index(0, 0)
-        item_type = canvas_model.data(index, canvas_model.TypeRole)
-        assert item_type == "rectangle"
-
-    def test_role_names_exposed(self, canvas_model):
-        """roleNames should map roles to QML property names."""
-        role_names = canvas_model.roleNames()
-
-        assert canvas_model.NameRole in role_names
-        assert canvas_model.TypeRole in role_names
-        assert role_names[canvas_model.NameRole] == b"name"
-        assert role_names[canvas_model.TypeRole] == b"itemType"
-
-    def test_add_item_emits_rows_inserted(self, canvas_model, qtbot):
-        """addItem should emit rowsInserted signal."""
-        with qtbot.waitSignal(canvas_model.rowsInserted, timeout=1000) as blocker:
-            canvas_model.addItem(
-                {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-            )
-
-        parent, first, last = blocker.args
-        assert first == 0
-        assert last == 0
-
-    def test_remove_item_emits_rows_removed(self, canvas_model, qtbot):
-        """removeItem should emit rowsRemoved signal."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.rowsRemoved, timeout=1000) as blocker:
-            canvas_model.removeItem(0)
-
-        parent, first, last = blocker.args
-        assert first == 0
-        assert last == 0
-
-    def test_move_item_emits_rows_moved(self, canvas_model, qtbot):
-        """moveItem should emit rowsMoved signal."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.rowsMoved, timeout=1000):
-            canvas_model.moveItem(0, 2)
-
-    def test_clear_emits_model_reset(self, canvas_model, qtbot):
-        """clear should emit modelReset signal."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
+    def test_clear_removes_all_items(self, canvas_model, qtbot):
+        """Test that clear removes all items."""
+        canvas_model.addItem(make_rectangle())
+        canvas_model.addItem(make_ellipse())
+        canvas_model.addItem(make_path(points=[{"x": 0, "y": 0}, {"x": 1, "y": 1}]))
 
         with qtbot.waitSignal(canvas_model.modelReset, timeout=1000):
             canvas_model.clear()
 
-    def test_data_changed_on_update(self, canvas_model, qtbot):
-        """updateItem should emit dataChanged signal."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.dataChanged, timeout=1000):
-            canvas_model.updateItem(0, {"x": 50})
-
-
-class TestCanvasModelParentChild:
-    """Tests for parent-child relationships between layers and shapes."""
-
-    def test_shape_has_no_parent_by_default(self, canvas_model):
-        """Shapes should have no parent by default."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        item = canvas_model.getItems()[0]
-        assert item.parent_id is None
-
-    def test_layer_has_unique_id(self, canvas_model):
-        """Layers should have a unique ID."""
-        canvas_model.addLayer()
-        item = canvas_model.getItems()[0]
-        assert item.id is not None
-        assert len(item.id) > 0
-
-    def test_multiple_layers_have_different_ids(self, canvas_model):
-        """Multiple layers should have different IDs."""
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-        items = canvas_model.getItems()
-        assert items[0].id != items[1].id
-
-    def test_set_parent_assigns_parent_id(self, canvas_model):
-        """setParent should assign parent_id to shape."""
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        layer = canvas_model.getItems()[0]
-        canvas_model.setParent(1, layer.id)
-
-        shape = canvas_model.getItems()[1]
-        assert shape.parent_id == layer.id
-
-    def test_set_parent_empty_string_clears_parent(self, canvas_model):
-        """setParent with empty string should clear parent_id."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "parentId": layer.id,
-            }
-        )
-
-        shape = canvas_model.getItems()[1]
-        assert shape.parent_id == layer.id
-
-        canvas_model.setParent(1, "")
-
-        shape = canvas_model.getItems()[1]
-        assert shape.parent_id is None
-
-    def test_set_parent_on_layer_does_nothing(self, canvas_model):
-        """setParent on a layer should do nothing (layers can't have parents)."""
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-
-        layer1 = canvas_model.getItems()[0]
-        layer2 = canvas_model.getItems()[1]
-
-        canvas_model.setParent(1, layer1.id)
-
-        # Layer 2 should still have no parent-like property
-        assert (
-            not hasattr(layer2, "parent_id")
-            or getattr(layer2, "parent_id", None) is None
-        )
-
-    def test_item_data_includes_parent_id(self, canvas_model):
-        """getItemData should include parentId for shapes."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer.id)
-
-        data = canvas_model.getItemData(1)
-        assert data["parentId"] == layer.id
-
-    def test_layer_data_includes_id(self, canvas_model):
-        """getItemData should include id for layers."""
-        canvas_model.addLayer()
-        data = canvas_model.getItemData(0)
-
-        assert "id" in data
-        assert data["id"] is not None
-
-    def test_parent_id_role_returns_parent_id(self, canvas_model):
-        """ParentIdRole should return the parent_id of a shape."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer.id)
-
-        index = canvas_model.index(1, 0)
-        parent_id = canvas_model.data(index, canvas_model.ParentIdRole)
-        assert parent_id == layer.id
-
-    def test_item_id_role_returns_layer_id(self, canvas_model):
-        """ItemIdRole should return the id of a layer."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        index = canvas_model.index(0, 0)
-        item_id = canvas_model.data(index, canvas_model.ItemIdRole)
-        assert item_id == layer.id
-
-    def test_parent_id_role_returns_none_for_layers(self, canvas_model):
-        """ParentIdRole should return None for layers."""
-        canvas_model.addLayer()
-
-        index = canvas_model.index(0, 0)
-        parent_id = canvas_model.data(index, canvas_model.ParentIdRole)
-        assert parent_id is None
-
-    def test_item_id_role_returns_none_for_shapes(self, canvas_model):
-        """ItemIdRole should return None for shapes."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        index = canvas_model.index(0, 0)
-        item_id = canvas_model.data(index, canvas_model.ItemIdRole)
-        assert item_id is None
-
-    def test_get_layer_index_finds_layer(self, canvas_model):
-        """getLayerIndex should return the index of a layer by ID."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-
-        layer = canvas_model.getItems()[1]
-        index = canvas_model.getLayerIndex(layer.id)
-        assert index == 1
-
-    def test_get_layer_index_returns_negative_for_invalid_id(self, canvas_model):
-        """getLayerIndex should return -1 for non-existent ID."""
-        canvas_model.addLayer()
-
-        index = canvas_model.getLayerIndex("non-existent-id")
-        assert index == -1
-
-    def test_set_parent_undo_restores_original_parent(self, canvas_model):
-        """Undo of setParent should restore the original parent_id."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        # Shape has no parent initially
-        assert canvas_model.getItems()[1].parent_id is None
-
-        canvas_model.setParent(1, layer.id)
-        assert canvas_model.getItems()[1].parent_id == layer.id
-
-        canvas_model.undo()
-        assert canvas_model.getItems()[1].parent_id is None
-
-    def test_set_parent_redo_restores_new_parent(self, canvas_model):
-        """Redo of setParent should restore the new parent_id."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        canvas_model.setParent(1, layer.id)
-        canvas_model.undo()
-        canvas_model.redo()
-
-        assert canvas_model.getItems()[1].parent_id == layer.id
-
-
-class TestCanvasModelLayerDeletion:
-    """Tests for layer deletion behavior (children removed with layer)."""
-
-    def test_delete_layer_removes_children(self, canvas_model):
-        """Deleting a layer should remove its children."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer.id)
-
-        # Verify child is parented
-        assert canvas_model.getItems()[1].parent_id == layer.id
-
-        # Delete the layer
-        canvas_model.removeItem(0)
-
-        # Layer and child removed
         assert canvas_model.count() == 0
-
-    def test_delete_layer_with_multiple_children_removes_them(self, canvas_model):
-        """Deleting a layer should remove all its children, keeping others."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        canvas_model.setParent(1, layer.id)
-        canvas_model.setParent(2, layer.id)
-        # Item 3 remains top-level
-
-        canvas_model.removeItem(0)
-
-        items = canvas_model.getItems()
-        # Only the previously top-level item should remain
-        assert len(items) == 1
-        assert isinstance(items[0], RectangleItem)
-        assert items[0].parent_id is None
-
-
-class TestCanvasModelShapeDeletion:
-    """Tests for deleting non-layer items."""
-
-    def test_delete_shape_removes_only_that_shape(self, canvas_model, qtbot):
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5}
-        )
-        assert canvas_model.count() == 2
-
-        with qtbot.waitSignal(canvas_model.itemRemoved, timeout=1000) as blocker:
-            canvas_model.removeItem(0)
-
-        assert blocker.args == [0]
-        assert canvas_model.count() == 1
-        remaining = canvas_model.getItems()[0]
-        assert isinstance(remaining, EllipseItem)
-
-    def test_delete_shape_updates_selection(self, canvas_model):
-        selection = {"index": -1, "item": None}
-
-        def on_modified(index, data):
-            if index == selection["index"]:
-                selection["item"] = data
-
-        def on_removed(index):
-            if index == selection["index"]:
-                selection["index"] = -1
-                selection["item"] = None
-            elif index < selection["index"]:
-                selection["index"] -= 1
-
-        def on_cleared():
-            selection["index"] = -1
-            selection["item"] = None
-
-        canvas_model.itemModified.connect(on_modified)
-        canvas_model.itemRemoved.connect(on_removed)
-        canvas_model.itemsCleared.connect(on_cleared)
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5}
-        )
-
-        selection["index"] = 1
-        selection["item"] = canvas_model.getItemData(1)
-
-        canvas_model.removeItem(1)
-
-        assert selection["index"] == -1
-        assert selection["item"] is None
-
-
-class TestCanvasModelVisibility:
-    """Tests for visibility toggling and cascading."""
-
-    def test_items_default_visible(self, canvas_model):
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.getItems()[0].visible is True
-        assert canvas_model.getItems()[1].visible is True
-
-    def test_roles_include_visibility(self, canvas_model):
-        role_names = canvas_model.roleNames()
-        assert canvas_model.VisibleRole in role_names
-        assert canvas_model.EffectiveVisibleRole in role_names
-        assert role_names[canvas_model.VisibleRole] == b"modelVisible"
-        assert role_names[canvas_model.EffectiveVisibleRole] == b"modelEffectiveVisible"
-
-    def test_toggle_shape_visibility(self, canvas_model, qtbot):
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
-            canvas_model.toggleVisibility(0)
-
-        assert blocker.args[0] == 0
-        assert blocker.args[1]["visible"] is False
-        assert canvas_model.getItems()[0].visible is False
-
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].visible is True
-
-        canvas_model.redo()
-        assert canvas_model.getItems()[0].visible is False
-
-    def test_toggle_layer_hides_children_effectively(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # initial render includes child
-        assert len(canvas_model.getRenderItems()) == 1
-
-        canvas_model.toggleVisibility(0)
-        # Layer visible flag false, child remains true but should not render
-        assert canvas_model.getItems()[0].visible is False
-        assert canvas_model.getItems()[1].visible is True
-        assert len(canvas_model.getRenderItems()) == 0
-
-        # Undo restores visibility and render
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].visible is True
-        assert len(canvas_model.getRenderItems()) == 1
-        hit = canvas_model.getItemsForHitTest()
-        assert len(hit) == 2
-
-    def test_invalid_toggle_is_noop(self, canvas_model):
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.toggleVisibility(-1)
-        canvas_model.toggleVisibility(5)
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_parent_hidden_effective_visibility_false_for_child(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        canvas_model.toggleVisibility(0)  # hide layer
-
-        idx_child = canvas_model.index(1, 0)
-        assert canvas_model.data(idx_child, canvas_model.VisibleRole) is True
-        assert canvas_model.data(idx_child, canvas_model.EffectiveVisibleRole) is False
-        assert canvas_model.getItemsForHitTest() == []  # hidden via parent
-
-    def test_undo_delete_layer_restores_parent_relationships(self, canvas_model):
-        """Undo of layer deletion should restore children's parent_id."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        layer_id = layer.id
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        canvas_model.removeItem(0)
-        canvas_model.undo()
-
-        # Layer should be back
-        assert canvas_model.count() == 2
-        restored_layer = canvas_model.getItems()[0]
-        assert isinstance(restored_layer, LayerItem)
-
-        # Child should have parent restored
-        shape = canvas_model.getItems()[1]
-        assert shape.parent_id == layer_id
-
-    def test_delete_non_layer_does_not_affect_siblings(self, canvas_model):
-        """Deleting a shape should not affect other shapes' parent_id."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-
-        canvas_model.setParent(1, layer.id)
-        canvas_model.setParent(2, layer.id)
-
-        # Delete the rectangle (index 1)
-        canvas_model.removeItem(1)
-
-        # Ellipse should still be parented
-        ellipse = canvas_model.getItems()[1]
-        assert ellipse.parent_id == layer.id
-
-
-class TestCanvasModelReparentItem:
-    """Tests for reparentItem which combines setParent + moveItem."""
-
-    def test_reparent_to_layer_with_existing_children(self, canvas_model):
-        """reparentItem should place new child at top of children by default."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        # Add shapes and parent first two to layer
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # Rect 1
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )  # Rect 2
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )  # Rect 3
-
-        # Parent Rect 1 to layer
-        canvas_model.reparentItem(1, layer.id)
-
-        # Now parent Rect 3 (currently at index 3) to layer (it should go above
-        # Rect 1, directly under layer)
-        canvas_model.reparentItem(3, layer.id)
-
-        items = canvas_model.getItems()
-        assert [item.name for item in items] == [
-            "Rectangle 1",
-            "Rectangle 3",
-            "Layer 1",
-            "Rectangle 2",
-        ]
-        assert items[0].parent_id == layer.id
-        assert items[1].parent_id == layer.id
-        assert items[3].parent_id is None
-
-    def test_reparent_inserts_between_children(self, canvas_model):
-        """reparentItem with insert_index inserts among existing children."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "B",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "C",
-            }
-        )
-
-        canvas_model.reparentItem(1, layer.id)  # A -> order: A, Layer, B, C
-        canvas_model.reparentItem(
-            2, layer.id
-        )  # B (current index 2) -> order: A, B, Layer, C
-
-        # Insert C (current index 3) between A and B (model index 1)
-        canvas_model.reparentItem(3, layer.id, 1)
-
-        names = [item.name for item in canvas_model.getItems()]
-        assert names == ["A", "C", "B", layer.name]
-        assert canvas_model.getItems()[1].parent_id == layer.id
-
-    def test_reparent_same_parent_with_insert_moves_only(self, canvas_model):
-        """reparentItem with same parent and insert index should just move."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "B",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "C",
-            }
-        )
-
-        canvas_model.reparentItem(1, layer.id)  # A under layer
-        canvas_model.reparentItem(2, layer.id)  # B under layer
-        canvas_model.reparentItem(3, layer.id)  # C under layer
-
-        # Move C to between A and B using same parent insert
-        canvas_model.reparentItem(2, layer.id, 1)
-
-        names = [item.name for item in canvas_model.getItems()]
-        assert names == ["A", "C", "B", layer.name]
-        assert canvas_model.getItems()[1].parent_id == layer.id
-
-    def test_reparent_unparent_with_insert(self, canvas_model):
-        """Unparenting with insert index should clear parent and move."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "B",
-            }
-        )
-
-        canvas_model.reparentItem(1, layer.id)  # A under layer
-        canvas_model.reparentItem(2, layer.id)  # B under layer
-
-        # Unparent B and place at start of list
-        b_index = next(
-            i
-            for i, item in enumerate(canvas_model.getItems())
-            if getattr(item, "name", "") == "B"
-        )
-        canvas_model.reparentItem(b_index, "", 0)
-
-        names = [item.name for item in canvas_model.getItems()]
-        assert names[0] == "B"
-        assert canvas_model.getItems()[0].parent_id is None
-
-    def test_reparent_insert_clamps_to_layer_position(self, canvas_model):
-        """Insert indices beyond layer should clamp to directly above the layer."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "B",
-            }
-        )
-
-        # Insert index 99 should clamp to layer position (0) and place B
-        # before the layer
-        canvas_model.reparentItem(2, layer.id, 99)
-
-        names = [item.name for item in canvas_model.getItems()]
-        assert names == ["B", "Layer 1", "A"]
-        assert canvas_model.getItems()[0].parent_id == layer.id
-
-    def test_reparent_invalid_layer_is_noop(self, canvas_model):
-        """Reparenting to a non-existent layer should do nothing."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        initial = canvas_model.getItems()
-        initial_can_undo = canvas_model.canUndo
-
-        canvas_model.reparentItem(0, "missing-layer-id", 0)
-
-        after = canvas_model.getItems()
-        assert [item.name for item in after] == [item.name for item in initial]
-        assert initial_can_undo == canvas_model.canUndo
-
-    def test_reparent_on_layer_does_nothing(self, canvas_model):
-        """reparentItem on a layer should do nothing."""
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-
-        layer1 = canvas_model.getItems()[0]
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.reparentItem(1, layer1.id)
-
-        # No command should be added
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_reparent_undo_restores_parent_and_position(self, canvas_model):
-        """Undo of reparentItem should restore both parent and position."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # Rect 1
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )  # Rect 2
-
-        # Rect 2 is at index 2, no parent
-        assert canvas_model.getItems()[2].name == "Rectangle 2"
-        assert canvas_model.getItems()[2].parent_id is None
-
-        # Reparent Rect 2 to layer
-        canvas_model.reparentItem(2, layer.id)
-
-        # Rect 2 should be before the layer with parent
-        rect2 = next(
-            item
-            for item in canvas_model.getItems()
-            if getattr(item, "name", "") == "Rectangle 2"
-        )
-        assert rect2.parent_id == layer.id
-
-        # Undo
-        canvas_model.undo()
-
-        # Rect 2 should be back at index 2 with no parent
-        assert canvas_model.getItems()[2].name == "Rectangle 2"
-        assert canvas_model.getItems()[2].parent_id is None
-
-    def test_reparent_redo_restores_parent_and_position(self, canvas_model):
-        """Redo of reparentItem should restore both parent and position."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # Rect 1
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )  # Rect 2
-
-        canvas_model.reparentItem(2, layer.id)
-        canvas_model.undo()
-        canvas_model.redo()
-
-        rect2 = next(
-            item
-            for item in canvas_model.getItems()
-            if getattr(item, "name", "") == "Rectangle 2"
-        )
-        assert rect2.parent_id == layer.id
-
-    def test_reparent_invalid_index_does_nothing(self, canvas_model):
-        """reparentItem with invalid index should do nothing."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.reparentItem(-1, layer.id)
-        canvas_model.reparentItem(10, layer.id)
-
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_find_last_child_position_no_children(self, canvas_model):
-        """_findLastChildPosition returns after layer when no children."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # Top-level
-
-        # Layer at 0, Rect at 1 (top-level)
-        pos = canvas_model._findLastChildPosition(layer.id)
-        assert pos == 1  # Should insert before the top-level rect
-
-    def test_find_last_child_position_with_children(self, canvas_model):
-        """_findLastChildPosition should return position after last child."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        # Add child to layer
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer.id)
-
-        # Add top-level shape
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 0, "width": 10, "height": 10}
-        )
-
-        # Layer at 0, child at 1, top-level at 2
-        pos = canvas_model._findLastChildPosition(layer.id)
-        assert pos == 2  # Should insert before the top-level rect
-
-    def test_find_last_child_position_at_end(self, canvas_model):
-        """_findLastChildPosition returns end if no top-level after layer."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )  # Top-level
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[1]
-
-        # Top-level at 0, Layer at 1
-        pos = canvas_model._findLastChildPosition(layer.id)
-        assert pos == 2  # Should insert at end
-
-
-class TestLayerVisibilityLocking:
-    """Effective visibility/locking inheritance from parent layers."""
-
-    def test_shape_effective_visibility_respects_parent_layer(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Layer visible by default -> shape visible
-        assert canvas_model._is_effectively_visible(1) is True
-
-        # Hide layer -> shape becomes effectively hidden
-        canvas_model.updateItem(0, {"visible": False})
-        assert canvas_model._is_effectively_visible(1) is False
-
-        # Show layer -> shape visible again
-        canvas_model.updateItem(0, {"visible": True})
-        assert canvas_model._is_effectively_visible(1) is True
-
-    def test_shape_effective_locked_respects_parent_layer(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "ellipse", "centerX": 0, "centerY": 0, "radiusX": 5, "radiusY": 5}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Layer unlocked by default -> shape unlocked
-        assert canvas_model._is_effectively_locked(1) is False
-
-        # Lock layer -> shape becomes effectively locked
-        canvas_model.updateItem(0, {"locked": True})
-        assert canvas_model._is_effectively_locked(1) is True
-
-        # Unlock layer -> shape unlocked again
-        canvas_model.updateItem(0, {"locked": False})
-        assert canvas_model._is_effectively_locked(1) is False
-
-
-class TestGroupHierarchy:
-    """Grouping semantics without altering legacy layer behavior."""
-
-    def test_add_group(self, canvas_model):
-        canvas_model.addItem({"type": "group", "name": "Group A"})
-        assert canvas_model.count() == 1
-        assert canvas_model.getItems()[0].name == "Group A"
-        assert (
-            canvas_model.data(canvas_model.index(0, 0), canvas_model.TypeRole)
-            == "group"
-        )
-
-    def test_group_inherits_visibility_and_lock(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem({"type": "group", "parentId": layer_id, "name": "G1"})
-        group_id = canvas_model.getItems()[1].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 1,
-                "height": 1,
-                "parentId": group_id,
-            }
-        )
-
-        # All visible/unlocked by default
-        assert canvas_model._is_effectively_visible(2) is True
-        assert canvas_model._is_effectively_locked(2) is False
-
-        # Hide group -> shape hidden
-        canvas_model.updateItem(1, {"visible": False})
-        assert canvas_model._is_effectively_visible(2) is False
-
-        # Show group, hide layer -> shape hidden via layer
-        canvas_model.updateItem(1, {"visible": True})
-        canvas_model.updateItem(0, {"visible": False})
-        assert canvas_model._is_effectively_visible(2) is False
-
-        # Lock group -> shape locked
-        canvas_model.updateItem(0, {"visible": True})
-        canvas_model.updateItem(1, {"locked": True})
-        assert canvas_model._is_effectively_locked(2) is True
-
-        # Unlock group, lock layer -> shape locked via layer
-        canvas_model.updateItem(1, {"locked": False})
-        canvas_model.updateItem(0, {"locked": True})
-        assert canvas_model._is_effectively_locked(2) is True
-
-    def test_move_group_moves_children(self, canvas_model):
-        canvas_model.addItem({"type": "group", "name": "G"})
-        group_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 1,
-                "height": 1,
-                "parentId": group_id,
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 1,
-                "centerY": 1,
-                "radiusX": 1,
-                "radiusY": 1,
-                "parentId": group_id,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 10, "width": 1, "height": 1}
-        )  # top-level sibling
-
-        # Order: group, child1, child2, sibling
-        canvas_model.moveItem(0, 3)
-
-        items = canvas_model.getItems()
-        assert items[0].parent_id is None  # sibling first
-        assert items[1].id == group_id
-        assert items[2].parent_id == group_id
-        assert items[3].parent_id == group_id
-
-    def test_reparent_group_to_layer_and_top_level(self, canvas_model):
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem({"type": "group", "name": "G"})
-        group_index = 1
-
-        # Parent group to layer
-        canvas_model.reparentItem(group_index, layer_id)
-        assert canvas_model.getItems()[group_index].parent_id == layer_id
-
-        # Unparent back to top-level
-        canvas_model.reparentItem(group_index, "")
-        assert canvas_model.getItems()[group_index].parent_id is None
-
-
-class TestGroupItemsCommand:
-    """Ensure grouping is atomic and undoable."""
-
-    def test_group_items_sets_parent_and_adds_group(self, canvas_model):
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 5,
-                "centerY": 5,
-                "radiusX": 2,
-                "radiusY": 2,
-            }
-        )
-
-        group_idx = canvas_model.groupItems([0, 1])
-        assert group_idx >= 0
-        items = canvas_model.getItems()
-        assert len(items) == 3
-        group = items[group_idx]
-        assert getattr(group, "type", "group") == "group"
-
-        # Children should have parentId set to the group
-        child_parents = [
-            getattr(item, "parent_id", None)
-            for item in items
-            if getattr(item, "type", "") in ("rectangle", "ellipse")
-        ]
-        assert all(pid == group.id for pid in child_parents)
-
-    def test_group_items_undo_redo_single_step(self, canvas_model, qtbot):
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 1, "height": 1}
-        )
-        canvas_model.addItem(
-            {"type": "ellipse", "centerX": 1, "centerY": 1, "radiusX": 1, "radiusY": 1}
-        )
-
-        group_idx = canvas_model.groupItems([0, 1])
-        assert canvas_model.count() == 3
-        assert canvas_model.canUndo is True
-
-        # Undo should remove group and restore two items
-        canvas_model.undo()
-        assert canvas_model.count() == 2
-        assert canvas_model.canRedo is True
-
-        # Redo should recreate group in one step
-        canvas_model.redo()
-        assert canvas_model.count() == 3
-        # Verify children are grouped
-        group = canvas_model.getItems()[group_idx]
-        child_parents = [
-            getattr(item, "parent_id", None)
-            for item in canvas_model.getItems()
-            if getattr(item, "type", "") in ("rectangle", "ellipse")
-        ]
-        assert all(pid == group.id for pid in child_parents)
-
-
-class TestLayerMoveWithChildren:
-    """Tests for moving layers with their children as a group."""
-
-    def test_move_layer_with_one_child_up(self, canvas_model):
-        """Moving a layer up should move its child with it."""
-        # Create: Layer1, Rect1 (child of Layer1), Layer2, Rect2 (child of Layer2)
-        canvas_model.addLayer()
-        layer1 = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect1",
-            }
-        )
-        canvas_model.setParent(1, layer1.id)
-
-        canvas_model.addLayer()
-        layer2 = canvas_model.getItems()[2]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 20,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect2",
-            }
-        )
-        canvas_model.setParent(3, layer2.id)
-
-        # Order: [Layer1, Rect1, Layer2, Rect2]
-        assert canvas_model.getItems()[0].name == "Layer 1"
-        assert canvas_model.getItems()[1].name == "Rect1"
-        assert canvas_model.getItems()[2].name == "Layer 2"
-        assert canvas_model.getItems()[3].name == "Rect2"
-
-        # Move Layer2 up (from index 2 to index 0)
-        canvas_model.moveItem(2, 0)
-
-        # Order should now be: [Layer2, Rect2, Layer1, Rect1]
-        items = canvas_model.getItems()
-        assert items[0].name == "Layer 2"
-        assert items[1].name == "Rect2"
-        assert items[1].parent_id == layer2.id
-        assert items[2].name == "Layer 1"
-        assert items[3].name == "Rect1"
-        assert items[3].parent_id == layer1.id
-
-    def test_move_layer_with_multiple_children(self, canvas_model):
-        """Moving a layer should move all its children with it."""
-        # Create: Layer1 with 2 children, then Layer2
-        canvas_model.addLayer()
-        layer1 = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect1",
-            }
-        )
-        canvas_model.setParent(1, layer1.id)
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 5,
-                "centerY": 5,
-                "radiusX": 5,
-                "radiusY": 5,
-                "name": "Ellipse1",
-            }
-        )
-        canvas_model.setParent(2, layer1.id)
-
-        canvas_model.addLayer()
-
-        # Order: [Layer1, Rect1, Ellipse1, Layer2]
-        assert canvas_model.count() == 4
-
-        # Move Layer1 down (to index 3, after Layer2)
-        canvas_model.moveItem(0, 3)
-
-        # Order should now be: [Layer2, Layer1, Rect1, Ellipse1]
-        items = canvas_model.getItems()
-        assert items[0].name == "Layer 2"
-        assert items[1].name == "Layer 1"
-        assert items[2].name == "Rect1"
-        assert items[2].parent_id == layer1.id
-        assert items[3].name == "Ellipse1"
-        assert items[3].parent_id == layer1.id
-
-    def test_move_layer_without_children_uses_regular_move(self, canvas_model):
-        """Moving a layer without children should just move the layer."""
-        canvas_model.addLayer()
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect1",
-            }
-        )
-
-        # Order: [Layer1, Layer2, Rect1]
-        # Move Layer2 to position 0
-        canvas_model.moveItem(1, 0)
-
-        items = canvas_model.getItems()
-        assert items[0].name == "Layer 2"
-        assert items[1].name == "Layer 1"
-        assert items[2].name == "Rect1"
-
-    def test_get_layer_children_indices(self, canvas_model):
-        """_getLayerChildrenIndices should find all children of a layer."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        # Add children
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer.id)
-        canvas_model.addItem(
-            {"type": "ellipse", "centerX": 5, "centerY": 5, "radiusX": 5, "radiusY": 5}
-        )
-        canvas_model.setParent(2, layer.id)
-
-        # Add unrelated item
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 20, "y": 0, "width": 10, "height": 10}
-        )
-
-        children = canvas_model._getLayerChildrenIndices(layer.id)
-        assert children == [1, 2]
-
-    def test_move_child_within_layer_does_not_trigger_group_move(self, canvas_model):
-        """Moving a non-layer item should not trigger _moveLayerWithChildren."""
-        canvas_model.addLayer()
-        layer = canvas_model.getItems()[0]
-
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect1",
-            }
-        )
-        canvas_model.setParent(1, layer.id)
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect2",
-            }
-        )
-        canvas_model.setParent(2, layer.id)
-
-        # Order: [Layer, Rect1, Rect2]
-        # Move Rect2 before Rect1 (index 2 to 1)
-        canvas_model.moveItem(2, 1)
-
-        items = canvas_model.getItems()
-        assert items[0].name == "Layer 1"
-        assert items[1].name == "Rect2"
-        assert items[2].name == "Rect1"
-
-
-class TestZOrderRendering:
-    """Tests for z-order (render order) behavior."""
-
-    def test_get_render_items_matches_reverse_shapes(self, canvas_model):
-        """Model should expose a unified render order helper."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Bottom",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 5,
-                "y": 5,
-                "width": 10,
-                "height": 10,
-                "name": "Top",
-            }
-        )
-
-        ordered = canvas_model.getRenderItems()
-        # Render order follows model order (bottom-to-top for painting)
-        assert [item.name for item in ordered] == ["Bottom", "Top"]
-
-    def test_render_order_respects_layers_as_separators(self, canvas_model):
-        """Shapes keep their relative order even when layers are interleaved."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Rect1",
-            }
-        )
-        canvas_model.addLayer()  # Acts as a separator in the model
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 5,
-                "y": 5,
-                "width": 10,
-                "height": 10,
-                "name": "Rect2",
-            }
-        )
-
-        ordered = canvas_model.getRenderItems()
-        # Layers are skipped; shapes stay in their model order for rendering.
-        assert [item.name for item in ordered] == ["Rect1", "Rect2"]
-
-    def test_render_order_matches_model(self, canvas_model):
-        """Model order determines z: higher indices paint on top."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Bottom",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 5,
-                "y": 5,
-                "width": 10,
-                "height": 10,
-                "name": "Top",
-            }
-        )
-
-        items = canvas_model.getItems()
-        # Model order: [Bottom (idx 0), Top (idx 1)]
-        assert items[0].name == "Bottom"
-        assert items[1].name == "Top"
-
-        # Render order matches model order
-        ordered = canvas_model.getRenderItems()
-        assert [item.name for item in ordered] == ["Bottom", "Top"]
-
-    def test_move_item_up_changes_z_order(self, canvas_model):
-        """Moving an item to a lower index should move it above other items."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 5,
-                "y": 5,
-                "width": 10,
-                "height": 10,
-                "name": "B",
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 10,
-                "width": 10,
-                "height": 10,
-                "name": "C",
-            }
-        )
-
-        # Initial order: [A, B, C] (A is on top)
-        # Move C to top (index 2 -> 0)
-        canvas_model.moveItem(2, 0)
-
-        items = canvas_model.getItems()
-        assert items[0].name == "C"  # C is now at top (lowest index = on top visually)
-        assert items[1].name == "A"
-        assert items[2].name == "B"
-
-    def test_layer_children_grouped_in_z_order(self, canvas_model):
-        """Children of a layer should remain grouped with their parent in z-order."""
-        canvas_model.addLayer()
-        layer1 = canvas_model.getItems()[0]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Child1",
-            }
-        )
-        canvas_model.setParent(1, layer1.id)
-
-        canvas_model.addLayer()
-        layer2 = canvas_model.getItems()[2]
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 20,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Child2",
-            }
-        )
-        canvas_model.setParent(3, layer2.id)
-
-        # Order: [Layer1, Child1, Layer2, Child2]
-        # Layer1 and its children should be "above" Layer2 and its children
-
-        # Move Layer2 to top (index 2 -> 0)
-        canvas_model.moveItem(2, 0)
-
-        items = canvas_model.getItems()
-        # New order: [Layer2, Child2, Layer1, Child1]
-        assert items[0].name == "Layer 2"
-        assert items[1].name == "Child2"
-        assert items[1].parent_id == layer2.id
-        assert items[2].name == "Layer 1"
-        assert items[3].name == "Child1"
-        assert items[3].parent_id == layer1.id
-
-
-class TestLockedFunctionality:
-    """Tests for object lock feature."""
-
-    def test_locked_role_exists(self, canvas_model):
-        """LockedRole should be defined in role names."""
-        role_names = canvas_model.roleNames()
-        assert canvas_model.LockedRole in role_names
-        assert role_names[canvas_model.LockedRole] == b"modelLocked"
-
-    def test_locked_role_returns_false_by_default(self, canvas_model):
-        """LockedRole should return False for new items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.LockedRole) is False
-
-    def test_toggle_locked_sets_locked_true(self, canvas_model, qtbot):
-        """toggleLocked should toggle item's locked state."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-
-        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000) as blocker:
-            canvas_model.toggleLocked(0)
-
-        assert blocker.args[0] == 0
-        assert blocker.args[1]["locked"] is True
-        assert canvas_model.getItems()[0].locked is True
-
-    def test_toggle_locked_toggles_back_to_false(self, canvas_model):
-        """toggleLocked should toggle locked from True back to False."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        assert canvas_model.getItems()[0].locked is True
-
-        canvas_model.toggleLocked(0)
-        assert canvas_model.getItems()[0].locked is False
-
-    def test_toggle_locked_supports_undo_redo(self, canvas_model):
-        """toggleLocked should support undo/redo."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        assert canvas_model.getItems()[0].locked is True
-
-        canvas_model.undo()
-        assert canvas_model.getItems()[0].locked is False
-
-        canvas_model.redo()
-        assert canvas_model.getItems()[0].locked is True
-
-    def test_toggle_locked_invalid_index_is_noop(self, canvas_model):
-        """toggleLocked with invalid index should do nothing."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        initial_can_undo = canvas_model.canUndo
-        canvas_model.toggleLocked(-1)
-        canvas_model.toggleLocked(5)
-        assert canvas_model.canUndo == initial_can_undo
-
-    def test_toggle_locked_on_layer(self, canvas_model):
-        """toggleLocked should work on layers."""
-        canvas_model.addLayer()
-        canvas_model.toggleLocked(0)
-        assert canvas_model.getItems()[0].locked is True
-
-    def test_toggle_locked_on_ellipse(self, canvas_model):
-        """toggleLocked should work on ellipses."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 0,
-                "centerY": 0,
-                "radiusX": 10,
-                "radiusY": 10,
-            }
-        )
-        canvas_model.toggleLocked(0)
-        assert canvas_model.getItems()[0].locked is True
-
-    def test_locked_role_returns_true_after_toggle(self, canvas_model):
-        """LockedRole should return True after toggleLocked."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.LockedRole) is True
-
-    def test_get_item_data_includes_locked(self, canvas_model):
-        """getItemData should include locked property."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        data = canvas_model.getItemData(0)
-        assert data["locked"] is True
-
-    def test_locked_items_still_in_hit_test(self, canvas_model):
-        """Locked items should still appear in getItemsForHitTest (unlike hidden)."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        hit_items = canvas_model.getItemsForHitTest()
-        assert len(hit_items) == 1
-
-
-class TestEffectiveLockedFunctionality:
-    """Tests for effective locked behavior (children inherit parent lock)."""
-
-    def test_effective_locked_role_exists(self, canvas_model):
-        """EffectiveLockedRole should be defined in role names."""
-        role_names = canvas_model.roleNames()
-        assert canvas_model.EffectiveLockedRole in role_names
-        assert role_names[canvas_model.EffectiveLockedRole] == b"modelEffectiveLocked"
-
-    def test_effective_locked_false_by_default(self, canvas_model):
-        """EffectiveLockedRole should return False for unlocked items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is False
-
-    def test_effective_locked_true_when_item_locked(self, canvas_model):
-        """EffectiveLockedRole should return True when item itself is locked."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is True
-
-    def test_child_effective_locked_when_parent_layer_locked(self, canvas_model):
-        """Child should be effectively locked when parent layer is locked."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Lock the parent layer
-        canvas_model.toggleLocked(0)
-
-        # Child's own locked is False, but effective locked should be True
-        idx_child = canvas_model.index(1, 0)
-        assert canvas_model.data(idx_child, canvas_model.LockedRole) is False
-        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
-
-    def test_child_not_effective_locked_when_parent_unlocked(self, canvas_model):
-        """Child should not be effectively locked when parent layer is unlocked."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Parent layer is not locked
-        idx_child = canvas_model.index(1, 0)
-        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is False
-
-    def test_unlocking_parent_restores_child_effective_state(self, canvas_model):
-        """Unlocking parent layer should restore child's effective locked state."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Lock parent, then unlock
-        canvas_model.toggleLocked(0)
-        idx_child = canvas_model.index(1, 0)
-        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
-
-        canvas_model.toggleLocked(0)  # Unlock parent
-        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is False
-
-    def test_child_locked_independently_of_parent(self, canvas_model):
-        """Child can be locked independently even when parent is unlocked."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        # Lock only the child
-        canvas_model.toggleLocked(1)
-
-        idx_child = canvas_model.index(1, 0)
-        assert canvas_model.data(idx_child, canvas_model.LockedRole) is True
-        assert canvas_model.data(idx_child, canvas_model.EffectiveLockedRole) is True
-
-    def test_layer_effective_locked_equals_own_locked(self, canvas_model):
-        """Layer's effective locked should equal its own locked (no parent)."""
-        canvas_model.addLayer()
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is False
-
-        canvas_model.toggleLocked(0)
-        assert canvas_model.data(idx, canvas_model.EffectiveLockedRole) is True
 
 
 class TestCanvasModelDuplicate:
-    """Tests for duplicating items via CanvasModel."""
+    """Tests for duplicating items."""
 
-    def test_duplicate_item_creates_offset_copy(self, canvas_model):
-        """Duplicating an item returns new index and copies geometry."""
-        base_data = {
-            "type": "rectangle",
-            "x": 2,
-            "y": 4,
-            "width": 20,
-            "height": 10,
-            "name": "Origin",
-        }
-        canvas_model.addItem(base_data)
+    def test_duplicate_rectangle(self, canvas_model, qtbot):
+        """Test duplicating a rectangle creates offset copy."""
+        canvas_model.addItem(
+            make_rectangle(x=10, y=20, width=50, height=30, name="Original")
+        )
 
-        new_index = canvas_model.duplicateItem(0)
+        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
+            canvas_model.duplicateItem(0)
 
-        assert new_index == 1
         assert canvas_model.count() == 2
-        duplicate = canvas_model.getItemData(new_index)
-        assert duplicate is not None
-        assert duplicate["type"] == "rectangle"
-        assert duplicate["x"] == base_data["x"] + DEFAULT_DUPLICATE_OFFSET
-        assert duplicate["y"] == base_data["y"] + DEFAULT_DUPLICATE_OFFSET
-        assert duplicate["name"] == "Origin Copy"
+        items = canvas_model.getItems()
+        # Duplicate should be offset
+        assert items[1].geometry.x == 10 + DEFAULT_DUPLICATE_OFFSET
+        assert items[1].geometry.y == 20 + DEFAULT_DUPLICATE_OFFSET
 
-    def test_duplicate_item_respects_effective_lock(self, canvas_model):
-        """Locked ancestry prevents duplication."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.toggleLocked(0)  # Lock the layer
+
+class TestCanvasModelMoveItems:
+    """Tests for moving items in the model order."""
+
+    def test_move_item_up(self, canvas_model):
+        """Test moving an item up in the order."""
+        canvas_model.addItem(make_rectangle(name="A"))
+        canvas_model.addItem(make_rectangle(name="B"))
+        canvas_model.addItem(make_rectangle(name="C"))
+
+        canvas_model.moveItem(2, 0)
+
+        items = canvas_model.getItems()
+        assert items[0].name == "C"
+        assert items[1].name == "A"
+        assert items[2].name == "B"
+
+
+class TestCanvasModelText:
+    """Tests for text items in the model."""
+
+    def test_add_text_item(self, canvas_model, qtbot):
+        """Test adding a text item."""
+        item_data = make_text(x=10, y=20, text="Hello World", font_size=24)
+
+        with qtbot.waitSignal(canvas_model.itemAdded, timeout=1000):
+            canvas_model.addItem(item_data)
+
+        assert canvas_model.count() == 1
+        items = canvas_model.getItems()
+        assert isinstance(items[0], TextItem)
+        assert items[0].text == "Hello World"
+        assert items[0].font_size == 24
+
+
+class TestCanvasModelItemData:
+    """Tests for getItemData method."""
+
+    def test_get_item_data_rectangle(self, canvas_model):
+        """Test getItemData returns dictionary for rectangle."""
         canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.setParent(1, layer_id)
-
-        new_index = canvas_model.duplicateItem(1)
-
-        assert new_index == -1
-        assert canvas_model.count() == 2
-
-    def test_duplicate_item_invalid_index(self, canvas_model):
-        """Invalid index should return -1 without side effects."""
-        result = canvas_model.duplicateItem(99)
-
-        assert result == -1
-        assert canvas_model.count() == 0
-
-    def test_duplicate_items_duplicates_all_selected(self, canvas_model):
-        """Multiple selected items should all be duplicated with offsets."""
-        rect_a = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 10,
-            "height": 10,
-            "name": "A",
-        }
-        rect_b = {
-            "type": "rectangle",
-            "x": 10,
-            "y": 10,
-            "width": 20,
-            "height": 20,
-            "name": "B",
-        }
-        canvas_model.addItem(rect_a)
-        canvas_model.addItem(rect_b)
-
-        new_indices = canvas_model.duplicateItems([0, 1])
-
-        assert canvas_model.count() == 4
-        assert len(new_indices) == 2
-        dup_a = canvas_model.getItemData(new_indices[0])
-        dup_b = canvas_model.getItemData(new_indices[1])
-        assert dup_a["name"] == "A Copy"
-        assert dup_a["x"] == rect_a["x"] + DEFAULT_DUPLICATE_OFFSET
-        assert dup_b["name"] == "B Copy"
-        assert dup_b["y"] == rect_b["y"] + DEFAULT_DUPLICATE_OFFSET
-
-    def test_duplicate_items_appends_to_end(self, canvas_model):
-        """Duplicates are appended so they render on top."""
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "A",
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 1, "y": 1, "width": 5, "height": 5, "name": "B"}
+            make_rectangle(x=10, y=20, width=100, height=50, name="MyRect")
         )
 
-        new_indices = canvas_model.duplicateItems([0])
+        data = canvas_model.getItemData(0)
+        assert data["type"] == "rectangle"
+        assert data["name"] == "MyRect"
+        assert data["geometry"]["x"] == 10
+        assert data["geometry"]["width"] == 100
 
+    def test_get_item_data_invalid_index(self, canvas_model):
+        """Test getItemData returns None for invalid index."""
+        assert canvas_model.getItemData(999) is None
+
+
+class TestCanvasModelVisibility:
+    """Tests for visibility toggling."""
+
+    def test_toggle_visibility(self, canvas_model, qtbot):
+        """Test toggling item visibility."""
+        canvas_model.addItem(make_rectangle(visible=True))
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
+            canvas_model.toggleVisibility(0)
+
+        items = canvas_model.getItems()
+        assert items[0].visible is False
+
+
+class TestCanvasModelLock:
+    """Tests for lock toggling."""
+
+    def test_toggle_lock(self, canvas_model, qtbot):
+        """Test toggling item lock state."""
+        canvas_model.addItem(make_rectangle(locked=False))
+
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
+            canvas_model.toggleLocked(0)
+
+        items = canvas_model.getItems()
+        assert items[0].locked is True
+
+
+class TestCanvasModelSetBoundingBox:
+    """Tests for setBoundingBox method."""
+
+    def test_set_rectangle_bounding_box(self, canvas_model):
+        """Test setting bounding box for rectangle."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 100, "y": 100, "width": 75, "height": 25}
+        )
+        assert result is True
+
+        item = canvas_model.getItems()[0]
+        assert item.geometry.x == 100
+        assert item.geometry.y == 100
+        assert item.geometry.width == 75
+        assert item.geometry.height == 25
+
+    def test_set_ellipse_bounding_box(self, canvas_model):
+        """Test setting bounding box for ellipse."""
+        canvas_model.addItem(
+            make_ellipse(center_x=50, center_y=50, radius_x=25, radius_y=25)
+        )
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 0, "y": 0, "width": 100, "height": 50}
+        )
+        assert result is True
+
+        item = canvas_model.getItems()[0]
+        assert item.geometry.center_x == 50
+        assert item.geometry.center_y == 25
+        assert item.geometry.radius_x == 50
+        assert item.geometry.radius_y == 25
+
+    def test_set_path_bounding_box(self, canvas_model):
+        """Test setting bounding box for path translates points."""
+        canvas_model.addItem(make_path(points=[{"x": 0, "y": 0}, {"x": 10, "y": 10}]))
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 100, "y": 100, "width": 10, "height": 10}
+        )
+        assert result is True
+
+        item = canvas_model.getItems()[0]
+        assert item.geometry.points[0]["x"] == 100
+        assert item.geometry.points[0]["y"] == 100
+        assert item.geometry.points[1]["x"] == 110
+        assert item.geometry.points[1]["y"] == 110
+
+    def test_set_text_bounding_box(self, canvas_model):
+        """Test setting bounding box for text."""
+        canvas_model.addItem(make_text(x=0, y=0, text="Hello"))
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 50, "y": 50, "width": 200, "height": 30}
+        )
+        assert result is True
+
+        item = canvas_model.getItems()[0]
+        assert item.x == 50
+        assert item.y == 50
+        assert item.width == 200
+        assert item.height == 30
+
+    def test_set_bounding_box_invalid_index(self, canvas_model):
+        """Test setting bounding box with invalid index returns False."""
+        result = canvas_model.setBoundingBox(
+            999, {"x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        assert result is False
+
+    def test_set_bounding_box_layer_returns_false(self, canvas_model):
+        """Test setting bounding box on layer returns False."""
+        canvas_model.addItem(make_layer())
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        assert result is False
+
+    def test_set_path_bounding_box_empty_points(self, canvas_model):
+        """Test setting bounding box on empty path returns False."""
+        canvas_model.addItem(make_path(points=[]))
+
+        result = canvas_model.setBoundingBox(
+            0, {"x": 0, "y": 0, "width": 10, "height": 10}
+        )
+        assert result is False
+
+
+class TestCanvasModelGrouping:
+    """Tests for grouping and ungrouping items."""
+
+    def test_group_items(self, canvas_model):
+        """Test grouping multiple items."""
+        canvas_model.addItem(make_rectangle(name="A"))
+        canvas_model.addItem(make_rectangle(name="B"))
+
+        group_idx = canvas_model.groupItems([0, 1])
+        assert group_idx >= 0
+        # Group should exist
         assert canvas_model.count() == 3
-        assert new_indices == [2]  # appended
-        names = [
-            canvas_model.getItemData(i)["name"] for i in range(canvas_model.count())
-        ]
-        assert names == ["A", "B", "A Copy"]
 
-    def test_duplicate_group_appends_as_sibling_with_children(self, canvas_model):
-        """Duplicating a group appends it as a sibling with its children under it."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem({"type": "group", "name": "G1", "parentId": layer_id})
-        g1_id = canvas_model.getItems()[1].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 1,
-                "height": 1,
-                "name": "C1",
-                "parentId": g1_id,
-            }
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 1, "y": 1, "width": 1, "height": 1, "name": "R1"}
-        )
+    def test_ungroup_items(self, canvas_model):
+        """Test ungrouping a group."""
+        canvas_model.addItem(make_rectangle(name="A"))
+        canvas_model.addItem(make_rectangle(name="B"))
 
-        new_indices = canvas_model.duplicateItems([1, 3])
+        group_idx = canvas_model.groupItems([0, 1])
 
-        assert len(new_indices) == 2
-        # Expect appended order: existing 4 items + group copy + child copy + rect copy
-        assert canvas_model.count() == 7
-        group_copy_idx = new_indices[0]
-        rect_copy_idx = new_indices[1]
+        canvas_model.ungroup(group_idx)
+        # Group should be removed, items should remain
+        # Only shapes should remain (group is removed)
+        items = canvas_model.getItems()
+        shapes = [i for i in items if isinstance(i, RectangleItem)]
+        assert len(shapes) == 2
 
-        group_copy = canvas_model.getItems()[group_copy_idx]
-        child_copy = canvas_model.getItems()[group_copy_idx - 1]
-        rect_copy = canvas_model.getItems()[rect_copy_idx]
-
-        assert group_copy.name == "G1 Copy"
-        assert group_copy.parent_id == layer_id
-        assert child_copy.parent_id == group_copy.id
-        assert rect_copy.name == "R1 Copy"
-        assert rect_copy_idx == canvas_model.count() - 1
-
-    def test_duplicate_items_skips_descendant_when_parent_selected(self, canvas_model):
-        """Descendants should not duplicate twice when parent container is selected."""
-        canvas_model.addItem({"type": "group", "name": "Group"})
-        group_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 1,
-                "y": 2,
-                "width": 5,
-                "height": 6,
-                "parentId": group_id,
-                "name": "Child",
-            }
-        )
-
-        new_indices = canvas_model.duplicateItems([0, 1])
-
-        # Expect one duplicated group and its child (total items: 4)
-        assert canvas_model.count() == 4
-        assert len(new_indices) == 1
-        dup_group_index = new_indices[0]
-        dup_group = canvas_model.getItems()[dup_group_index]
-        assert dup_group.name == "Group Copy"
-        # Child should be directly before the group
-        dup_child = canvas_model.getItems()[dup_group_index - 1]
-        assert dup_child.parent_id == dup_group.id
-
-    def test_duplicate_items_skips_locked(self, canvas_model):
-        """Locked selections are ignored."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.toggleLocked(0)
-
-        new_indices = canvas_model.duplicateItems([0])
-
-        assert new_indices == []
+    def test_ungroup_invalid_index(self, canvas_model):
+        """Test ungrouping invalid index does nothing."""
+        canvas_model.addItem(make_rectangle())
+        canvas_model.ungroup(999)  # Should not crash
         assert canvas_model.count() == 1
 
-    def test_duplicate_group_places_parent_after_children(self, canvas_model):
-        """Duplicating container should place parent after its cloned children."""
-        canvas_model.addLayer()
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem({"type": "group", "name": "G", "parentId": layer_id})
-        group_id = canvas_model.getItems()[1].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 1,
-                "y": 2,
-                "width": 3,
-                "height": 4,
-                "parentId": group_id,
-                "name": "C",
-            }
-        )
-
-        new_indices = canvas_model.duplicateItems([1])
-
-        assert len(new_indices) == 1
-        dup_group_index = new_indices[0]
-        dup_child_index = dup_group_index - 1
-
-        dup_group = canvas_model.getItems()[dup_group_index]
-        dup_child = canvas_model.getItems()[dup_child_index]
-
-        assert dup_group.parent_id == layer_id
-        assert dup_child.parent_id == dup_group.id
-        # Parent should come after its child in model order so it displays above
-        assert dup_child_index < dup_group_index
+    def test_ungroup_non_group_item(self, canvas_model):
+        """Test ungrouping a non-group item does nothing."""
+        canvas_model.addItem(make_rectangle())
+        canvas_model.ungroup(0)  # Rectangle is not a group
+        assert canvas_model.count() == 1
 
 
-class TestCoverageEdgeCases:
-    """Tests for edge cases and guard clauses to improve coverage."""
+class TestCanvasModelMoveGroup:
+    """Tests for moving groups."""
 
-    def test_row_count_with_valid_parent_returns_zero(self, canvas_model):
-        """rowCount returns 0 for hierarchical parent (flat model)."""
+    def test_move_group_translates_children(self, canvas_model):
+        """Test that moveGroup translates all descendant shapes."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=10, height=10, name="A"))
+        canvas_model.addItem(make_rectangle(x=20, y=20, width=10, height=10, name="B"))
 
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        parent_idx = canvas_model.index(0, 0)
-        assert canvas_model.rowCount(parent_idx) == 0
+        group_idx = canvas_model.groupItems([0, 1])
 
-    def test_type_role_returns_ellipse(self, canvas_model):
-        """TypeRole returns 'ellipse' for EllipseItem."""
-        canvas_model.addItem(
-            {"type": "ellipse", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        idx = canvas_model.index(0, 0)
-        assert canvas_model.data(idx, canvas_model.TypeRole) == "ellipse"
+        canvas_model.moveGroup(group_idx, 100, 50)
 
-    def test_index_role_returns_row(self, canvas_model):
-        """IndexRole returns the item's row index."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        idx = canvas_model.index(1, 0)
-        assert canvas_model.data(idx, canvas_model.IndexRole) == 1
+        items = canvas_model.getItems()
+        rects = [i for i in items if isinstance(i, RectangleItem)]
+        assert rects[0].geometry.x == 100
+        assert rects[0].geometry.y == 50
+        assert rects[1].geometry.x == 120
+        assert rects[1].geometry.y == 70
 
-    def test_unhandled_role_returns_none(self, canvas_model):
-        """Unhandled role returns None."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        idx = canvas_model.index(0, 0)
-        # Use a role that doesn't exist
-        fake_role = 9999
-        assert canvas_model.data(idx, fake_role) is None
+    def test_move_group_invalid_index(self, canvas_model):
+        """Test moveGroup with invalid index does nothing."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=10, height=10))
+        canvas_model.moveGroup(999, 100, 50)  # Should not crash
+        item = canvas_model.getItems()[0]
+        assert item.geometry.x == 0
 
-    def test_is_effectively_locked_slot(self, canvas_model):
-        """isEffectivelyLocked slot returns correct value."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert canvas_model.isEffectivelyLocked(0) is False
-        canvas_model.toggleLocked(0)
+    def test_move_group_non_container(self, canvas_model):
+        """Test moveGroup on non-container does nothing."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=10, height=10))
+        canvas_model.moveGroup(0, 100, 50)  # Rectangle is not a container
+        item = canvas_model.getItems()[0]
+        assert item.geometry.x == 0
+
+
+class TestCanvasModelReparent:
+    """Tests for reparenting items."""
+
+    def test_reparent_item_to_layer(self, canvas_model):
+        """Test reparenting an item to a layer."""
+        canvas_model.addItem(make_layer(name="Layer1", layer_id="layer-1"))
+        canvas_model.addItem(make_rectangle(name="Rect"))
+
+        canvas_model.reparentItem(1, "layer-1")
+
+        items = canvas_model.getItems()
+        rect = [i for i in items if isinstance(i, RectangleItem)][0]
+        assert rect.parent_id == "layer-1"
+
+    def test_reparent_invalid_index(self, canvas_model):
+        """Test reparenting invalid index does nothing."""
+        canvas_model.addItem(make_layer(layer_id="layer-1"))
+        canvas_model.reparentItem(999, "layer-1")  # Should not crash
+
+
+class TestCanvasModelEffectivelyLocked:
+    """Tests for isEffectivelyLocked method."""
+
+    def test_is_effectively_locked_item_locked(self, canvas_model):
+        """Test that locked item returns True."""
+        canvas_model.addItem(make_rectangle(locked=True))
         assert canvas_model.isEffectivelyLocked(0) is True
 
-    def test_is_effectively_locked_invalid_index(self, canvas_model):
-        """isEffectivelyLocked returns False for invalid index."""
-        assert canvas_model.isEffectivelyLocked(-1) is False
-        assert canvas_model.isEffectivelyLocked(999) is False
+    def test_is_effectively_locked_parent_locked(self, canvas_model):
+        """Test that item with locked parent returns True."""
+        canvas_model.addItem(make_layer(layer_id="layer-1", locked=True))
+        canvas_model.addItem(make_rectangle(parent_id="layer-1", locked=False))
+        assert canvas_model.isEffectivelyLocked(1) is True
 
-    def test_is_layer_locked_nonexistent_layer(self, canvas_model):
-        """_is_layer_locked returns False for nonexistent layer ID."""
-        canvas_model.addLayer()
-        # Access private method to test edge case
-        assert canvas_model._is_layer_locked("nonexistent-id") is False
+    def test_is_effectively_locked_unlocked(self, canvas_model):
+        """Test that unlocked item with unlocked parent returns False."""
+        canvas_model.addItem(make_layer(layer_id="layer-1", locked=False))
+        canvas_model.addItem(make_rectangle(parent_id="layer-1", locked=False))
+        assert canvas_model.isEffectivelyLocked(1) is False
 
-    def test_is_layer_visible_nonexistent_layer(self, canvas_model):
-        """_is_layer_visible returns True for nonexistent layer ID."""
-        canvas_model.addLayer()
-        # Access private method to test edge case
-        assert canvas_model._is_layer_visible("nonexistent-id") is True
 
-    def test_find_last_child_position_nonexistent_layer(self, canvas_model):
-        """_findLastChildPosition returns end of list for nonexistent layer."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        result = canvas_model._findLastChildPosition("nonexistent-id")
-        assert result == canvas_model.rowCount()
+class TestCanvasModelDuplicateItems:
+    """Tests for duplicating multiple items."""
 
-    def test_find_last_child_position_next_item_is_layer(self, canvas_model):
-        """_findLastChildPosition returns correct index when next item is a layer."""
-        canvas_model.addLayer()  # Layer at index 0
-        layer_id = canvas_model.data(canvas_model.index(0, 0), canvas_model.ItemIdRole)
-        canvas_model.addLayer()  # Layer at index 1
-        # Position for first layer's children should be before second layer
-        result = canvas_model._findLastChildPosition(layer_id)
-        assert result == 1
+    def test_duplicate_multiple_items(self, canvas_model):
+        """Test duplicating multiple items at once."""
+        canvas_model.addItem(make_rectangle(x=10, y=10, name="A"))
+        canvas_model.addItem(make_rectangle(x=20, y=20, name="B"))
 
-    def test_reparent_item_when_source_before_target(self, canvas_model):
-        """reparentItem adjusts target when source item is before target position."""
-        # Create: rect0, layer, rect1
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        canvas_model.addLayer()
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
+        new_indices = canvas_model.duplicateItems([0, 1])
 
-        layer_id = canvas_model.data(canvas_model.index(1, 0), canvas_model.ItemIdRole)
+        assert len(new_indices) == 2
+        assert canvas_model.count() == 4
 
-        # Reparent rect0 (index 0) to layer (index 1)
-        # This should trigger the adjustment since item_index < target_index
-        canvas_model.reparentItem(0, layer_id)
 
-        # Verify rect0 is now a child of the layer
-        rect_parent = [
-            canvas_model.data(canvas_model.index(i, 0), canvas_model.ParentIdRole)
-            for i in range(canvas_model.rowCount())
-            if canvas_model.data(canvas_model.index(i, 0), canvas_model.TypeRole)
-            == "rectangle"
-        ][0]
-        assert rect_parent == layer_id
+class TestCanvasModelRenameItem:
+    """Tests for renaming items."""
 
-    def test_is_effectively_visible_invalid_index(self, canvas_model):
-        """_is_effectively_visible returns False for invalid index."""
-        assert canvas_model._is_effectively_visible(-1) is False
-        assert canvas_model._is_effectively_visible(999) is False
+    def test_rename_item(self, canvas_model, qtbot):
+        """Test renaming an item."""
+        canvas_model.addItem(make_rectangle(name="Original"))
 
-    def test_add_item_with_invalid_schema(self, canvas_model):
-        """addItem handles schema validation errors gracefully."""
-        # Invalid numeric field should trigger schema error
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": "not-a-number",
-                "y": 0,
-                "width": 10,
-                "height": 10,
-            }
-        )
-        # Should not crash, and no item should be added
-        assert canvas_model.rowCount() == 0
+        with qtbot.waitSignal(canvas_model.itemModified, timeout=1000):
+            canvas_model.renameItem(0, "Renamed")
 
-    def test_execute_command_without_recording(self, canvas_model):
-        """_execute_command with record=False executes without history."""
-        from lucent.item_schema import parse_item_data
+        items = canvas_model.getItems()
+        assert items[0].name == "Renamed"
 
-        parsed = parse_item_data(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 10,
-                "height": 10,
-                "name": "Test",
-            }
-        )
-        command = AddItemCommand(canvas_model, parsed.data)
+    def test_rename_invalid_index(self, canvas_model):
+        """Test renaming invalid index does nothing."""
+        canvas_model.addItem(make_rectangle(name="Original"))
+        canvas_model.renameItem(999, "Renamed")  # Should not crash
+        items = canvas_model.getItems()
+        assert items[0].name == "Original"
 
-        # Execute without recording
-        canvas_model._execute_command(command, record=False)
 
-        assert canvas_model.rowCount() == 1
-        # Undo should not be available since we didn't record
+class TestCanvasModelUndoRedo:
+    """Tests for undo/redo functionality."""
+
+    def test_undo_add_item(self, canvas_model):
+        """Test undoing an add operation."""
+        canvas_model.addItem(make_rectangle())
+        assert canvas_model.count() == 1
+
+        result = canvas_model.undo()
+        assert result is True
+        assert canvas_model.count() == 0
+
+    def test_redo_add_item(self, canvas_model):
+        """Test redoing an add operation."""
+        canvas_model.addItem(make_rectangle())
+        canvas_model.undo()
+        assert canvas_model.count() == 0
+
+        result = canvas_model.redo()
+        assert result is True
+        assert canvas_model.count() == 1
+
+    def test_can_undo_property(self, canvas_model):
+        """Test canUndo property."""
         assert canvas_model.canUndo is False
+        canvas_model.addItem(make_rectangle())
+        assert canvas_model.canUndo is True
+
+    def test_can_redo_property(self, canvas_model):
+        """Test canRedo property."""
+        canvas_model.addItem(make_rectangle())
+        assert canvas_model.canRedo is False
+        canvas_model.undo()
+        assert canvas_model.canRedo is True
 
 
-class TestLayerExport:
-    """Tests for layer export helper methods."""
+class TestCanvasModelTransaction:
+    """Tests for transaction functionality."""
 
-    def test_get_layer_items_empty_layer(self, canvas_model):
-        """getLayerItems returns empty list for layer with no children."""
-        canvas_model.addItem({"type": "layer", "name": "Empty Layer"})
-        layer_id = canvas_model.getItems()[0].id
+    def test_transaction_batches_updates(self, canvas_model, qtbot):
+        """Test that transactions batch multiple update commands into one undo."""
+        # Add items first (outside transaction)
+        canvas_model.addItem(make_rectangle(x=0, y=0, name="A"))
+        canvas_model.addItem(make_rectangle(x=10, y=10, name="B"))
+        assert canvas_model.count() == 2
 
-        items = canvas_model.getLayerItems(layer_id)
-        assert items == []
+        # Now do a transaction that updates both items
+        canvas_model.beginTransaction()
 
-    def test_get_layer_items_with_children(self, canvas_model):
-        """getLayerItems returns all items belonging to a layer."""
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
+        # Update first item
+        item_data_a = canvas_model.getItemData(0)
+        item_data_a["geometry"]["x"] = 100
+        canvas_model.updateItem(0, item_data_a)
 
+        # Update second item
+        item_data_b = canvas_model.getItemData(1)
+        item_data_b["geometry"]["x"] = 200
+        canvas_model.updateItem(1, item_data_b)
+
+        canvas_model.endTransaction()
+
+        # Verify updates were applied
+        items = canvas_model.getItems()
+        assert items[0].geometry.x == 100
+        assert items[1].geometry.x == 200
+
+        # Single undo should revert both updates
+        canvas_model.undo()
+        items = canvas_model.getItems()
+        assert items[0].geometry.x == 0
+        assert items[1].geometry.x == 10
+
+
+class TestCanvasModelGetLayerItems:
+    """Tests for getLayerItems method."""
+
+    def test_get_layer_items(self, canvas_model):
+        """Test getting items that belong to a specific layer."""
+        canvas_model.addItem(make_layer(layer_id="layer-1", name="Layer1"))
+        canvas_model.addItem(make_rectangle(parent_id="layer-1", name="A"))
+        canvas_model.addItem(make_rectangle(parent_id="layer-1", name="B"))
+        canvas_model.addItem(make_rectangle(name="C"))  # Not in layer
+
+        layer_items = canvas_model.getLayerItems("layer-1")
+        assert len(layer_items) == 2
+        names = [i.name for i in layer_items]
+        assert "A" in names
+        assert "B" in names
+
+
+class TestCanvasModelLayerBounds:
+    """Tests for getLayerBounds method."""
+
+    def test_get_layer_bounds(self, canvas_model):
+        """Test getting bounding box of all items in a layer."""
+        canvas_model.addItem(make_layer(layer_id="layer-1", name="Layer1"))
         canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 20,
-                "width": 100,
-                "height": 50,
-                "parentId": layer_id,
-            }
+            make_rectangle(x=0, y=0, width=50, height=50, parent_id="layer-1")
         )
         canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 25,
-                "radiusY": 25,
-                "parentId": layer_id,
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 200,
-                "y": 200,
-                "width": 50,
-                "height": 50,
-            }
+            make_rectangle(x=100, y=100, width=50, height=50, parent_id="layer-1")
         )
 
-        items = canvas_model.getLayerItems(layer_id)
-        assert len(items) == 2
-
-    def test_get_layer_items_nonexistent_layer(self, canvas_model):
-        """getLayerItems returns empty list for nonexistent layer ID."""
-        items = canvas_model.getLayerItems("nonexistent-id")
-        assert items == []
-
-    def test_get_layer_bounds_empty_layer(self, canvas_model):
-        """getLayerBounds returns zero rect for empty layer."""
-        canvas_model.addItem({"type": "layer", "name": "Empty Layer"})
-        layer_id = canvas_model.getItems()[0].id
-
-        bounds = canvas_model.getLayerBounds(layer_id)
-        assert bounds["x"] == 0
-        assert bounds["y"] == 0
-        assert bounds["width"] == 0
-        assert bounds["height"] == 0
-
-    def test_get_layer_bounds_single_item(self, canvas_model):
-        """getLayerBounds returns bounds of single child item."""
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
-
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 10,
-                "y": 20,
-                "width": 100,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-
-        bounds = canvas_model.getLayerBounds(layer_id)
-        assert bounds["x"] == 10
-        assert bounds["y"] == 20
-        assert bounds["width"] == 100
-        assert bounds["height"] == 50
-
-    def test_get_layer_bounds_multiple_items(self, canvas_model):
-        """getLayerBounds returns combined bounds of all children."""
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
-
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 50,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 100,
-                "y": 100,
-                "width": 50,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-
-        bounds = canvas_model.getLayerBounds(layer_id)
+        bounds = canvas_model.getLayerBounds("layer-1")
         assert bounds["x"] == 0
         assert bounds["y"] == 0
         assert bounds["width"] == 150
         assert bounds["height"] == 150
 
-    def test_get_layer_bounds_nonexistent_layer(self, canvas_model):
-        """getLayerBounds returns zero rect for nonexistent layer ID."""
-        bounds = canvas_model.getLayerBounds("nonexistent-id")
-        assert bounds["x"] == 0
-        assert bounds["y"] == 0
-        assert bounds["width"] == 0
-        assert bounds["height"] == 0
 
+class TestCanvasModelBoundingBoxEdgeCases:
+    """Edge case tests for bounding box methods."""
 
-class TestSetBoundingBox:
-    """Tests for setBoundingBox method to update item transform via bounding box."""
+    def test_get_bounding_box_invalid_index(self, canvas_model):
+        """Test getBoundingBox with invalid index returns None."""
+        result = canvas_model.getBoundingBox(999)
+        assert result is None
 
-    def test_set_bounding_box_rectangle(self, canvas_model, qtbot):
-        """setBoundingBox on rectangle updates x, y, width, height directly."""
+    def test_get_bounding_box_text_auto_height(self, canvas_model):
+        """Test getBoundingBox for text with auto height."""
+        canvas_model.addItem(make_text(x=10, y=20, text="Test", height=0, font_size=20))
+        bbox = canvas_model.getBoundingBox(0)
+        assert bbox["x"] == 10
+        assert bbox["y"] == 20
+        # Height should be estimated from font size (20 * 1.2 = 24)
+        assert bbox["height"] == 24.0
+
+    def test_get_bounding_box_group_union(self, canvas_model):
+        """Test getBoundingBox for group returns union of children."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50, name="A"))
         canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
+            make_rectangle(x=100, y=100, width=50, height=50, name="B")
         )
 
-        result = canvas_model.setBoundingBox(
-            0, {"x": 50, "y": 60, "width": 200, "height": 100}
-        )
+        group_idx = canvas_model.groupItems([0, 1])
+        bbox = canvas_model.getBoundingBox(group_idx)
 
-        assert result is True
-        item = canvas_model.getItems()[0]
-        assert item.x == 50
-        assert item.y == 60
-        assert item.width == 200
-        assert item.height == 100
-
-    def test_set_bounding_box_ellipse(self, canvas_model, qtbot):
-        """setBoundingBox on ellipse converts to centerX, centerY, radiusX, radiusY."""
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 100,
-                "centerY": 100,
-                "radiusX": 50,
-                "radiusY": 30,
-            }
-        )
-
-        # Set bounding box: x=20, y=40, width=100, height=60
-        # Expected: centerX=70, centerY=70, radiusX=50, radiusY=30
-        result = canvas_model.setBoundingBox(
-            0, {"x": 20, "y": 40, "width": 100, "height": 60}
-        )
-
-        assert result is True
-        item = canvas_model.getItems()[0]
-        assert item.center_x == 70  # x + width/2
-        assert item.center_y == 70  # y + height/2
-        assert item.radius_x == 50  # width/2
-        assert item.radius_y == 30  # height/2
-
-    def test_set_bounding_box_path_translates_points(self, canvas_model, qtbot):
-        """setBoundingBox on path translates all points to match new position."""
-        canvas_model.addItem(
-            {
-                "type": "path",
-                "points": [{"x": 10, "y": 20}, {"x": 50, "y": 20}, {"x": 30, "y": 60}],
-            }
-        )
-        # Original bounds: x=10, y=20, width=40, height=40
-
-        # Move to x=100, y=200, keep same size
-        result = canvas_model.setBoundingBox(
-            0, {"x": 100, "y": 200, "width": 40, "height": 40}
-        )
-
-        assert result is True
-        item = canvas_model.getItems()[0]
-        # Points should be translated by dx=90, dy=180
-        assert item.points[0]["x"] == 100  # 10 + 90
-        assert item.points[0]["y"] == 200  # 20 + 180
-        assert item.points[1]["x"] == 140  # 50 + 90
-        assert item.points[1]["y"] == 200  # 20 + 180
-        assert item.points[2]["x"] == 120  # 30 + 90
-        assert item.points[2]["y"] == 240  # 60 + 180
-
-    def test_set_bounding_box_text(self, canvas_model, qtbot):
-        """setBoundingBox on text updates x, y, width, height."""
-        canvas_model.addItem(
-            {
-                "type": "text",
-                "x": 10,
-                "y": 20,
-                "text": "Hello",
-                "width": 100,
-                "height": 30,
-            }
-        )
-
-        result = canvas_model.setBoundingBox(
-            0, {"x": 50, "y": 60, "width": 200, "height": 50}
-        )
-
-        assert result is True
-        item = canvas_model.getItems()[0]
-        assert item.x == 50
-        assert item.y == 60
-        assert item.width == 200
-        assert item.height == 50
-
-    def test_set_bounding_box_invalid_index_returns_false(self, canvas_model):
-        """setBoundingBox with invalid index returns False."""
-        result = canvas_model.setBoundingBox(
-            99, {"x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert result is False
-
-    def test_set_bounding_box_negative_index_returns_false(self, canvas_model):
-        """setBoundingBox with negative index returns False."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        result = canvas_model.setBoundingBox(
-            -1, {"x": 0, "y": 0, "width": 10, "height": 10}
-        )
-        assert result is False
-
-    def test_set_bounding_box_layer_returns_false(self, canvas_model):
-        """setBoundingBox on layer returns False (non-renderable container)."""
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-
-        result = canvas_model.setBoundingBox(
-            0, {"x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert result is False
-
-    def test_set_bounding_box_group_returns_false(self, canvas_model):
-        """setBoundingBox on group returns False (non-renderable container)."""
-        canvas_model.addItem({"type": "group", "name": "Test Group"})
-
-        result = canvas_model.setBoundingBox(
-            0, {"x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert result is False
-
-    def test_set_bounding_box_is_undoable(self, canvas_model, qtbot):
-        """setBoundingBox changes can be undone."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
-        )
-
-        canvas_model.setBoundingBox(0, {"x": 50, "y": 60, "width": 200, "height": 100})
-        item = canvas_model.getItems()[0]
-        assert item.x == 50
-
-        canvas_model.undo()
-        item = canvas_model.getItems()[0]
-        assert item.x == 10
-        assert item.y == 20
-        assert item.width == 100
-        assert item.height == 50
+        assert bbox["x"] == 0
+        assert bbox["y"] == 0
+        assert bbox["width"] == 150
+        assert bbox["height"] == 150

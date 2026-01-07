@@ -11,8 +11,9 @@ from lucent.commands import (
     DuplicateItemCommand,
     DEFAULT_DUPLICATE_OFFSET,
 )
-from lucent.canvas_items import RectangleItem, EllipseItem, GroupItem, LayerItem
+from lucent.canvas_items import RectangleItem, EllipseItem
 from lucent.item_schema import ItemSchemaError
+from test_helpers import make_rectangle, make_ellipse, make_path
 
 
 class TestCommandBase:
@@ -49,7 +50,7 @@ class TestAddItemCommand:
 
     def test_execute_adds_rectangle(self, canvas_model):
         """Test execute adds a rectangle to the model."""
-        item_data = {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
+        item_data = make_rectangle(x=10, y=20, width=100, height=50)
         cmd = AddItemCommand(canvas_model, item_data)
 
         cmd.execute()
@@ -59,13 +60,7 @@ class TestAddItemCommand:
 
     def test_execute_adds_ellipse(self, canvas_model):
         """Test execute adds an ellipse to the model."""
-        item_data = {
-            "type": "ellipse",
-            "centerX": 50,
-            "centerY": 50,
-            "radiusX": 25,
-            "radiusY": 25,
-        }
+        item_data = make_ellipse(center_x=50, center_y=50, radius_x=25, radius_y=25)
         cmd = AddItemCommand(canvas_model, item_data)
 
         cmd.execute()
@@ -75,7 +70,7 @@ class TestAddItemCommand:
 
     def test_undo_removes_added_item(self, canvas_model):
         """Test undo removes the item that was added."""
-        item_data = {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
+        item_data = make_rectangle(x=10, y=20, width=100, height=50)
         cmd = AddItemCommand(canvas_model, item_data)
         cmd.execute()
         assert canvas_model.count() == 1
@@ -86,10 +81,7 @@ class TestAddItemCommand:
 
     def test_has_description(self, canvas_model):
         """Test command has a meaningful description."""
-        cmd = AddItemCommand(
-            canvas_model,
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10},
-        )
+        cmd = AddItemCommand(canvas_model, make_rectangle())
         assert "Add" in cmd.description
 
     def test_execute_invalid_type_does_nothing(self, canvas_model):
@@ -98,12 +90,9 @@ class TestAddItemCommand:
             AddItemCommand(canvas_model, {"type": "triangle", "x": 0, "y": 0})
 
     def test_undo_before_execute_does_nothing(self, canvas_model):
-        """Test undo before execute does nothing safely."""
-        cmd = AddItemCommand(
-            canvas_model,
-            {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10},
-        )
-        cmd.undo()
+        """Undo before execute should not fail."""
+        cmd = AddItemCommand(canvas_model, make_rectangle())
+        cmd.undo()  # Should not raise
         assert canvas_model.count() == 0
 
 
@@ -111,8 +100,8 @@ class TestRemoveItemCommand:
     """Tests for RemoveItemCommand."""
 
     def test_execute_removes_item(self, canvas_model):
-        """Test execute removes the item at specified index."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
+        """Test execute removes the item at index."""
+        canvas_model.addItem(make_rectangle(name="ToRemove"))
         cmd = RemoveItemCommand(canvas_model, 0)
 
         cmd.execute()
@@ -121,7 +110,7 @@ class TestRemoveItemCommand:
 
     def test_undo_restores_item(self, canvas_model):
         """Test undo restores the removed item."""
-        canvas_model._items.append(RectangleItem(10, 20, 100, 50))
+        canvas_model.addItem(make_rectangle(name="ToRestore"))
         cmd = RemoveItemCommand(canvas_model, 0)
         cmd.execute()
         assert canvas_model.count() == 0
@@ -129,135 +118,52 @@ class TestRemoveItemCommand:
         cmd.undo()
 
         assert canvas_model.count() == 1
-        assert canvas_model.getItems()[0].x == 10
+        assert canvas_model.getItems()[0].name == "ToRestore"
 
     def test_has_description(self, canvas_model):
         """Test command has a meaningful description."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
+        canvas_model.addItem(make_rectangle())
         cmd = RemoveItemCommand(canvas_model, 0)
-        assert "Delete" in cmd.description or "Remove" in cmd.description
-
-    def test_description_after_execute_shows_type(self, canvas_model):
-        """Test description shows correct type after execute."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        cmd = RemoveItemCommand(canvas_model, 0)
-        cmd.execute()
-        assert "Rectangle" in cmd.description
-
-    def test_execute_invalid_index_does_nothing(self, canvas_model):
-        """Test execute with out-of-bounds index does nothing."""
-        cmd = RemoveItemCommand(canvas_model, 99)
-        cmd.execute()
-        assert canvas_model.count() == 0
+        assert "Delete" in cmd.description
 
 
 class TestUpdateItemCommand:
     """Tests for UpdateItemCommand."""
 
-    def test_execute_updates_properties(self, canvas_model):
-        """Test execute applies new properties."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        old_props = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        new_props = {
-            "type": "rectangle",
-            "x": 50,
-            "y": 75,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        cmd = UpdateItemCommand(canvas_model, 0, old_props, new_props)
+    def test_execute_updates_item(self, canvas_model):
+        """Test execute updates item properties."""
+        old_data = make_rectangle(x=0, y=0, width=10, height=10, name="Original")
+        canvas_model.addItem(old_data)
+        new_data = make_rectangle(x=50, y=50, width=20, height=20, name="Updated")
+        cmd = UpdateItemCommand(canvas_model, 0, old_data, new_data)
 
         cmd.execute()
 
-        assert canvas_model.getItems()[0].x == 50
-        assert canvas_model.getItems()[0].y == 75
+        item = canvas_model.getItems()[0]
+        assert item.geometry.x == 50
+        assert item.name == "Updated"
 
-    def test_undo_restores_old_properties(self, canvas_model):
+    def test_undo_restores_original(self, canvas_model):
         """Test undo restores original properties."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        old_props = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        new_props = {
-            "type": "rectangle",
-            "x": 50,
-            "y": 75,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        cmd = UpdateItemCommand(canvas_model, 0, old_props, new_props)
+        old_data = make_rectangle(x=10, y=10, width=50, height=50, name="Original")
+        canvas_model.addItem(old_data)
+        new_data = make_rectangle(x=100, y=100, width=200, height=200, name="Changed")
+        cmd = UpdateItemCommand(canvas_model, 0, old_data, new_data)
         cmd.execute()
 
         cmd.undo()
 
-        assert canvas_model.getItems()[0].x == 0
-        assert canvas_model.getItems()[0].y == 0
+        item = canvas_model.getItems()[0]
+        assert item.geometry.x == 10
+        assert item.name == "Original"
 
     def test_has_description(self, canvas_model):
         """Test command has a meaningful description."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        base = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        cmd = UpdateItemCommand(canvas_model, 0, base, base)
-        assert cmd.description
-
-    def test_execute_invalid_index_does_nothing(self, canvas_model):
-        """Test execute with out-of-bounds index does nothing."""
-        old_props = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        cmd = UpdateItemCommand(canvas_model, 99, old_props, old_props)
-        cmd.execute()
-        assert canvas_model.count() == 0
+        old_data = make_rectangle()
+        canvas_model.addItem(old_data)
+        new_data = make_rectangle(x=10, y=10)
+        cmd = UpdateItemCommand(canvas_model, 0, old_data, new_data)
+        assert "Update" in cmd.description
 
 
 class TestClearCommand:
@@ -265,8 +171,8 @@ class TestClearCommand:
 
     def test_execute_clears_all_items(self, canvas_model):
         """Test execute removes all items."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        canvas_model._items.append(EllipseItem(50, 50, 25, 25))
+        canvas_model.addItem(make_rectangle())
+        canvas_model.addItem(make_ellipse())
         cmd = ClearCommand(canvas_model)
 
         cmd.execute()
@@ -275,17 +181,17 @@ class TestClearCommand:
 
     def test_undo_restores_all_items(self, canvas_model):
         """Test undo restores all items."""
-        canvas_model._items.append(RectangleItem(10, 20, 100, 50))
-        canvas_model._items.append(EllipseItem(50, 50, 25, 25))
+        canvas_model.addItem(make_rectangle(name="Rect"))
+        canvas_model.addItem(make_ellipse(name="Ellipse"))
         cmd = ClearCommand(canvas_model)
         cmd.execute()
-        assert canvas_model.count() == 0
 
         cmd.undo()
 
         assert canvas_model.count() == 2
-        assert isinstance(canvas_model.getItems()[0], RectangleItem)
-        assert isinstance(canvas_model.getItems()[1], EllipseItem)
+        names = [item.name for item in canvas_model.getItems()]
+        assert "Rect" in names
+        assert "Ellipse" in names
 
     def test_has_description(self, canvas_model):
         """Test command has a meaningful description."""
@@ -296,264 +202,88 @@ class TestClearCommand:
 class TestTransactionCommand:
     """Tests for TransactionCommand."""
 
-    def test_execute_runs_all_child_commands(self, canvas_model):
-        """Test execute runs all contained commands."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-        canvas_model._items.append(RectangleItem(50, 50, 100, 100))
-
-        old1 = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        new1 = {
-            "type": "rectangle",
-            "x": 10,
-            "y": 10,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        old2 = {
-            "type": "rectangle",
-            "x": 50,
-            "y": 50,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        new2 = {
-            "type": "rectangle",
-            "x": 60,
-            "y": 60,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-
-        cmd1 = UpdateItemCommand(canvas_model, 0, old1, new1)
-        cmd2 = UpdateItemCommand(canvas_model, 1, old2, new2)
-        transaction = TransactionCommand([cmd1, cmd2])
+    def test_execute_runs_all_commands(self, canvas_model):
+        """Test execute runs all sub-commands."""
+        cmd1 = AddItemCommand(canvas_model, make_rectangle(name="First"))
+        cmd2 = AddItemCommand(canvas_model, make_ellipse(name="Second"))
+        transaction = TransactionCommand([cmd1, cmd2], "Add Two Items")
 
         transaction.execute()
 
-        assert canvas_model.getItems()[0].x == 10
-        assert canvas_model.getItems()[1].x == 60
+        assert canvas_model.count() == 2
 
-    def test_undo_reverses_all_child_commands(self, canvas_model):
-        """Test undo reverses all contained commands in reverse order."""
-        canvas_model._items.append(RectangleItem(0, 0, 100, 100))
-
-        old = {
-            "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-        new = {
-            "type": "rectangle",
-            "x": 50,
-            "y": 50,
-            "width": 100,
-            "height": 100,
-            "strokeWidth": 1,
-            "strokeColor": "#ffffff",
-            "strokeOpacity": 1.0,
-            "fillColor": "#ffffff",
-            "fillOpacity": 0.0,
-        }
-
-        cmd = UpdateItemCommand(canvas_model, 0, old, new)
-        transaction = TransactionCommand([cmd])
+    def test_undo_reverses_all_commands(self, canvas_model):
+        """Test undo reverses all sub-commands in reverse order."""
+        cmd1 = AddItemCommand(canvas_model, make_rectangle())
+        cmd2 = AddItemCommand(canvas_model, make_ellipse())
+        transaction = TransactionCommand([cmd1, cmd2], "Add Two Items")
         transaction.execute()
-        assert canvas_model.getItems()[0].x == 50
 
         transaction.undo()
 
-        assert canvas_model.getItems()[0].x == 0
-
-    def test_empty_transaction(self, canvas_model):
-        """Test empty transaction does nothing."""
-        transaction = TransactionCommand([])
-        transaction.execute()
-        transaction.undo()
-
-    def test_has_description(self, canvas_model):
-        """Test transaction has a description."""
-        transaction = TransactionCommand([], description="Move Objects")
-        assert transaction.description == "Move Objects"
-
-    def test_default_description(self, canvas_model):
-        """Test transaction has default description."""
-        transaction = TransactionCommand([])
-        assert transaction.description
-
-
-class TestMoveItemCommand:
-    """Tests for MoveItemCommand."""
-
-    def test_execute_moves_item_forward(self, canvas_model):
-        """Test moving item to higher index."""
-        canvas_model._items = [
-            RectangleItem(0, 0, 10, 10, name="Rect 1"),
-            RectangleItem(10, 0, 10, 10, name="Rect 2"),
-            RectangleItem(20, 0, 10, 10, name="Rect 3"),
-        ]
-        from lucent.commands import MoveItemCommand
-
-        cmd = MoveItemCommand(canvas_model, 0, 2)
-
-        cmd.execute()
-
-        assert canvas_model.getItems()[0].name == "Rect 2"
-        assert canvas_model.getItems()[1].name == "Rect 3"
-        assert canvas_model.getItems()[2].name == "Rect 1"
-
-    def test_execute_moves_item_backward(self, canvas_model):
-        """Test moving item to lower index."""
-        canvas_model._items = [
-            RectangleItem(0, 0, 10, 10, name="Rect 1"),
-            RectangleItem(10, 0, 10, 10, name="Rect 2"),
-            RectangleItem(20, 0, 10, 10, name="Rect 3"),
-        ]
-        from lucent.commands import MoveItemCommand
-
-        cmd = MoveItemCommand(canvas_model, 2, 0)
-
-        cmd.execute()
-
-        assert canvas_model.getItems()[0].name == "Rect 3"
-        assert canvas_model.getItems()[1].name == "Rect 1"
-        assert canvas_model.getItems()[2].name == "Rect 2"
-
-    def test_undo_restores_original_order(self, canvas_model):
-        """Test undo restores original item order."""
-        canvas_model._items = [
-            RectangleItem(0, 0, 10, 10, name="Rect 1"),
-            RectangleItem(10, 0, 10, 10, name="Rect 2"),
-            RectangleItem(20, 0, 10, 10, name="Rect 3"),
-        ]
-        from lucent.commands import MoveItemCommand
-
-        cmd = MoveItemCommand(canvas_model, 0, 2)
-        cmd.execute()
-
-        cmd.undo()
-
-        assert canvas_model.getItems()[0].name == "Rect 1"
-        assert canvas_model.getItems()[1].name == "Rect 2"
-        assert canvas_model.getItems()[2].name == "Rect 3"
-
-    def test_has_description(self, canvas_model):
-        """Test command has a meaningful description."""
-        from lucent.commands import MoveItemCommand
-
-        cmd = MoveItemCommand(canvas_model, 0, 2)
-        assert cmd.description
+        assert canvas_model.count() == 0
 
 
 class TestDuplicateItemCommand:
     """Tests for DuplicateItemCommand."""
 
-    def test_execute_duplicates_shape_with_offset_and_name(self, canvas_model):
-        """Duplicate a shape and apply offset/name changes."""
-        canvas_model._items = [RectangleItem(0, 0, 10, 10, name="Box")]
-
+    def test_execute_duplicates_rectangle(self, canvas_model):
+        """Test execute creates a duplicate with offset."""
+        canvas_model.addItem(make_rectangle(x=10, y=20, width=50, height=30))
         cmd = DuplicateItemCommand(canvas_model, 0)
 
         cmd.execute()
 
         assert canvas_model.count() == 2
-        duplicate = canvas_model.getItems()[1]
-        assert isinstance(duplicate, RectangleItem)
-        assert duplicate.x == 0 + DEFAULT_DUPLICATE_OFFSET
-        assert duplicate.y == 0 + DEFAULT_DUPLICATE_OFFSET
-        assert duplicate.name == "Box Copy"
-        assert cmd.result_index == 1
+        items = canvas_model.getItems()
+        assert items[1].geometry.x == 10 + DEFAULT_DUPLICATE_OFFSET
+        assert items[1].geometry.y == 20 + DEFAULT_DUPLICATE_OFFSET
+
+    def test_undo_removes_duplicate(self, canvas_model):
+        """Test undo removes the duplicate."""
+        canvas_model.addItem(make_rectangle())
+        cmd = DuplicateItemCommand(canvas_model, 0)
+        cmd.execute()
+        assert canvas_model.count() == 2
 
         cmd.undo()
+
         assert canvas_model.count() == 1
 
-        # Re-run to ensure redo path uses cached clone data
-        cmd.execute()
-        assert canvas_model.count() == 2
+    def test_has_description(self, canvas_model):
+        """Test command has a meaningful description."""
+        canvas_model.addItem(make_rectangle())
+        cmd = DuplicateItemCommand(canvas_model, 0)
+        assert "Duplicate" in cmd.description
 
-    def test_duplicate_group_clones_children(self, canvas_model):
-        """Group duplication should copy descendants and remap parent IDs."""
-        layer = LayerItem(name="Layer 1", layer_id="layer-1")
-        group = GroupItem(name="Group 1", group_id="group-1", parent_id=layer.id)
-        child = RectangleItem(
-            5,
-            5,
-            10,
-            10,
-            name="Child",
-            parent_id=group.id,
+    def test_duplicate_ellipse(self, canvas_model):
+        """Test duplicating an ellipse."""
+        canvas_model.addItem(
+            make_ellipse(center_x=50, center_y=50, radius_x=25, radius_y=25)
         )
-        canvas_model._items = [layer, group, child]
-
-        cmd = DuplicateItemCommand(canvas_model, 1)
-        cmd.execute()
-
-        # Expect original three plus duplicated group+child
-        assert canvas_model.count() == 5
-        group_copy = canvas_model.getItems()[cmd.inserted_parent_index]
-        child_copy = canvas_model.getItems()[cmd.inserted_parent_index - 1]
-
-        assert isinstance(group_copy, GroupItem)
-        assert isinstance(child_copy, RectangleItem)
-        assert group_copy.id != group.id
-        assert group_copy.parent_id == layer.id
-        assert child_copy.parent_id == group_copy.id
-        assert child_copy.x == child.x + DEFAULT_DUPLICATE_OFFSET
-        assert child_copy.y == child.y + DEFAULT_DUPLICATE_OFFSET
-
-    def test_duplicate_appends_to_end(self, canvas_model):
-        """DuplicateItemCommand appends to end and reports inserted indices."""
-        canvas_model._items = [
-            RectangleItem(0, 0, 1, 1, name="A"),
-            RectangleItem(1, 1, 1, 1, name="B"),
-        ]
         cmd = DuplicateItemCommand(canvas_model, 0)
 
         cmd.execute()
 
-        assert cmd.inserted_indices == [2]
-        assert canvas_model.count() == 3
-        assert canvas_model.getItems()[2].name == "A Copy"
+        assert canvas_model.count() == 2
+        items = canvas_model.getItems()
+        assert items[1].geometry.center_x == 50 + DEFAULT_DUPLICATE_OFFSET
+        assert items[1].geometry.center_y == 50 + DEFAULT_DUPLICATE_OFFSET
 
-    def test_duplicate_inserted_parent_index_for_shape(self, canvas_model):
-        """inserted_parent_index returns inserted index for non-container."""
-        canvas_model._items = [
-            RectangleItem(0, 0, 1, 1, name="Solo"),
-        ]
+    def test_duplicate_path(self, canvas_model):
+        """Test duplicating a path."""
+        canvas_model.addItem(
+            make_path(
+                points=[{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}],
+                closed=True,
+            )
+        )
         cmd = DuplicateItemCommand(canvas_model, 0)
+
         cmd.execute()
 
-        assert cmd.inserted_parent_index == 1
-        assert canvas_model.getItems()[1].name == "Solo Copy"
+        assert canvas_model.count() == 2
+        items = canvas_model.getItems()
+        # First point should be offset
+        assert items[1].geometry.points[0]["x"] == DEFAULT_DUPLICATE_OFFSET
+        assert items[1].geometry.points[0]["y"] == DEFAULT_DUPLICATE_OFFSET

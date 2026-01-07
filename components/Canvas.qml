@@ -314,37 +314,76 @@ Item {
             } else if (data.type === "rectangle") {
                 if (data.parentId && containerIds[data.parentId])
                     continue;
+                // Update geometry with new position
+                var rectGeom = Object.assign({}, data.geometry);
+                rectGeom.x = rectGeom.x + canvasDx;
+                rectGeom.y = rectGeom.y + canvasDy;
                 canvasModel.updateItem(idx, {
-                    x: data.x + canvasDx,
-                    y: data.y + canvasDy
+                    type: data.type,
+                    geometry: rectGeom,
+                    appearances: data.appearances,
+                    name: data.name,
+                    parentId: data.parentId,
+                    visible: data.visible,
+                    locked: data.locked
                 });
             } else if (data.type === "ellipse") {
                 if (data.parentId && containerIds[data.parentId])
                     continue;
+                var ellipseGeom = Object.assign({}, data.geometry);
+                ellipseGeom.centerX = ellipseGeom.centerX + canvasDx;
+                ellipseGeom.centerY = ellipseGeom.centerY + canvasDy;
                 canvasModel.updateItem(idx, {
-                    centerX: data.centerX + canvasDx,
-                    centerY: data.centerY + canvasDy
+                    type: data.type,
+                    geometry: ellipseGeom,
+                    appearances: data.appearances,
+                    name: data.name,
+                    parentId: data.parentId,
+                    visible: data.visible,
+                    locked: data.locked
                 });
             } else if (data.type === "text") {
                 if (data.parentId && containerIds[data.parentId])
                     continue;
                 canvasModel.updateItem(idx, {
+                    type: data.type,
                     x: data.x + canvasDx,
-                    y: data.y + canvasDy
+                    y: data.y + canvasDy,
+                    width: data.width,
+                    height: data.height,
+                    text: data.text,
+                    fontFamily: data.fontFamily,
+                    fontSize: data.fontSize,
+                    textColor: data.textColor,
+                    textOpacity: data.textOpacity,
+                    name: data.name,
+                    parentId: data.parentId,
+                    visible: data.visible,
+                    locked: data.locked
                 });
             } else if (data.type === "path") {
                 if (data.parentId && containerIds[data.parentId])
                     continue;
-                // Move path by translating all points
+                // Move path by translating all points in geometry
+                var pathGeom = data.geometry;
                 var newPoints = [];
-                for (var p = 0; p < data.points.length; p++) {
+                for (var p = 0; p < pathGeom.points.length; p++) {
                     newPoints.push({
-                        x: data.points[p].x + canvasDx,
-                        y: data.points[p].y + canvasDy
+                        x: pathGeom.points[p].x + canvasDx,
+                        y: pathGeom.points[p].y + canvasDy
                     });
                 }
                 canvasModel.updateItem(idx, {
-                    points: newPoints
+                    type: data.type,
+                    geometry: {
+                        points: newPoints,
+                        closed: pathGeom.closed
+                    },
+                    appearances: data.appearances,
+                    name: data.name,
+                    parentId: data.parentId,
+                    visible: data.visible,
+                    locked: data.locked
                 });
             }
         }

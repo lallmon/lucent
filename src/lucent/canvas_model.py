@@ -40,6 +40,21 @@ from lucent.item_schema import (
     ItemSchemaError,
     ItemType,
 )
+from lucent.hierarchy import (
+    get_container_by_id,
+    get_direct_children_indices,
+    get_descendant_indices,
+    is_descendant_of,
+    is_effectively_visible,
+    is_effectively_locked,
+)
+from lucent.bounding_box import (
+    union_bounds,
+    get_item_bounds,
+    translate_path_to_bounds,
+    bbox_to_ellipse_geometry,
+)
+from lucent.render_query import get_render_items, get_hit_test_items
 
 
 class CanvasModel(QAbstractListModel):
@@ -186,16 +201,18 @@ class CanvasModel(QAbstractListModel):
         self._type_counters[item_type] = self._type_counters.get(item_type, 0) + 1
         return f"{type_name} {self._type_counters[item_type]}"
 
+    @staticmethod
+    def _is_container(item: CanvasItem) -> bool:
+        """Check if an item is a container (Layer or Group)."""
+        return isinstance(item, (LayerItem, GroupItem))
+
+    @staticmethod
+    def _is_renderable(item: CanvasItem) -> bool:
+        """Check if an item is renderable (not a container)."""
+        return isinstance(item, (RectangleItem, EllipseItem, PathItem, TextItem))
+
     def _get_container_by_id(self, container_id: Optional[str]) -> Optional[CanvasItem]:
-        if not container_id:
-            return None
-        for candidate in self._items:
-            if (
-                isinstance(candidate, (LayerItem, GroupItem))
-                and candidate.id == container_id
-            ):
-                return candidate
-        return None
+        return get_container_by_id(self._items, container_id, self._is_container)
 
     def _is_layer_visible(self, layer_id: str) -> bool:
         container = self._get_container_by_id(layer_id)
@@ -207,35 +224,16 @@ class CanvasModel(QAbstractListModel):
 
     def _is_descendant_of(self, candidate_id: Optional[str], ancestor_id: str) -> bool:
         """Check if container with candidate_id is a descendant of ancestor_id."""
-        current = self._get_container_by_id(candidate_id)
-        visited = set()
-        while current and current.id not in visited:
-            visited.add(current.id)
-            parent_id = getattr(current, "parent_id", None)
-            if parent_id == ancestor_id:
-                return True
-            current = self._get_container_by_id(parent_id)
-        return False
+        return is_descendant_of(
+            self._items, candidate_id, ancestor_id, self._is_container
+        )
 
     def _get_direct_children_indices(self, container_id: str) -> List[int]:
-        return [
-            i
-            for i, child in enumerate(self._items)
-            if getattr(child, "parent_id", None) == container_id
-        ]
+        return get_direct_children_indices(self._items, container_id)
 
     def _get_descendant_indices(self, container_id: str) -> List[int]:
         """Return indices of all descendants (any depth) of a container."""
-        result: List[int] = []
-        queue = list(self._get_direct_children_indices(container_id))
-        while queue:
-            idx = queue.pop(0)
-            result.append(idx)
-            child = self._items[idx]
-            child_id = getattr(child, "id", None)
-            if isinstance(child, (GroupItem, LayerItem)) and child_id:
-                queue.extend(self._get_direct_children_indices(child_id))
-        return result
+        return get_descendant_indices(self._items, container_id, self._is_container)
 
     @Slot(int, float, float)
     def moveGroup(self, group_index: int, dx: float, dy: float) -> None:
@@ -248,21 +246,25 @@ class CanvasModel(QAbstractListModel):
         # Apply deltas to descendant shapes
         for idx in self._get_descendant_indices(container.id):
             item = self._items[idx]
+            item_data = self._itemToDict(item)
             if isinstance(item, RectangleItem):
-                self.updateItem(idx, {"x": item.x + dx, "y": item.y + dy})
+                item_data["geometry"]["x"] = item.geometry.x + dx
+                item_data["geometry"]["y"] = item.geometry.y + dy
+                self.updateItem(idx, item_data)
             elif isinstance(item, EllipseItem):
-                self.updateItem(
-                    idx,
-                    {
-                        "centerX": item.center_x + dx,
-                        "centerY": item.center_y + dy,
-                    },
-                )
+                item_data["geometry"]["centerX"] = item.geometry.center_x + dx
+                item_data["geometry"]["centerY"] = item.geometry.center_y + dy
+                self.updateItem(idx, item_data)
             elif isinstance(item, TextItem):
-                self.updateItem(idx, {"x": item.x + dx, "y": item.y + dy})
+                item_data["x"] = item.x + dx
+                item_data["y"] = item.y + dy
+                self.updateItem(idx, item_data)
             elif isinstance(item, PathItem):
-                new_points = [{"x": p["x"] + dx, "y": p["y"] + dy} for p in item.points]
-                self.updateItem(idx, {"points": new_points})
+                new_points = [
+                    {"x": p["x"] + dx, "y": p["y"] + dy} for p in item.geometry.points
+                ]
+                item_data["geometry"]["points"] = new_points
+                self.updateItem(idx, item_data)
 
     @Slot(int)
     def ungroup(self, group_index: int) -> None:
@@ -296,40 +298,10 @@ class CanvasModel(QAbstractListModel):
         return command.result_index if command.result_index is not None else -1
 
     def _is_effectively_visible(self, index: int) -> bool:
-        if not (0 <= index < len(self._items)):
-            return False
-        item = self._items[index]
-        if not getattr(item, "visible", True):
-            return False
-        parent_id = getattr(item, "parent_id", None)
-        if not parent_id:
-            return True
-        parent = self._get_container_by_id(parent_id)
-        if not parent:
-            return True
-        try:
-            parent_index = self._items.index(parent)
-        except ValueError:
-            return True
-        return self._is_effectively_visible(parent_index)
+        return is_effectively_visible(self._items, index, self._is_container)
 
     def _is_effectively_locked(self, index: int) -> bool:
-        if not (0 <= index < len(self._items)):
-            return False
-        item = self._items[index]
-        if getattr(item, "locked", False):
-            return True
-        parent_id = getattr(item, "parent_id", None)
-        if not parent_id:
-            return False
-        parent = self._get_container_by_id(parent_id)
-        if not parent:
-            return False
-        try:
-            parent_index = self._items.index(parent)
-        except ValueError:
-            return False
-        return self._is_effectively_locked(parent_index)
+        return is_effectively_locked(self._items, index, self._is_container)
 
     @Slot(dict)
     def addItem(self, item_data: Dict[str, Any]) -> None:
@@ -784,13 +756,11 @@ class CanvasModel(QAbstractListModel):
 
     @Slot(result="QVariant")  # type: ignore[arg-type]
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:
-        visible_items: List[Dict[str, Any]] = []
-        for idx, item in enumerate(self._items):
-            if self._is_effectively_visible(idx):
-                item_dict = self._itemToDict(item)
-                item_dict["modelIndex"] = idx
-                visible_items.append(item_dict)
-        return visible_items
+        return get_hit_test_items(
+            self._items,
+            self._is_effectively_visible,
+            self._itemToDict,
+        )
 
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getBoundingBox(self, index: int) -> Optional[Dict[str, float]]:
@@ -799,60 +769,13 @@ class CanvasModel(QAbstractListModel):
             return None
         item = self._items[index]
 
-        def rect_bounds(x: float, y: float, w: float, h: float) -> Dict[str, float]:
-            return {"x": x, "y": y, "width": w, "height": h}
+        def get_descendant_bounds(container_id: str) -> Optional[Dict[str, float]]:
+            """Get union of bounds for all descendants of a container."""
+            descendants = self._get_descendant_indices(container_id)
+            bounds_list = [self.getBoundingBox(idx) for idx in descendants]
+            return union_bounds([b for b in bounds_list if b is not None])
 
-        if isinstance(item, RectangleItem):
-            return rect_bounds(item.x, item.y, item.width, item.height)
-        if isinstance(item, EllipseItem):
-            return rect_bounds(
-                item.center_x - item.radius_x,
-                item.center_y - item.radius_y,
-                item.radius_x * 2,
-                item.radius_y * 2,
-            )
-        if isinstance(item, PathItem):
-            if not item.points:
-                return None
-            xs = [p["x"] for p in item.points]
-            ys = [p["y"] for p in item.points]
-            min_x = min(xs)
-            max_x = max(xs)
-            min_y = min(ys)
-            max_y = max(ys)
-            return rect_bounds(min_x, min_y, max_x - min_x, max_y - min_y)
-        if isinstance(item, TextItem):
-            # Use stored text box dimensions
-            # If height is 0 (auto), estimate based on font size
-            width = item.width
-            height = item.height if item.height > 0 else item.font_size * 1.2
-            return rect_bounds(item.x, item.y, width, height)
-
-        # For containers (layer/group), compute union of all descendant shapes
-        if isinstance(item, (LayerItem, GroupItem)):
-            descendants = self._get_descendant_indices(item.id)
-            bounds = None
-            for child_idx in descendants:
-                child_bounds = self.getBoundingBox(child_idx)
-                if not child_bounds:
-                    continue
-                if bounds is None:
-                    bounds = dict(child_bounds)
-                else:
-                    min_x = min(bounds["x"], child_bounds["x"])
-                    min_y = min(bounds["y"], child_bounds["y"])
-                    max_x = max(
-                        bounds["x"] + bounds["width"],
-                        child_bounds["x"] + child_bounds["width"],
-                    )
-                    max_y = max(
-                        bounds["y"] + bounds["height"],
-                        child_bounds["y"] + child_bounds["height"],
-                    )
-                    bounds = rect_bounds(min_x, min_y, max_x - min_x, max_y - min_y)
-            return bounds
-
-        return None
+        return get_item_bounds(item, get_descendant_bounds)
 
     @Slot(int, dict, result=bool)
     def setBoundingBox(self, index: int, bbox: Dict[str, float]) -> bool:
@@ -879,61 +802,41 @@ class CanvasModel(QAbstractListModel):
         new_width = float(bbox.get("width", 0))
         new_height = float(bbox.get("height", 0))
 
+        # Get current item data as base
+        current_data = self._itemToDict(item)
+
         if isinstance(item, RectangleItem):
-            self.updateItem(
-                index,
-                {
-                    "x": new_x,
-                    "y": new_y,
-                    "width": new_width,
-                    "height": new_height,
-                },
-            )
+            current_data["geometry"]["x"] = new_x
+            current_data["geometry"]["y"] = new_y
+            current_data["geometry"]["width"] = new_width
+            current_data["geometry"]["height"] = new_height
+            self.updateItem(index, current_data)
             return True
 
         if isinstance(item, EllipseItem):
-            # Convert bbox to center/radius representation
-            center_x = new_x + new_width / 2
-            center_y = new_y + new_height / 2
-            radius_x = new_width / 2
-            radius_y = new_height / 2
-            self.updateItem(
-                index,
-                {
-                    "centerX": center_x,
-                    "centerY": center_y,
-                    "radiusX": radius_x,
-                    "radiusY": radius_y,
-                },
-            )
+            ellipse_geom = bbox_to_ellipse_geometry(bbox)
+            current_data["geometry"]["centerX"] = ellipse_geom["centerX"]
+            current_data["geometry"]["centerY"] = ellipse_geom["centerY"]
+            current_data["geometry"]["radiusX"] = ellipse_geom["radiusX"]
+            current_data["geometry"]["radiusY"] = ellipse_geom["radiusY"]
+            self.updateItem(index, current_data)
             return True
 
         if isinstance(item, PathItem):
-            if not item.points:
+            points = item.geometry.points
+            if not points:
                 return False
-            # Calculate current bounds
-            xs = [p["x"] for p in item.points]
-            ys = [p["y"] for p in item.points]
-            old_min_x = min(xs)
-            old_min_y = min(ys)
-            # Calculate translation delta
-            dx = new_x - old_min_x
-            dy = new_y - old_min_y
-            # Translate all points
-            new_points = [{"x": p["x"] + dx, "y": p["y"] + dy} for p in item.points]
-            self.updateItem(index, {"points": new_points})
+            new_points = translate_path_to_bounds(points, new_x, new_y)
+            current_data["geometry"]["points"] = new_points
+            self.updateItem(index, current_data)
             return True
 
         if isinstance(item, TextItem):
-            self.updateItem(
-                index,
-                {
-                    "x": new_x,
-                    "y": new_y,
-                    "width": new_width,
-                    "height": new_height,
-                },
-            )
+            current_data["x"] = new_x
+            current_data["y"] = new_y
+            current_data["width"] = new_width
+            current_data["height"] = new_height
+            self.updateItem(index, current_data)
             return True
 
         # Layers and groups are non-renderable containers
@@ -951,25 +854,12 @@ class CanvasModel(QAbstractListModel):
         rendered, so they are skipped but the relative order of shapes is
         preserved exactly as in the model.
         """
-        from lucent.canvas_items import (
-            RectangleItem,
-            EllipseItem,
-            LayerItem,
-            GroupItem,
-            PathItem,
-            TextItem,
+        return get_render_items(
+            self._items,
+            self._is_container,
+            self._is_renderable,
+            self._is_effectively_visible,
         )
-
-        ordered: List[CanvasItem] = []
-        for idx, item in enumerate(self._items):
-            # Skip non-rendering containers but keep model ordering of shapes
-            if isinstance(item, (LayerItem, GroupItem)):
-                continue
-            if isinstance(item, (RectangleItem, EllipseItem, PathItem, TextItem)):
-                if not self._is_effectively_visible(idx):
-                    continue
-                ordered.append(item)
-        return ordered
 
     def _itemToDict(self, item: CanvasItem) -> Dict[str, Any]:
         return item_to_dict(item)

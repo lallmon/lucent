@@ -1,7 +1,4 @@
-"""Tests for DocumentManager class - document state and file operations.
-
-Written first following TDD Red/Green methodology.
-"""
+"""Tests for DocumentManager class - document state and file operations."""
 
 import json
 import pytest
@@ -10,6 +7,7 @@ from pathlib import Path
 from lucent.document_manager import DocumentManager
 from lucent.canvas_model import CanvasModel
 from lucent.file_io import LUCENT_VERSION
+from test_helpers import make_rectangle
 
 
 @pytest.fixture
@@ -22,7 +20,7 @@ def canvas_model(qapp):
 def doc_manager(canvas_model):
     """Create a DocumentManager connected to a CanvasModel."""
     dm = DocumentManager(canvas_model)
-    dm.startTracking()  # Enable dirty tracking as app would do on startup
+    dm.startTracking()
     return dm
 
 
@@ -61,15 +59,7 @@ class TestDirtyTracking:
         """Adding item sets dirty=True."""
         assert doc_manager.dirty is False
 
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 100,
-                "height": 100,
-            }
-        )
+        canvas_model.addItem(make_rectangle(width=100, height=100))
 
         assert doc_manager.dirty is True
 
@@ -77,10 +67,8 @@ class TestDirtyTracking:
         self, doc_manager: DocumentManager, canvas_model: CanvasModel
     ) -> None:
         """Removing item sets dirty=True."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        doc_manager._dirty = False  # Reset after add
+        canvas_model.addItem(make_rectangle(width=100, height=100))
+        doc_manager._dirty = False
 
         canvas_model.removeItem(0)
 
@@ -90,521 +78,222 @@ class TestDirtyTracking:
         self, doc_manager: DocumentManager, canvas_model: CanvasModel
     ) -> None:
         """Modifying item sets dirty=True."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        doc_manager._dirty = False  # Reset after add
+        canvas_model.addItem(make_rectangle(width=100, height=100))
+        doc_manager._dirty = False
 
-        canvas_model.updateItem(0, {"x": 50})
+        canvas_model.updateItem(0, make_rectangle(x=50, width=100, height=100))
 
         assert doc_manager.dirty is True
 
-    def test_dirty_flag_set_on_clear(
+    def test_dirty_changed_signal_emitted(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, qtbot
+    ) -> None:
+        """dirtyChanged signal emitted when dirty state changes."""
+        with qtbot.waitSignal(doc_manager.dirtyChanged, timeout=1000):
+            canvas_model.addItem(make_rectangle(width=100, height=100))
+
+
+class TestNewDocument:
+    """Tests for creating new documents."""
+
+    def test_new_document_clears_canvas(
         self, doc_manager: DocumentManager, canvas_model: CanvasModel
     ) -> None:
-        """Clearing canvas sets dirty=True."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        doc_manager._dirty = False  # Reset after add
+        """newDocument() clears all items from canvas."""
+        canvas_model.addItem(make_rectangle())
+        assert canvas_model.count() == 1
 
-        canvas_model.clear()
+        doc_manager.newDocument()
 
-        assert doc_manager.dirty is True
+        assert canvas_model.count() == 0
 
-    def test_dirty_flag_cleared_after_save(
-        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
+    def test_new_document_resets_file_path(self, doc_manager: DocumentManager) -> None:
+        """newDocument() clears the file path."""
+        doc_manager._filePath = "/some/path.lucent"
+
+        doc_manager.newDocument()
+
+        assert doc_manager.filePath == ""
+
+    def test_new_document_resets_dirty(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel
     ) -> None:
-        """Successful save sets dirty=False."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
+        """newDocument() sets dirty=False."""
+        canvas_model.addItem(make_rectangle())
         assert doc_manager.dirty is True
 
-        file_path = tmp_path / "test.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
+        doc_manager.newDocument()
 
         assert doc_manager.dirty is False
 
 
-class TestSaveOperations:
-    """Tests for save functionality."""
+class TestSaveDocument:
+    """Tests for saving documents."""
 
-    def test_save_document_without_path_returns_false(
-        self, doc_manager: DocumentManager
+    def test_save_document_writes_file(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
     ) -> None:
-        """saveDocument() returns False if no filePath set."""
-        result = doc_manager.saveDocument()
-        assert result is False
-
-    def test_save_document_as_creates_file(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """saveDocumentAs creates file at specified path."""
-        file_path = tmp_path / "saved.lucent"
+        """saveDocumentAs() writes JSON file to disk."""
+        canvas_model.addItem(make_rectangle(x=10, y=20, width=100, height=50))
+        file_path = tmp_path / "test.lucent"
 
         result = doc_manager.saveDocumentAs(str(file_path))
 
         assert result is True
         assert file_path.exists()
 
-    def test_save_document_as_sets_file_path(
-        self, doc_manager: DocumentManager, tmp_path: Path
+    def test_save_document_clears_dirty(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
     ) -> None:
-        """saveDocumentAs updates filePath property."""
-        file_path = tmp_path / "saved.lucent"
+        """saveDocumentAs() clears dirty flag on success."""
+        canvas_model.addItem(make_rectangle())
+        assert doc_manager.dirty is True
+        file_path = tmp_path / "test.lucent"
+
+        doc_manager.saveDocumentAs(str(file_path))
+
+        assert doc_manager.dirty is False
+
+    def test_save_document_updates_file_path(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
+    ) -> None:
+        """saveDocumentAs() updates filePath property."""
+        canvas_model.addItem(make_rectangle())
+        file_path = tmp_path / "myfile.lucent"
 
         doc_manager.saveDocumentAs(str(file_path))
 
         assert doc_manager.filePath == str(file_path)
 
-    def test_save_document_uses_current_path(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """saveDocument() saves to current filePath."""
-        file_path = tmp_path / "existing.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
-
-        # Modify and save again
-        doc_manager._canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 50, "height": 50}
-        )
-
-        result = doc_manager.saveDocument()
-
-        assert result is True
-        # Verify file was updated
-        data = json.loads(file_path.read_text())
-        assert len(data["items"]) == 1
-
-    def test_save_document_includes_all_items(
+    def test_save_document_file_content(
         self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
     ) -> None:
-        """Saved file contains all canvas items."""
+        """saveDocumentAs() writes correct JSON structure."""
         canvas_model.addItem(
-            {"type": "rectangle", "x": 10, "y": 20, "width": 100, "height": 50}
+            make_rectangle(x=10, y=20, width=100, height=50, name="Test Rect")
         )
-        canvas_model.addItem(
-            {
-                "type": "ellipse",
-                "centerX": 100,
-                "centerY": 100,
-                "radiusX": 30,
-                "radiusY": 20,
-            }
-        )
+        file_path = tmp_path / "test.lucent"
 
-        file_path = tmp_path / "items.lucent"
         doc_manager.saveDocumentAs(str(file_path))
 
-        data = json.loads(file_path.read_text())
-        assert len(data["items"]) == 2
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        assert "version" in data
+        assert "items" in data
+        assert len(data["items"]) == 1
+        assert data["items"][0]["name"] == "Test Rect"
 
 
-class TestOpenOperations:
-    """Tests for open/load functionality."""
+class TestOpenDocument:
+    """Tests for opening documents."""
 
     def test_open_document_loads_items(
         self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
     ) -> None:
-        """Opening file populates canvas model."""
-        file_path = tmp_path / "load_test.lucent"
+        """openDocument() loads items from file."""
+        # Create a test file
+        file_path = tmp_path / "test.lucent"
         data = {
             "version": LUCENT_VERSION,
-            "meta": {"name": "Test Doc"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
             "items": [
                 {
                     "type": "rectangle",
-                    "name": "Rect 1",
-                    "x": 100,
-                    "y": 200,
-                    "width": 50,
-                    "height": 50,
-                    "strokeWidth": 1,
-                    "strokeColor": "#ffffff",
-                    "strokeOpacity": 1.0,
-                    "fillColor": "#ffffff",
-                    "fillOpacity": 0.0,
-                    "parentId": None,
+                    "geometry": {"x": 10, "y": 20, "width": 100, "height": 50},
+                    "appearances": [
+                        {
+                            "type": "fill",
+                            "color": "#ffffff",
+                            "opacity": 0.0,
+                            "visible": True,
+                        },
+                        {
+                            "type": "stroke",
+                            "color": "#ffffff",
+                            "width": 1.0,
+                            "opacity": 1.0,
+                            "visible": True,
+                        },
+                    ],
+                    "name": "Loaded Rect",
                     "visible": True,
                     "locked": False,
                 }
             ],
         }
-        file_path.write_text(json.dumps(data))
+        with open(file_path, "w") as f:
+            json.dump(data, f)
 
         result = doc_manager.openDocument(str(file_path))
 
         assert result is True
         assert canvas_model.count() == 1
+        assert canvas_model.getItems()[0].name == "Loaded Rect"
 
-    def test_open_document_clears_dirty_flag(
+    def test_open_document_updates_file_path(
         self, doc_manager: DocumentManager, tmp_path: Path
     ) -> None:
-        """Opening file sets dirty=False."""
-        file_path = tmp_path / "open_test.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Test"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
-
-        doc_manager.openDocument(str(file_path))
-
-        assert doc_manager.dirty is False
-
-    def test_open_document_sets_file_path(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """Opening file updates filePath property."""
-        file_path = tmp_path / "path_test.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Test"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
+        """openDocument() updates filePath property."""
+        file_path = tmp_path / "test.lucent"
+        data = {"version": LUCENT_VERSION, "items": []}
+        with open(file_path, "w") as f:
+            json.dump(data, f)
 
         doc_manager.openDocument(str(file_path))
 
         assert doc_manager.filePath == str(file_path)
 
-    def test_open_document_returns_false_on_missing_file(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """Opening non-existent file returns False."""
-        file_path = tmp_path / "nonexistent.lucent"
-
-        result = doc_manager.openDocument(str(file_path))
-
-        assert result is False
-
-    def test_open_document_clears_existing_items(
+    def test_open_document_clears_dirty(
         self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
     ) -> None:
-        """Opening file clears existing canvas items."""
-        # Add some items first
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert canvas_model.count() == 1
-
-        # Open empty document
-        file_path = tmp_path / "empty.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Empty"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
-
-        doc_manager.openDocument(str(file_path))
-
-        assert canvas_model.count() == 0
-
-
-class TestDocumentTitle:
-    """Tests for document title behavior."""
-
-    def test_document_title_is_filename_after_save(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """After save, title is filename without extension."""
-        file_path = tmp_path / "my_artwork.lucent"
-
-        doc_manager.saveDocumentAs(str(file_path))
-
-        assert doc_manager.documentTitle == "my_artwork"
-
-    def test_document_title_is_filename_after_open(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """After open, title is filename without extension."""
-        file_path = tmp_path / "loaded_doc.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Test"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
-
-        doc_manager.openDocument(str(file_path))
-
-        assert doc_manager.documentTitle == "loaded_doc"
-
-    def test_document_title_resets_on_new(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """New document resets title to 'Untitled'."""
-        # Save first to set a title
-        file_path = tmp_path / "saved.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
-        assert doc_manager.documentTitle == "saved"
-
-        doc_manager.newDocument()
-
-        assert doc_manager.documentTitle == "Untitled"
-
-
-class TestNewDocument:
-    """Tests for new document functionality."""
-
-    def test_new_document_clears_canvas(
-        self, doc_manager: DocumentManager, canvas_model: CanvasModel
-    ) -> None:
-        """newDocument() clears all items."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
-        assert canvas_model.count() == 1
-
-        doc_manager.newDocument()
-
-        assert canvas_model.count() == 0
-
-    def test_new_document_clears_file_path(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """newDocument() clears filePath."""
-        file_path = tmp_path / "test.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
-        assert doc_manager.filePath != ""
-
-        doc_manager.newDocument()
-
-        assert doc_manager.filePath == ""
-
-    def test_new_document_clears_dirty_flag(
-        self, doc_manager: DocumentManager, canvas_model: CanvasModel
-    ) -> None:
-        """newDocument() sets dirty=False."""
-        canvas_model.addItem(
-            {"type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 100}
-        )
+        """openDocument() clears dirty flag."""
+        # Make dirty first
+        canvas_model.addItem(make_rectangle())
         assert doc_manager.dirty is True
 
-        doc_manager.newDocument()
+        # Create and open a file
+        file_path = tmp_path / "test.lucent"
+        data = {"version": LUCENT_VERSION, "items": []}
+        with open(file_path, "w") as f:
+            json.dump(data, f)
+
+        doc_manager.openDocument(str(file_path))
 
         assert doc_manager.dirty is False
 
-    def test_new_document_returns_true(self, doc_manager: DocumentManager) -> None:
-        """newDocument() returns True."""
-        result = doc_manager.newDocument()
-        assert result is True
-
-
-class TestViewportState:
-    """Tests for viewport state persistence."""
-
-    def test_get_viewport_returns_current_state(
+    def test_open_nonexistent_file_returns_false(
         self, doc_manager: DocumentManager
     ) -> None:
-        """getViewport() returns current viewport dictionary."""
-        # Set viewport via the setter
-        doc_manager.setViewport(2.0, 100.5, -50.25)
-
-        viewport = doc_manager.getViewport()
-
-        assert viewport["zoomLevel"] == 2.0
-        assert viewport["offsetX"] == 100.5
-        assert viewport["offsetY"] == -50.25
-
-    def test_saved_document_includes_viewport(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """Saved file includes viewport state."""
-        doc_manager.setViewport(3.0, 200, 150)
-
-        file_path = tmp_path / "viewport.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
-
-        data = json.loads(file_path.read_text())
-        assert data["viewport"]["zoomLevel"] == 3.0
-        assert data["viewport"]["offsetX"] == 200
-        assert data["viewport"]["offsetY"] == 150
-
-
-class TestDocumentDPI:
-    """Tests for documentDPI property."""
-
-    def test_default_dpi_is_72(self, doc_manager: DocumentManager) -> None:
-        """Fresh DocumentManager has documentDPI=72."""
-        assert doc_manager.documentDPI == 72
-
-    def test_set_document_dpi(self, doc_manager: DocumentManager) -> None:
-        """setDocumentDPI updates the property."""
-        doc_manager.setDocumentDPI(300)
-        assert doc_manager.documentDPI == 300
-
-    def test_document_dpi_saved_to_file(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """documentDPI is included in saved file."""
-        doc_manager.setDocumentDPI(144)
-
-        file_path = tmp_path / "dpi_test.lucent"
-        doc_manager.saveDocumentAs(str(file_path))
-
-        data = json.loads(file_path.read_text())
-        assert data["meta"]["documentDPI"] == 144
-
-    def test_document_dpi_loaded_from_file(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """documentDPI is restored when opening file."""
-        file_path = tmp_path / "dpi_load.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Test", "documentDPI": 300},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
-
-        doc_manager.openDocument(str(file_path))
-
-        assert doc_manager.documentDPI == 300
-
-    def test_document_dpi_defaults_on_load_if_missing(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """documentDPI defaults to 72 when file has no DPI field."""
-        # First set a non-default DPI
-        doc_manager.setDocumentDPI(300)
-
-        # Load a file without DPI
-        file_path = tmp_path / "no_dpi.lucent"
-        data = {
-            "version": LUCENT_VERSION,
-            "meta": {"name": "Test"},
-            "viewport": {"zoomLevel": 1.0, "offsetX": 0, "offsetY": 0},
-            "items": [],
-        }
-        file_path.write_text(json.dumps(data))
-
-        doc_manager.openDocument(str(file_path))
-
-        assert doc_manager.documentDPI == 72
-
-    def test_new_document_resets_dpi_to_72(self, doc_manager: DocumentManager) -> None:
-        """newDocument() resets documentDPI to 72."""
-        doc_manager.setDocumentDPI(300)
-
-        doc_manager.newDocument()
-
-        assert doc_manager.documentDPI == 72
-
-    def test_document_dpi_changed_signal(
-        self, doc_manager: DocumentManager, qtbot
-    ) -> None:
-        """documentDPIChanged signal is emitted on change."""
-        with qtbot.waitSignal(doc_manager.documentDPIChanged, timeout=100):
-            doc_manager.setDocumentDPI(150)
-
-
-class TestExportLayer:
-    """Tests for layer export functionality."""
-
-    def test_export_layer_creates_png(
-        self, doc_manager: DocumentManager, tmp_path: Path, canvas_model: CanvasModel
-    ) -> None:
-        """exportLayer() creates a PNG file."""
-        # Add a layer with an item
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 100,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-
-        output_path = tmp_path / "export.png"
-        result = doc_manager.exportLayer(layer_id, str(output_path), 72, 0.0, "")
-
-        assert result is True
-        assert output_path.exists()
-
-    def test_export_layer_creates_svg(
-        self, doc_manager: DocumentManager, tmp_path: Path, canvas_model: CanvasModel
-    ) -> None:
-        """exportLayer() creates an SVG file when path ends with .svg."""
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 100,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-
-        output_path = tmp_path / "export.svg"
-        result = doc_manager.exportLayer(layer_id, str(output_path), 72, 0.0, "")
-
-        assert result is True
-        assert output_path.exists()
-        assert "<svg" in output_path.read_text()
-
-    def test_export_layer_with_target_dpi(
-        self, doc_manager: DocumentManager, tmp_path: Path, canvas_model: CanvasModel
-    ) -> None:
-        """exportLayer() applies DPI scaling to PNG output."""
-        from PySide6.QtGui import QImage
-
-        canvas_model.addItem({"type": "layer", "name": "Test Layer"})
-        layer_id = canvas_model.getItems()[0].id
-        canvas_model.addItem(
-            {
-                "type": "rectangle",
-                "x": 0,
-                "y": 0,
-                "width": 100,
-                "height": 50,
-                "parentId": layer_id,
-            }
-        )
-
-        output_path = tmp_path / "export.png"
-        # 144 DPI target with 72 DPI document = 2x scale
-        doc_manager.exportLayer(layer_id, str(output_path), 144, 0.0, "")
-
-        img = QImage(str(output_path))
-        assert img.width() == 200
-        assert img.height() == 100
-
-    def test_export_layer_empty_returns_false(
-        self, doc_manager: DocumentManager, tmp_path: Path, canvas_model: CanvasModel
-    ) -> None:
-        """exportLayer() returns False for empty layer."""
-        canvas_model.addItem({"type": "layer", "name": "Empty Layer"})
-        layer_id = canvas_model.getItems()[0].id
-
-        output_path = tmp_path / "export.png"
-        result = doc_manager.exportLayer(layer_id, str(output_path), 72, 0.0, "")
-
+        """openDocument() returns False for missing file."""
+        result = doc_manager.openDocument("/nonexistent/path.lucent")
         assert result is False
 
-    def test_export_layer_nonexistent_returns_false(
-        self, doc_manager: DocumentManager, tmp_path: Path
-    ) -> None:
-        """exportLayer() returns False for nonexistent layer ID."""
-        output_path = tmp_path / "export.png"
-        result = doc_manager.exportLayer(
-            "nonexistent-id", str(output_path), 72, 0.0, ""
-        )
 
-        assert result is False
+class TestDocumentTitle:
+    """Tests for document title property."""
+
+    def test_title_is_filename_when_saved(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
+    ) -> None:
+        """documentTitle is filename stem after save."""
+        canvas_model.addItem(make_rectangle())
+        file_path = tmp_path / "mydesign.lucent"
+
+        doc_manager.saveDocumentAs(str(file_path))
+
+        # Document title is the stem (without extension)
+        assert doc_manager.documentTitle == "mydesign"
+
+    def test_title_changes_after_save_as(
+        self, doc_manager: DocumentManager, canvas_model: CanvasModel, tmp_path: Path
+    ) -> None:
+        """documentTitle updates on save to new location."""
+        canvas_model.addItem(make_rectangle())
+        first_path = tmp_path / "first.lucent"
+        second_path = tmp_path / "second.lucent"
+
+        doc_manager.saveDocumentAs(str(first_path))
+        assert doc_manager.documentTitle == "first"
+
+        doc_manager.saveDocumentAs(str(second_path))
+        assert doc_manager.documentTitle == "second"

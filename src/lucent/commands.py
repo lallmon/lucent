@@ -310,8 +310,10 @@ class DuplicateItemCommand(Command):
 
     def _clone_item_data(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Return validated clone of item data with offsets and fresh IDs."""
+        import copy
+
         item_type = data.get("type", "")
-        clone = dict(data)
+        clone = copy.deepcopy(data)
 
         base_name = str(clone.get("name", "") or "")
         clone["name"] = (
@@ -332,12 +334,25 @@ class DuplicateItemCommand(Command):
             clone["parentId"] = self._id_map[parent_id]
 
         dx, dy = self._offset
-        if item_type == "rectangle":
+
+        # Handle new geometry format
+        if item_type == "rectangle" and "geometry" in clone:
+            geom = clone["geometry"]
+            geom["x"] = float(geom.get("x", 0)) + dx
+            geom["y"] = float(geom.get("y", 0)) + dy
+        elif item_type == "ellipse" and "geometry" in clone:
+            geom = clone["geometry"]
+            geom["centerX"] = float(geom.get("centerX", 0)) + dx
+            geom["centerY"] = float(geom.get("centerY", 0)) + dy
+        elif item_type == "path" and "geometry" in clone:
+            geom = clone["geometry"]
+            if "points" in geom:
+                for p in geom["points"]:
+                    p["x"] = float(p.get("x", 0)) + dx
+                    p["y"] = float(p.get("y", 0)) + dy
+        elif item_type == "text":
             clone["x"] = float(clone.get("x", 0)) + dx
             clone["y"] = float(clone.get("y", 0)) + dy
-        elif item_type == "ellipse":
-            clone["centerX"] = float(clone.get("centerX", 0)) + dx
-            clone["centerY"] = float(clone.get("centerY", 0)) + dy
 
         try:
             return parse_item_data(clone).data

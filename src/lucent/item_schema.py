@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from lucent.canvas_items import (
     CanvasItem,
@@ -15,6 +15,8 @@ from lucent.canvas_items import (
     PathItem,
     TextItem,
 )
+from lucent.geometry import RectGeometry, EllipseGeometry, PolylineGeometry
+from lucent.appearances import Fill, Stroke
 
 
 class ItemSchemaError(ValueError):
@@ -59,20 +61,59 @@ def _parse_type(type_value: Any) -> ItemType:
         raise ItemSchemaError(f"Unknown item type: {type_value}") from exc
 
 
+def _parse_appearances(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Parse appearances from data, with defaults."""
+    appearances = data.get("appearances", [])
+    if not appearances:
+        # Default appearances
+        return [
+            {"type": "fill", "color": "#ffffff", "opacity": 0.0, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#ffffff",
+                "width": 1.0,
+                "opacity": 1.0,
+                "visible": True,
+            },
+        ]
+
+    result = []
+    for a in appearances:
+        app_type = a.get("type")
+        if app_type == "fill":
+            result.append(
+                {
+                    "type": "fill",
+                    "color": str(a.get("color", "#ffffff")),
+                    "opacity": _clamp_range(float(a.get("opacity", 0.0)), 0.0, 1.0),
+                    "visible": bool(a.get("visible", True)),
+                }
+            )
+        elif app_type == "stroke":
+            result.append(
+                {
+                    "type": "stroke",
+                    "color": str(a.get("color", "#ffffff")),
+                    "width": _clamp_range(float(a.get("width", 1.0)), 0.0, 100.0),
+                    "opacity": _clamp_range(float(a.get("opacity", 1.0)), 0.0, 1.0),
+                    "visible": bool(a.get("visible", True)),
+                }
+            )
+    return result
+
+
 def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate rectangle data."""
     try:
-        x = float(data.get("x", 0))
-        y = float(data.get("y", 0))
-        width = _clamp_min(float(data.get("width", 0)), 0.0)
-        height = _clamp_min(float(data.get("height", 0)), 0.0)
-        stroke_width = _clamp_range(float(data.get("strokeWidth", 1)), 0.1, 100.0)
-        stroke_opacity = _clamp_range(float(data.get("strokeOpacity", 1.0)), 0.0, 1.0)
-        fill_opacity = _clamp_range(float(data.get("fillOpacity", 0.0)), 0.0, 1.0)
+        geom = data.get("geometry", {})
+        x = float(geom.get("x", 0))
+        y = float(geom.get("y", 0))
+        width = _clamp_min(float(geom.get("width", 0)), 0.0)
+        height = _clamp_min(float(geom.get("height", 0)), 0.0)
     except (TypeError, ValueError) as exc:
         raise ItemSchemaError(f"Invalid rectangle numeric field: {exc}") from exc
 
-    stroke_color = str(data.get("strokeColor", "#ffffff"))
-    fill_color = str(data.get("fillColor", "#ffffff"))
+    appearances = _parse_appearances(data)
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
     visible = bool(data.get("visible", True))
@@ -84,32 +125,23 @@ def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
         "parentId": parent_id,
         "visible": visible,
         "locked": locked,
-        "x": x,
-        "y": y,
-        "width": width,
-        "height": height,
-        "strokeWidth": stroke_width,
-        "strokeColor": stroke_color,
-        "strokeOpacity": stroke_opacity,
-        "fillColor": fill_color,
-        "fillOpacity": fill_opacity,
+        "geometry": {"x": x, "y": y, "width": width, "height": height},
+        "appearances": appearances,
     }
 
 
 def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate ellipse data."""
     try:
-        center_x = float(data.get("centerX", 0))
-        center_y = float(data.get("centerY", 0))
-        radius_x = _clamp_min(float(data.get("radiusX", 0)), 0.0)
-        radius_y = _clamp_min(float(data.get("radiusY", 0)), 0.0)
-        stroke_width = _clamp_range(float(data.get("strokeWidth", 1)), 0.1, 100.0)
-        stroke_opacity = _clamp_range(float(data.get("strokeOpacity", 1.0)), 0.0, 1.0)
-        fill_opacity = _clamp_range(float(data.get("fillOpacity", 0.0)), 0.0, 1.0)
+        geom = data.get("geometry", {})
+        center_x = float(geom.get("centerX", 0))
+        center_y = float(geom.get("centerY", 0))
+        radius_x = _clamp_min(float(geom.get("radiusX", 0)), 0.0)
+        radius_y = _clamp_min(float(geom.get("radiusY", 0)), 0.0)
     except (TypeError, ValueError) as exc:
         raise ItemSchemaError(f"Invalid ellipse numeric field: {exc}") from exc
 
-    stroke_color = str(data.get("strokeColor", "#ffffff"))
-    fill_color = str(data.get("fillColor", "#ffffff"))
+    appearances = _parse_appearances(data)
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
     visible = bool(data.get("visible", True))
@@ -121,42 +153,39 @@ def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
         "parentId": parent_id,
         "visible": visible,
         "locked": locked,
-        "centerX": center_x,
-        "centerY": center_y,
-        "radiusX": radius_x,
-        "radiusY": radius_y,
-        "strokeWidth": stroke_width,
-        "strokeColor": stroke_color,
-        "strokeOpacity": stroke_opacity,
-        "fillColor": fill_color,
-        "fillOpacity": fill_opacity,
+        "geometry": {
+            "centerX": center_x,
+            "centerY": center_y,
+            "radiusX": radius_x,
+            "radiusY": radius_y,
+        },
+        "appearances": appearances,
     }
 
 
 def validate_path(data: Dict[str, Any]) -> Dict[str, Any]:
-    points_raw = data.get("points") or []
-    if not isinstance(points_raw, list):
-        raise ItemSchemaError("Path points must be a list")
-    if len(points_raw) < 2:
-        raise ItemSchemaError("Path requires at least two points")
-    points = []
+    """Validate path data."""
     try:
+        geom = data.get("geometry", {})
+        points_raw = geom.get("points") or []
+        closed = bool(geom.get("closed", False))
+
+        if not isinstance(points_raw, list):
+            raise ItemSchemaError("Path points must be a list")
+        if len(points_raw) < 2:
+            raise ItemSchemaError("Path requires at least two points")
+
+        points = []
         for p in points_raw:
             points.append({"x": float(p.get("x", 0)), "y": float(p.get("y", 0))})
     except (TypeError, ValueError, AttributeError) as exc:
-        raise ItemSchemaError(f"Invalid path point: {exc}") from exc
+        raise ItemSchemaError(f"Invalid path field: {exc}") from exc
 
-    stroke_width = _clamp_range(float(data.get("strokeWidth", 1)), 0.1, 100.0)
-    stroke_opacity = _clamp_range(float(data.get("strokeOpacity", 1.0)), 0.0, 1.0)
-    fill_opacity = _clamp_range(float(data.get("fillOpacity", 0.0)), 0.0, 1.0)
-
-    stroke_color = str(data.get("strokeColor", "#ffffff"))
-    fill_color = str(data.get("fillColor", "#ffffff"))
+    appearances = _parse_appearances(data)
     name = str(data.get("name", ""))
     parent_id = data.get("parentId") or None
     visible = bool(data.get("visible", True))
     locked = bool(data.get("locked", False))
-    closed = bool(data.get("closed", False))
 
     return {
         "type": ItemType.PATH.value,
@@ -164,13 +193,8 @@ def validate_path(data: Dict[str, Any]) -> Dict[str, Any]:
         "parentId": parent_id,
         "visible": visible,
         "locked": locked,
-        "points": points,
-        "strokeWidth": stroke_width,
-        "strokeColor": stroke_color,
-        "strokeOpacity": stroke_opacity,
-        "fillColor": fill_color,
-        "fillOpacity": fill_opacity,
-        "closed": closed,
+        "geometry": {"points": points, "closed": closed},
+        "appearances": appearances,
     }
 
 
@@ -205,13 +229,12 @@ def validate_group(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def validate_text(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate and normalize text item data."""
+    """Validate text item data."""
     try:
         x = float(data.get("x", 0))
         y = float(data.get("y", 0))
         font_size = _clamp_range(float(data.get("fontSize", 16)), 8.0, 200.0)
         text_opacity = _clamp_range(float(data.get("textOpacity", 1.0)), 0.0, 1.0)
-        # Text box dimensions (width >= 1, height >= 0 where 0 means auto)
         width = _clamp_min(float(data.get("width", 100)), 1.0)
         height = _clamp_min(float(data.get("height", 0)), 0.0)
     except (TypeError, ValueError) as exc:
@@ -268,46 +291,52 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
     t = parsed.type
     d = parsed.data
     if t is ItemType.RECTANGLE:
+        geom = d["geometry"]
         return RectangleItem(
-            x=d["x"],
-            y=d["y"],
-            width=d["width"],
-            height=d["height"],
-            stroke_width=d["strokeWidth"],
-            stroke_color=d["strokeColor"],
-            fill_color=d["fillColor"],
-            fill_opacity=d["fillOpacity"],
-            stroke_opacity=d["strokeOpacity"],
+            geometry=RectGeometry(
+                x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
+            ),
+            appearances=[
+                Fill(a["color"], a["opacity"], a["visible"])
+                if a["type"] == "fill"
+                else Stroke(a["color"], a["width"], a["opacity"], a["visible"])
+                for a in d["appearances"]
+            ],
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
             locked=d.get("locked", False),
         )
     if t is ItemType.ELLIPSE:
+        geom = d["geometry"]
         return EllipseItem(
-            center_x=d["centerX"],
-            center_y=d["centerY"],
-            radius_x=d["radiusX"],
-            radius_y=d["radiusY"],
-            stroke_width=d["strokeWidth"],
-            stroke_color=d["strokeColor"],
-            fill_color=d["fillColor"],
-            fill_opacity=d["fillOpacity"],
-            stroke_opacity=d["strokeOpacity"],
+            geometry=EllipseGeometry(
+                center_x=geom["centerX"],
+                center_y=geom["centerY"],
+                radius_x=geom["radiusX"],
+                radius_y=geom["radiusY"],
+            ),
+            appearances=[
+                Fill(a["color"], a["opacity"], a["visible"])
+                if a["type"] == "fill"
+                else Stroke(a["color"], a["width"], a["opacity"], a["visible"])
+                for a in d["appearances"]
+            ],
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
             locked=d.get("locked", False),
         )
     if t is ItemType.PATH:
+        geom = d["geometry"]
         return PathItem(
-            points=d["points"],
-            stroke_width=d["strokeWidth"],
-            stroke_color=d["strokeColor"],
-            stroke_opacity=d["strokeOpacity"],
-            fill_color=d["fillColor"],
-            fill_opacity=d["fillOpacity"],
-            closed=d.get("closed", False),
+            geometry=PolylineGeometry(points=geom["points"], closed=geom["closed"]),
+            appearances=[
+                Fill(a["color"], a["opacity"], a["visible"])
+                if a["type"] == "fill"
+                else Stroke(a["color"], a["width"], a["opacity"], a["visible"])
+                for a in d["appearances"]
+            ],
             name=d.get("name", ""),
             parent_id=d.get("parentId"),
             visible=d.get("visible", True),
@@ -348,47 +377,44 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
 
 
 def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
+    """Serialize a CanvasItem to dictionary."""
     if isinstance(item, RectangleItem):
         return {
             "type": ItemType.RECTANGLE.value,
             "name": item.name,
             "parentId": item.parent_id,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
-            "x": item.x,
-            "y": item.y,
-            "width": item.width,
-            "height": item.height,
-            "strokeWidth": item.stroke_width,
-            "strokeColor": item.stroke_color,
-            "strokeOpacity": item.stroke_opacity,
-            "fillColor": item.fill_color,
-            "fillOpacity": item.fill_opacity,
+            "visible": item.visible,
+            "locked": item.locked,
+            "geometry": item.geometry.to_dict(),
+            "appearances": [a.to_dict() for a in item.appearances],
         }
     if isinstance(item, EllipseItem):
         return {
             "type": ItemType.ELLIPSE.value,
             "name": item.name,
             "parentId": item.parent_id,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
-            "centerX": item.center_x,
-            "centerY": item.center_y,
-            "radiusX": item.radius_x,
-            "radiusY": item.radius_y,
-            "strokeWidth": item.stroke_width,
-            "strokeColor": item.stroke_color,
-            "strokeOpacity": item.stroke_opacity,
-            "fillColor": item.fill_color,
-            "fillOpacity": item.fill_opacity,
+            "visible": item.visible,
+            "locked": item.locked,
+            "geometry": item.geometry.to_dict(),
+            "appearances": [a.to_dict() for a in item.appearances],
+        }
+    if isinstance(item, PathItem):
+        return {
+            "type": ItemType.PATH.value,
+            "name": item.name,
+            "parentId": item.parent_id,
+            "visible": item.visible,
+            "locked": item.locked,
+            "geometry": item.geometry.to_dict(),
+            "appearances": [a.to_dict() for a in item.appearances],
         }
     if isinstance(item, LayerItem):
         return {
             "type": ItemType.LAYER.value,
             "id": item.id,
             "name": item.name,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
+            "visible": item.visible,
+            "locked": item.locked,
         }
     if isinstance(item, GroupItem):
         return {
@@ -396,31 +422,16 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "id": item.id,
             "name": item.name,
             "parentId": item.parent_id,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
-        }
-    if isinstance(item, PathItem):
-        return {
-            "type": ItemType.PATH.value,
-            "name": item.name,
-            "parentId": item.parent_id,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
-            "points": item.points,
-            "strokeWidth": item.stroke_width,
-            "strokeColor": item.stroke_color,
-            "strokeOpacity": item.stroke_opacity,
-            "fillColor": item.fill_color,
-            "fillOpacity": item.fill_opacity,
-            "closed": item.closed,
+            "visible": item.visible,
+            "locked": item.locked,
         }
     if isinstance(item, TextItem):
         return {
             "type": ItemType.TEXT.value,
             "name": item.name,
             "parentId": item.parent_id,
-            "visible": getattr(item, "visible", True),
-            "locked": getattr(item, "locked", False),
+            "visible": item.visible,
+            "locked": item.locked,
             "x": item.x,
             "y": item.y,
             "width": item.width,

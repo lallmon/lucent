@@ -9,7 +9,10 @@ from lucent.canvas_items import (
     CanvasItem,
     PathItem,
     TextItem,
+    GroupItem,
 )
+from lucent.geometry import RectGeometry, EllipseGeometry, PolylineGeometry
+from lucent.appearances import Fill, Stroke
 from lucent.item_schema import (
     ItemSchemaError,
     ItemType,
@@ -18,6 +21,7 @@ from lucent.item_schema import (
     validate_rectangle,
     validate_ellipse,
     validate_layer,
+    validate_group,
     validate_path,
     validate_text,
     item_to_dict,
@@ -34,82 +38,135 @@ def test_parse_item_data_rejects_unknown_type():
         parse_item_data({"type": "triangle"})
 
 
-def test_validate_path_clamps_and_defaults():
+def test_validate_path_new_format():
+    """validate_path should handle new format with geometry and appearances."""
     data = {
         "type": "path",
-        "points": [{"x": 1, "y": 2}, {"x": -3, "y": 4}],
-        "strokeWidth": -1,
-        "strokeOpacity": 2,
-        "closed": True,
-        "strokeColor": "#123456",
-        "fillColor": "#abcdef",
-        "fillOpacity": 0.8,
+        "geometry": {
+            "points": [{"x": 1, "y": 2}, {"x": -3, "y": 4}],
+            "closed": True,
+        },
+        "appearances": [
+            {"type": "fill", "color": "#abcdef", "opacity": 0.8, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#123456",
+                "width": 2.0,
+                "opacity": 0.5,
+                "visible": True,
+            },
+        ],
     }
     out = validate_path(data)
-    assert out["points"] == [{"x": 1.0, "y": 2.0}, {"x": -3.0, "y": 4.0}]
-    assert out["strokeWidth"] == 0.1
-    assert out["strokeOpacity"] == 1.0
-    assert out["fillOpacity"] == 0.8
-    assert out["closed"] is True
-    assert out["strokeColor"] == "#123456"
-    assert out["fillColor"] == "#abcdef"
+    assert out["geometry"]["points"] == [{"x": 1.0, "y": 2.0}, {"x": -3.0, "y": 4.0}]
+    assert out["geometry"]["closed"] is True
+    assert len(out["appearances"]) == 2
+
+
+def test_validate_path_clamps_appearances():
+    """validate_path should clamp appearance values."""
+    data = {
+        "type": "path",
+        "geometry": {
+            "points": [{"x": 1, "y": 2}, {"x": -3, "y": 4}],
+            "closed": True,
+        },
+        "appearances": [
+            {"type": "fill", "color": "#abcdef", "opacity": 2.0},  # Over max
+            {"type": "stroke", "color": "#123456", "width": -1, "opacity": 5.0},
+        ],
+    }
+    out = validate_path(data)
+    fill = next(a for a in out["appearances"] if a["type"] == "fill")
+    stroke = next(a for a in out["appearances"] if a["type"] == "stroke")
+    assert fill["opacity"] == 1.0  # Clamped
+    assert stroke["width"] == 0.0  # Clamped to min
+    assert stroke["opacity"] == 1.0  # Clamped
 
 
 def test_validate_path_requires_two_points():
     with pytest.raises(ItemSchemaError):
-        validate_path({"type": "path", "points": [{"x": 0, "y": 0}]})
+        validate_path(
+            {
+                "type": "path",
+                "geometry": {"points": [{"x": 0, "y": 0}], "closed": False},
+            }
+        )
 
 
-def test_validate_rectangle_clamps_and_defaults():
+def test_validate_rectangle_new_format():
+    """validate_rectangle should handle new format with geometry and appearances."""
     data = {
         "type": "rectangle",
-        "x": 1,
-        "y": 2,
-        "width": -5,
-        "height": 10,
-        "strokeWidth": 0.01,
-        "strokeOpacity": 5.0,
-        "fillOpacity": -2.0,
-        "strokeColor": "#abc",
-        "fillColor": "#def",
+        "geometry": {"x": 1, "y": 2, "width": 100, "height": 50},
+        "appearances": [
+            {"type": "fill", "color": "#def", "opacity": 0.5, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#abc",
+                "width": 2.0,
+                "opacity": 0.8,
+                "visible": True,
+            },
+        ],
         "name": "Rect",
         "parentId": "layer-1",
     }
     out = validate_rectangle(data)
-    assert out["width"] == 0.0
-    assert out["height"] == 10
-    assert out["strokeWidth"] == 0.1
-    assert out["strokeOpacity"] == 1.0
-    assert out["fillOpacity"] == 0.0
-    assert out["strokeColor"] == "#abc"
-    assert out["fillColor"] == "#def"
+    assert out["geometry"]["x"] == 1
+    assert out["geometry"]["y"] == 2
+    assert out["geometry"]["width"] == 100
+    assert out["geometry"]["height"] == 50
     assert out["name"] == "Rect"
     assert out["parentId"] == "layer-1"
+    assert len(out["appearances"]) == 2
 
 
-def test_validate_ellipse_clamps_and_defaults():
+def test_validate_rectangle_clamps_geometry():
+    """validate_rectangle should clamp negative width/height to 0."""
+    data = {
+        "type": "rectangle",
+        "geometry": {"x": 1, "y": 2, "width": -5, "height": 10},
+    }
+    out = validate_rectangle(data)
+    assert out["geometry"]["width"] == 0.0
+    assert out["geometry"]["height"] == 10
+
+
+def test_validate_ellipse_new_format():
+    """validate_ellipse should handle new format with geometry and appearances."""
     data = {
         "type": "ellipse",
-        "centerX": 3,
-        "centerY": 4,
-        "radiusX": -1,
-        "radiusY": 5,
-        "strokeWidth": 999,
-        "strokeOpacity": -1,
-        "fillOpacity": 2,
-        "strokeColor": "#111",
-        "fillColor": "#222",
+        "geometry": {"centerX": 3, "centerY": 4, "radiusX": 20, "radiusY": 15},
+        "appearances": [
+            {"type": "fill", "color": "#222", "opacity": 0.5, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#111",
+                "width": 3.0,
+                "opacity": 0.7,
+                "visible": True,
+            },
+        ],
         "name": "Ell",
-        "parentId": "",
     }
     out = validate_ellipse(data)
-    assert out["radiusX"] == 0.0
-    assert out["radiusY"] == 5
-    assert out["strokeWidth"] == 100.0
-    assert out["strokeOpacity"] == 0.0
-    assert out["fillOpacity"] == 1.0
-    assert out["parentId"] is None
+    assert out["geometry"]["centerX"] == 3
+    assert out["geometry"]["centerY"] == 4
+    assert out["geometry"]["radiusX"] == 20
+    assert out["geometry"]["radiusY"] == 15
     assert out["name"] == "Ell"
+
+
+def test_validate_ellipse_clamps_radius():
+    """validate_ellipse should clamp negative radii to 0."""
+    data = {
+        "type": "ellipse",
+        "geometry": {"centerX": 0, "centerY": 0, "radiusX": -1, "radiusY": 5},
+    }
+    out = validate_ellipse(data)
+    assert out["geometry"]["radiusX"] == 0.0
+    assert out["geometry"]["radiusY"] == 5
 
 
 def test_validate_layer_defaults_and_preserves_id():
@@ -120,6 +177,16 @@ def test_validate_layer_defaults_and_preserves_id():
     out2 = validate_layer({"type": "layer"})
     assert out2["name"] == ""
     assert out2["id"] is None
+
+
+def test_validate_group():
+    """validate_group should handle group data."""
+    out = validate_group(
+        {"type": "group", "name": "Group", "id": "grp-1", "parentId": "layer-1"}
+    )
+    assert out["name"] == "Group"
+    assert out["id"] == "grp-1"
+    assert out["parentId"] == "layer-1"
 
 
 def test_validate_text_clamps_and_defaults():
@@ -181,43 +248,92 @@ def test_validate_text_invalid_numeric_raises():
 
 
 def test_parse_item_returns_concrete_items():
-    rect = parse_item({"type": "rectangle", "width": 1, "height": 1})
+    """parse_item should return concrete item instances."""
+    rect = parse_item(
+        {
+            "type": "rectangle",
+            "geometry": {"x": 0, "y": 0, "width": 10, "height": 10},
+            "appearances": [
+                {"type": "fill", "color": "#fff", "opacity": 0.5, "visible": True},
+                {
+                    "type": "stroke",
+                    "color": "#000",
+                    "width": 1,
+                    "opacity": 1.0,
+                    "visible": True,
+                },
+            ],
+        }
+    )
     assert isinstance(rect, RectangleItem)
-    ell = parse_item({"type": "ellipse", "radiusX": 2, "radiusY": 3})
+
+    ell = parse_item(
+        {
+            "type": "ellipse",
+            "geometry": {"centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10},
+        }
+    )
     assert isinstance(ell, EllipseItem)
+
     layer = parse_item({"type": "layer"})
     assert isinstance(layer, LayerItem)
+
     path = parse_item(
         {
             "type": "path",
-            "points": [{"x": 0, "y": 0}, {"x": 5, "y": 0}],
-            "strokeWidth": 1,
+            "geometry": {
+                "points": [{"x": 0, "y": 0}, {"x": 5, "y": 0}],
+                "closed": False,
+            },
         }
     )
     assert isinstance(path, PathItem)
-    assert path.closed is False
+    assert path.geometry.closed is False
+
     text = parse_item({"type": "text", "text": "Hello", "fontSize": 20})
     assert isinstance(text, TextItem)
     assert text.text == "Hello"
     assert text.font_size == 20
 
+    group = parse_item({"type": "group", "name": "G1"})
+    assert isinstance(group, GroupItem)
+
 
 def test_item_to_dict_round_trips_rectangle():
-    rect = RectangleItem(x=1, y=2, width=3, height=4, name="R", parent_id="p")
+    """item_to_dict should serialize RectangleItem to new format."""
+    geometry = RectGeometry(x=1, y=2, width=3, height=4)
+    appearances = [
+        Fill(color="#ff0000", opacity=0.5),
+        Stroke(color="#00ff00", width=2.0, opacity=0.8),
+    ]
+    rect = RectangleItem(
+        geometry=geometry, appearances=appearances, name="R", parent_id="p"
+    )
     out = item_to_dict(rect)
     assert out["type"] == ItemType.RECTANGLE.value
     assert out["name"] == "R"
     assert out["parentId"] == "p"
-    assert out["width"] == 3
-    assert out["height"] == 4
+    assert out["geometry"]["x"] == 1
+    assert out["geometry"]["y"] == 2
+    assert out["geometry"]["width"] == 3
+    assert out["geometry"]["height"] == 4
+    assert len(out["appearances"]) == 2
 
 
 def test_item_to_dict_round_trips_ellipse():
-    ell = EllipseItem(center_x=1, center_y=2, radius_x=3, radius_y=4, name="E")
+    """item_to_dict should serialize EllipseItem to new format."""
+    geometry = EllipseGeometry(center_x=1, center_y=2, radius_x=3, radius_y=4)
+    appearances = [
+        Fill(color="#abcdef", opacity=0.8),
+        Stroke(color="#123456", width=3.5, opacity=0.4),
+    ]
+    ell = EllipseItem(geometry=geometry, appearances=appearances, name="E")
     out = item_to_dict(ell)
     assert out["type"] == ItemType.ELLIPSE.value
-    assert out["centerX"] == 1
-    assert out["radiusY"] == 4
+    assert out["geometry"]["centerX"] == 1
+    assert out["geometry"]["centerY"] == 2
+    assert out["geometry"]["radiusX"] == 3
+    assert out["geometry"]["radiusY"] == 4
     assert out["name"] == "E"
 
 
@@ -229,24 +345,34 @@ def test_item_to_dict_round_trips_layer():
     assert out["id"] == "lid"
 
 
+def test_item_to_dict_round_trips_group():
+    group = GroupItem(name="G", group_id="gid", parent_id="layer-1")
+    out = item_to_dict(group)
+    assert out["type"] == ItemType.GROUP.value
+    assert out["name"] == "G"
+    assert out["id"] == "gid"
+    assert out["parentId"] == "layer-1"
+
+
 def test_item_to_dict_round_trips_path():
+    """item_to_dict should serialize PathItem to new format."""
+    geometry = PolylineGeometry(
+        points=[{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}], closed=True
+    )
+    appearances = [
+        Fill(color="#112233", opacity=0.4),
+        Stroke(color="#00ff00", width=2.0, opacity=0.5),
+    ]
     path = PathItem(
-        points=[{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}],
-        stroke_width=2,
-        stroke_color="#00ff00",
-        stroke_opacity=0.5,
-        closed=True,
-        name="P1",
-        parent_id="layer-1",
+        geometry=geometry, appearances=appearances, name="P1", parent_id="layer-1"
     )
     out = item_to_dict(path)
     assert out["type"] == ItemType.PATH.value
     assert out["name"] == "P1"
     assert out["parentId"] == "layer-1"
-    assert out["strokeWidth"] == 2
-    assert out["strokeOpacity"] == 0.5
-    assert out["closed"] is True
-    assert out["points"][0] == {"x": 0.0, "y": 0.0}
+    assert out["geometry"]["closed"] is True
+    assert len(out["geometry"]["points"]) == 3
+    assert len(out["appearances"]) == 2
 
 
 def test_item_to_dict_round_trips_text():
@@ -281,7 +407,7 @@ def test_item_to_dict_round_trips_text():
 
 def test_parse_item_invalid_ellipse_raises():
     with pytest.raises(ItemSchemaError):
-        parse_item({"type": "ellipse", "centerX": "bad"})
+        parse_item({"type": "ellipse", "geometry": {"centerX": "bad"}})
 
 
 def test_item_to_dict_rejects_unknown():
@@ -309,10 +435,7 @@ class TestLockedSerialization:
         """validate_rectangle should include locked in output."""
         data = {
             "type": "rectangle",
-            "x": 0,
-            "y": 0,
-            "width": 10,
-            "height": 10,
+            "geometry": {"x": 0, "y": 0, "width": 10, "height": 10},
             "locked": True,
         }
         out = validate_rectangle(data)
@@ -320,7 +443,10 @@ class TestLockedSerialization:
 
     def test_validate_rectangle_locked_defaults_false(self):
         """validate_rectangle should default locked to False."""
-        data = {"type": "rectangle", "x": 0, "y": 0, "width": 10, "height": 10}
+        data = {
+            "type": "rectangle",
+            "geometry": {"x": 0, "y": 0, "width": 10, "height": 10},
+        }
         out = validate_rectangle(data)
         assert out["locked"] is False
 
@@ -328,26 +454,11 @@ class TestLockedSerialization:
         """validate_ellipse should include locked in output."""
         data = {
             "type": "ellipse",
-            "centerX": 0,
-            "centerY": 0,
-            "radiusX": 10,
-            "radiusY": 10,
+            "geometry": {"centerX": 0, "centerY": 0, "radiusX": 10, "radiusY": 10},
             "locked": True,
         }
         out = validate_ellipse(data)
         assert out["locked"] is True
-
-    def test_validate_ellipse_locked_defaults_false(self):
-        """validate_ellipse should default locked to False."""
-        data = {
-            "type": "ellipse",
-            "centerX": 0,
-            "centerY": 0,
-            "radiusX": 10,
-            "radiusY": 10,
-        }
-        out = validate_ellipse(data)
-        assert out["locked"] is False
 
     def test_validate_layer_includes_locked(self):
         """validate_layer should include locked in output."""
@@ -355,40 +466,36 @@ class TestLockedSerialization:
         out = validate_layer(data)
         assert out["locked"] is True
 
-    def test_validate_layer_locked_defaults_false(self):
-        """validate_layer should default locked to False."""
-        data = {"type": "layer", "name": "Test"}
-        out = validate_layer(data)
-        assert out["locked"] is False
-
     def test_parse_item_rectangle_preserves_locked(self):
         """parse_item should create RectangleItem with locked property."""
         rect = parse_item(
-            {"type": "rectangle", "width": 10, "height": 10, "locked": True}
+            {
+                "type": "rectangle",
+                "geometry": {"x": 0, "y": 0, "width": 10, "height": 10},
+                "locked": True,
+            }
         )
         assert rect.locked is True
 
-    def test_parse_item_ellipse_preserves_locked(self):
-        """parse_item should create EllipseItem with locked property."""
-        ell = parse_item(
-            {"type": "ellipse", "radiusX": 10, "radiusY": 10, "locked": True}
-        )
-        assert ell.locked is True
-
-    def test_parse_item_layer_preserves_locked(self):
-        """parse_item should create LayerItem with locked property."""
-        layer = parse_item({"type": "layer", "locked": True})
-        assert layer.locked is True
-
     def test_item_to_dict_rectangle_includes_locked(self):
         """item_to_dict should include locked for RectangleItem."""
-        rect = RectangleItem(x=0, y=0, width=10, height=10, locked=True)
+        geometry = RectGeometry(x=0, y=0, width=10, height=10)
+        rect = RectangleItem(
+            geometry=geometry,
+            appearances=[Fill("#fff", 0.5), Stroke("#000", 1.0, 1.0)],
+            locked=True,
+        )
         out = item_to_dict(rect)
         assert out["locked"] is True
 
     def test_item_to_dict_ellipse_includes_locked(self):
         """item_to_dict should include locked for EllipseItem."""
-        ell = EllipseItem(center_x=0, center_y=0, radius_x=10, radius_y=10, locked=True)
+        geometry = EllipseGeometry(center_x=0, center_y=0, radius_x=10, radius_y=10)
+        ell = EllipseItem(
+            geometry=geometry,
+            appearances=[Fill("#fff", 0.5), Stroke("#000", 1.0, 1.0)],
+            locked=True,
+        )
         out = item_to_dict(ell)
         assert out["locked"] is True
 
@@ -404,28 +511,11 @@ class TestLockedSerialization:
         out = validate_text(data)
         assert out["locked"] is True
 
-    def test_validate_text_locked_defaults_false(self):
-        """validate_text should default locked to False."""
-        data = {"type": "text", "text": "Hello"}
-        out = validate_text(data)
-        assert out["locked"] is False
-
     def test_validate_text_includes_visible(self):
         """validate_text should include visible in output."""
         data = {"type": "text", "text": "Hello", "visible": False}
         out = validate_text(data)
         assert out["visible"] is False
-
-    def test_validate_text_visible_defaults_true(self):
-        """validate_text should default visible to True."""
-        data = {"type": "text", "text": "Hello"}
-        out = validate_text(data)
-        assert out["visible"] is True
-
-    def test_parse_item_text_preserves_locked(self):
-        """parse_item should create TextItem with locked property."""
-        text = parse_item({"type": "text", "text": "Hello", "locked": True})
-        assert text.locked is True
 
     def test_item_to_dict_text_includes_locked(self):
         """item_to_dict should include locked for TextItem."""

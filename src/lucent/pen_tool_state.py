@@ -56,6 +56,7 @@ class PenToolState:
     def to_item_data(
         self, settings: Optional[Dict[str, float]] = None
     ) -> Dict[str, object]:
+        """Convert state to item data in new geometry/appearances format."""
         if len(self.points) < 2:
             raise ValueError("Path must have at least two points")
         style = settings or {}
@@ -66,11 +67,23 @@ class PenToolState:
         fill_opacity = float(style.get("fillOpacity", 0.0))
         return {
             "type": "path",
-            "points": [{"x": x, "y": y} for (x, y) in self.points],
-            "strokeWidth": stroke_width,
-            "strokeColor": stroke_color,
-            "strokeOpacity": stroke_opacity,
-            "fillColor": fill_color,
-            "fillOpacity": fill_opacity,
-            "closed": bool(self.closed),
+            "geometry": {
+                "points": [{"x": x, "y": y} for (x, y) in self.points],
+                "closed": bool(self.closed),
+            },
+            "appearances": [
+                {
+                    "type": "fill",
+                    "color": fill_color,
+                    "opacity": fill_opacity,
+                    "visible": True,
+                },
+                {
+                    "type": "stroke",
+                    "color": stroke_color,
+                    "width": stroke_width,
+                    "opacity": stroke_opacity,
+                    "visible": True,
+                },
+            ],
         }

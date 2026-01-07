@@ -46,12 +46,18 @@ def test_to_item_data_includes_stroke_only_defaults():
         {"strokeWidth": 2, "strokeColor": "#ff00ff", "strokeOpacity": 0.75}
     )
     assert data["type"] == "path"
-    assert data["strokeWidth"] == 2
-    assert data["strokeColor"] == "#ff00ff"
-    assert data["strokeOpacity"] == 0.75
-    assert data["fillOpacity"] == 0.0
-    assert data["closed"] is True
-    assert data["points"][0] == {"x": 0.0, "y": 0.0}
+    # Check geometry
+    assert data["geometry"]["closed"] is True
+    assert data["geometry"]["points"][0] == {"x": 0.0, "y": 0.0}
+    # Check appearances
+    fill = data["appearances"][0]
+    stroke = data["appearances"][1]
+    assert fill["type"] == "fill"
+    assert fill["opacity"] == 0.0
+    assert stroke["type"] == "stroke"
+    assert stroke["width"] == 2
+    assert stroke["color"] == "#ff00ff"
+    assert stroke["opacity"] == 0.75
 
 
 def test_to_item_data_respects_fill_settings():
@@ -69,5 +75,6 @@ def test_to_item_data_respects_fill_settings():
             "fillOpacity": 0.5,
         }
     )
-    assert data["fillOpacity"] == 0.5
-    assert data["fillColor"] == "#123456"
+    fill = data["appearances"][0]
+    assert fill["opacity"] == 0.5
+    assert fill["color"] == "#123456"

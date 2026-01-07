@@ -17,12 +17,64 @@ RowLayout {
     property color _defaultFillColor: Lucent.Themed.palette.text
     property real _defaultFillOpacity: 1.0
 
+    // Helper to get fill appearance from selectedItem
+    function _getFill() {
+        if (!selectedItem || !selectedItem.appearances)
+            return null;
+        for (var i = 0; i < selectedItem.appearances.length; i++) {
+            if (selectedItem.appearances[i].type === "fill")
+                return selectedItem.appearances[i];
+        }
+        return null;
+    }
+
+    // Helper to get stroke appearance from selectedItem
+    function _getStroke() {
+        if (!selectedItem || !selectedItem.appearances)
+            return null;
+        for (var i = 0; i < selectedItem.appearances.length; i++) {
+            if (selectedItem.appearances[i].type === "stroke")
+                return selectedItem.appearances[i];
+        }
+        return null;
+    }
+
     // Exposed properties: read from selectedItem in edit mode, defaults in creation mode
-    readonly property real strokeWidth: editMode && selectedItem ? selectedItem.strokeWidth : _defaultStrokeWidth
-    readonly property color strokeColor: editMode && selectedItem ? selectedItem.strokeColor : _defaultStrokeColor
-    readonly property real strokeOpacity: editMode && selectedItem ? selectedItem.strokeOpacity : _defaultStrokeOpacity
-    readonly property color fillColor: editMode && selectedItem ? selectedItem.fillColor : _defaultFillColor
-    readonly property real fillOpacity: editMode && selectedItem ? selectedItem.fillOpacity : _defaultFillOpacity
+    readonly property real strokeWidth: {
+        if (editMode) {
+            var stroke = _getStroke();
+            return stroke ? stroke.width : _defaultStrokeWidth;
+        }
+        return _defaultStrokeWidth;
+    }
+    readonly property color strokeColor: {
+        if (editMode) {
+            var stroke = _getStroke();
+            return stroke ? stroke.color : _defaultStrokeColor;
+        }
+        return _defaultStrokeColor;
+    }
+    readonly property real strokeOpacity: {
+        if (editMode) {
+            var stroke = _getStroke();
+            return stroke ? stroke.opacity : _defaultStrokeOpacity;
+        }
+        return _defaultStrokeOpacity;
+    }
+    readonly property color fillColor: {
+        if (editMode) {
+            var fill = _getFill();
+            return fill ? fill.color : _defaultFillColor;
+        }
+        return _defaultFillColor;
+    }
+    readonly property real fillOpacity: {
+        if (editMode) {
+            var fill = _getFill();
+            return fill ? fill.opacity : _defaultFillOpacity;
+        }
+        return _defaultFillOpacity;
+    }
 
     // Update helper: always updates defaults, and also updates selected item in edit mode
     function updateProperty(propName, value) {
@@ -40,9 +92,40 @@ RowLayout {
 
         // Also update selected item if in edit mode
         if (editMode && Lucent.SelectionManager.selectedItemIndex >= 0) {
-            var props = {};
-            props[propName] = value;
-            canvasModel.updateItem(Lucent.SelectionManager.selectedItemIndex, props);
+            // Build updated appearances array
+            var currentItem = selectedItem;
+            if (!currentItem)
+                return;
+
+            var newAppearances = [];
+            for (var i = 0; i < currentItem.appearances.length; i++) {
+                var app = currentItem.appearances[i];
+                var updated = Object.assign({}, app);
+                if (app.type === "fill") {
+                    if (propName === "fillColor")
+                        updated.color = value;
+                    else if (propName === "fillOpacity")
+                        updated.opacity = value;
+                } else if (app.type === "stroke") {
+                    if (propName === "strokeWidth")
+                        updated.width = value;
+                    else if (propName === "strokeColor")
+                        updated.color = value;
+                    else if (propName === "strokeOpacity")
+                        updated.opacity = value;
+                }
+                newAppearances.push(updated);
+            }
+
+            canvasModel.updateItem(Lucent.SelectionManager.selectedItemIndex, {
+                type: currentItem.type,
+                geometry: currentItem.geometry,
+                appearances: newAppearances,
+                name: currentItem.name,
+                parentId: currentItem.parentId,
+                visible: currentItem.visible,
+                locked: currentItem.locked
+            });
         }
     }
 

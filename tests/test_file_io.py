@@ -13,6 +13,14 @@ from lucent.file_io import (
     load_document,
     FileVersionError,
 )
+from test_helpers import (
+    make_rectangle,
+    make_ellipse,
+    make_path,
+    make_layer,
+    make_group,
+    make_text,
+)
 
 
 class TestSaveDocument:
@@ -55,22 +63,16 @@ class TestSaveDocument:
         """Save document with items, verify they are serialized."""
         file_path = tmp_path / "with_items.lucent"
         items = [
-            {
-                "type": "rectangle",
-                "name": "Rect 1",
-                "x": 100,
-                "y": 200,
-                "width": 50,
-                "height": 50,
-                "strokeWidth": 1,
-                "strokeColor": "#ff0000",
-                "strokeOpacity": 1.0,
-                "fillColor": "#00ff00",
-                "fillOpacity": 0.5,
-                "parentId": None,
-                "visible": True,
-                "locked": False,
-            }
+            make_rectangle(
+                x=100,
+                y=200,
+                width=50,
+                height=50,
+                stroke_color="#ff0000",
+                fill_color="#00ff00",
+                fill_opacity=0.5,
+                name="Rect 1",
+            )
         ]
 
         save_document(
@@ -84,7 +86,7 @@ class TestSaveDocument:
         assert len(data["items"]) == 1
         assert data["items"][0]["type"] == "rectangle"
         assert data["items"][0]["name"] == "Rect 1"
-        assert data["items"][0]["x"] == 100
+        assert data["items"][0]["geometry"]["x"] == 100
 
     def test_save_preserves_viewport_state(self, tmp_path: Path) -> None:
         """Viewport zoom/offset is saved correctly."""
@@ -190,24 +192,7 @@ class TestLoadDocument:
             "version": LUCENT_VERSION,
             "meta": {"name": "Test Doc"},
             "viewport": {"zoomLevel": 1.5, "offsetX": 10, "offsetY": 20},
-            "items": [
-                {
-                    "type": "rectangle",
-                    "name": "Rect",
-                    "x": 0,
-                    "y": 0,
-                    "width": 100,
-                    "height": 100,
-                    "strokeWidth": 1,
-                    "strokeColor": "#ffffff",
-                    "strokeOpacity": 1.0,
-                    "fillColor": "#ffffff",
-                    "fillOpacity": 0.0,
-                    "parentId": None,
-                    "visible": True,
-                    "locked": False,
-                }
-            ],
+            "items": [make_rectangle(x=0, y=0, width=100, height=100, name="Rect")],
         }
         file_path.write_text(json.dumps(data))
 
@@ -289,38 +274,29 @@ class TestRoundTrip:
         """Save items, reload, verify all properties match."""
         file_path = tmp_path / "roundtrip.lucent"
         original_items = [
-            {
-                "type": "rectangle",
-                "name": "Rect 1",
-                "x": 100.5,
-                "y": 200.5,
-                "width": 50,
-                "height": 75,
-                "strokeWidth": 2.5,
-                "strokeColor": "#ff0000",
-                "strokeOpacity": 0.8,
-                "fillColor": "#00ff00",
-                "fillOpacity": 0.5,
-                "parentId": None,
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "ellipse",
-                "name": "Circle 1",
-                "centerX": 300,
-                "centerY": 400,
-                "radiusX": 50,
-                "radiusY": 50,
-                "strokeWidth": 1,
-                "strokeColor": "#0000ff",
-                "strokeOpacity": 1.0,
-                "fillColor": "#ffff00",
-                "fillOpacity": 0.3,
-                "parentId": None,
-                "visible": True,
-                "locked": True,
-            },
+            make_rectangle(
+                x=100.5,
+                y=200.5,
+                width=50,
+                height=75,
+                stroke_width=2.5,
+                stroke_color="#ff0000",
+                stroke_opacity=0.8,
+                fill_color="#00ff00",
+                fill_opacity=0.5,
+                name="Rect 1",
+            ),
+            make_ellipse(
+                center_x=300,
+                center_y=400,
+                radius_x=50,
+                radius_y=50,
+                stroke_color="#0000ff",
+                fill_color="#ffff00",
+                fill_opacity=0.3,
+                name="Circle 1",
+                locked=True,
+            ),
         ]
 
         save_document(
@@ -337,22 +313,24 @@ class TestRoundTrip:
         rect = result["items"][0]
         assert rect["type"] == "rectangle"
         assert rect["name"] == "Rect 1"
-        assert rect["x"] == 100.5
-        assert rect["y"] == 200.5
-        assert rect["width"] == 50
-        assert rect["height"] == 75
-        assert rect["strokeWidth"] == 2.5
-        assert rect["strokeColor"] == "#ff0000"
-        assert rect["strokeOpacity"] == 0.8
-        assert rect["fillOpacity"] == 0.5
+        assert rect["geometry"]["x"] == 100.5
+        assert rect["geometry"]["y"] == 200.5
+        assert rect["geometry"]["width"] == 50
+        assert rect["geometry"]["height"] == 75
+        stroke = next(a for a in rect["appearances"] if a["type"] == "stroke")
+        fill = next(a for a in rect["appearances"] if a["type"] == "fill")
+        assert stroke["width"] == 2.5
+        assert stroke["color"] == "#ff0000"
+        assert stroke["opacity"] == 0.8
+        assert fill["opacity"] == 0.5
         assert rect["locked"] is False
 
         # Check ellipse
         ellipse = result["items"][1]
         assert ellipse["type"] == "ellipse"
         assert ellipse["name"] == "Circle 1"
-        assert ellipse["centerX"] == 300
-        assert ellipse["centerY"] == 400
+        assert ellipse["geometry"]["centerX"] == 300
+        assert ellipse["geometry"]["centerY"] == 400
         assert ellipse["locked"] is True
 
     def test_save_load_roundtrip_preserves_viewport(self, tmp_path: Path) -> None:
@@ -399,83 +377,34 @@ class TestRoundTrip:
         """All item types (rectangle, ellipse, layer, group, path, text) round-trip."""
         file_path = tmp_path / "all_types.lucent"
         original_items = [
-            {
-                "type": "layer",
-                "id": "layer-1",
-                "name": "Background",
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "rectangle",
-                "name": "Rect",
-                "x": 0,
-                "y": 0,
-                "width": 100,
-                "height": 100,
-                "strokeWidth": 1,
-                "strokeColor": "#ffffff",
-                "strokeOpacity": 1.0,
-                "fillColor": "#ffffff",
-                "fillOpacity": 0.0,
-                "parentId": "layer-1",
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "ellipse",
-                "name": "Ellipse",
-                "centerX": 50,
-                "centerY": 50,
-                "radiusX": 25,
-                "radiusY": 25,
-                "strokeWidth": 1,
-                "strokeColor": "#ffffff",
-                "strokeOpacity": 1.0,
-                "fillColor": "#ffffff",
-                "fillOpacity": 0.0,
-                "parentId": "layer-1",
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "group",
-                "id": "group-1",
-                "name": "My Group",
-                "parentId": "layer-1",
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "path",
-                "name": "Path",
-                "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}],
-                "strokeWidth": 2,
-                "strokeColor": "#ff0000",
-                "strokeOpacity": 1.0,
-                "fillColor": "#ffffff",
-                "fillOpacity": 0.0,
-                "closed": False,
-                "parentId": None,
-                "visible": True,
-                "locked": False,
-            },
-            {
-                "type": "text",
-                "name": "Label",
-                "x": 200,
-                "y": 200,
-                "width": 100,
-                "height": 0,
-                "text": "Hello World",
-                "fontFamily": "Arial",
-                "fontSize": 16,
-                "textColor": "#000000",
-                "textOpacity": 1.0,
-                "parentId": None,
-                "visible": True,
-                "locked": False,
-            },
+            make_layer(name="Background", layer_id="layer-1"),
+            make_rectangle(
+                x=0, y=0, width=100, height=100, name="Rect", parent_id="layer-1"
+            ),
+            make_ellipse(
+                center_x=50,
+                center_y=50,
+                radius_x=25,
+                radius_y=25,
+                name="Ellipse",
+                parent_id="layer-1",
+            ),
+            make_group(name="My Group", group_id="group-1", parent_id="layer-1"),
+            make_path(
+                points=[{"x": 0, "y": 0}, {"x": 100, "y": 100}],
+                stroke_width=2,
+                stroke_color="#ff0000",
+                name="Path",
+            ),
+            make_text(
+                x=200,
+                y=200,
+                text="Hello World",
+                font_family="Arial",
+                font_size=16,
+                text_color="#000000",
+                name="Label",
+            ),
         ]
 
         save_document(
@@ -503,4 +432,4 @@ class TestRoundTrip:
 
         # Verify path points
         path_item = next(i for i in result["items"] if i["type"] == "path")
-        assert len(path_item["points"]) == 2
+        assert len(path_item["geometry"]["points"]) == 2

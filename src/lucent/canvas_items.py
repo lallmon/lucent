@@ -3,11 +3,15 @@ Canvas item classes for Lucent.
 
 This module defines the canvas item hierarchy, including:
 - CanvasItem: Abstract base class for all drawable items
+- ShapeItem: Base class for items with geometry + appearances
 - RectangleItem: Rectangular shapes
 - EllipseItem: Elliptical shapes
+- PathItem: Polyline/path shapes
 - LayerItem: Organizational layers for grouping items
+- GroupItem: Grouping container for shapes
+- TextItem: Text rendering
 
-All items use QPainter for rendering and support stroke/fill styling.
+All shape items use a geometry + appearances architecture for clean separation.
 """
 
 from abc import ABC, abstractmethod
@@ -15,19 +19,18 @@ from typing import Dict, Any, Optional, List
 import uuid
 from PySide6.QtGui import (
     QPainter,
-    QPen,
-    QBrush,
     QColor,
-    QPainterPath,
     QFont,
     QTextDocument,
     QTextOption,
 )
-from PySide6.QtCore import QRectF, Qt, QPointF
+from PySide6.QtCore import QRectF
+
+from lucent.geometry import Geometry, RectGeometry, EllipseGeometry, PolylineGeometry
+from lucent.appearances import Appearance, Fill, Stroke
+from lucent.transforms import Transform
 
 # Canvas coordinate system defaults.
-# Renderers typically pass dynamic offsets (width/2, height/2) so these serve
-# as fallbacks for tests and any non-viewport-based usage.
 CANVAS_OFFSET_X = 5000
 CANVAS_OFFSET_Y = 5000
 
@@ -58,274 +61,42 @@ class CanvasItem(ABC):
         pass
 
 
-class RectangleItem(CanvasItem):
-    """Rectangle canvas item"""
+class ShapeItem(CanvasItem):
+    """Base class for items with geometry + appearances."""
 
     def __init__(
         self,
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-        stroke_width: float = 1,
-        stroke_color: str = "#ffffff",
-        fill_color: str = "#ffffff",
-        fill_opacity: float = 0.0,
-        stroke_opacity: float = 1.0,
+        geometry: Geometry,
+        appearances: List[Appearance],
+        transform: Optional[Transform] = None,
         name: str = "",
         parent_id: Optional[str] = None,
         visible: bool = True,
         locked: bool = False,
     ) -> None:
-        self.name = name
-        self.parent_id = parent_id  # ID of parent layer, or None if top-level
-        self.visible = bool(visible)
-        self.locked = bool(locked)
-        self.x = x
-        self.y = y
-        # Validate dimensions (must be non-negative)
-        self.width = max(0.0, width)
-        self.height = max(0.0, height)
-        # Validate stroke width (0 = no stroke, clamped to reasonable range)
-        self.stroke_width = max(0.0, min(100.0, stroke_width))
-        self.stroke_color = stroke_color
-        # Validate stroke opacity (must be in range 0.0-1.0)
-        self.stroke_opacity = max(0.0, min(1.0, stroke_opacity))
-        self.fill_color = fill_color
-        # Validate fill opacity (must be in range 0.0-1.0)
-        self.fill_opacity = max(0.0, min(1.0, fill_opacity))
-
-    def paint(
-        self,
-        painter: QPainter,
-        zoom_level: float,
-        offset_x: float = CANVAS_OFFSET_X,
-        offset_y: float = CANVAS_OFFSET_Y,
-    ) -> None:
-        """Render this rectangle using QPainter"""
-        local_x = self.x + offset_x
-        local_y = self.y + offset_y
-
-        # Set up pen for stroke (NoPen if stroke_width is 0)
-        if self.stroke_width > 0:
-            stroke_px = self.stroke_width * zoom_level
-            clamped_px = max(0.3, min(6.0, stroke_px))
-            scaled_stroke_width = clamped_px / max(zoom_level, 0.0001)
-
-            stroke_qcolor = QColor(self.stroke_color)
-            stroke_qcolor.setAlphaF(self.stroke_opacity)
-            pen = QPen(stroke_qcolor)
-            pen.setWidthF(scaled_stroke_width)
-            pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-            painter.setPen(pen)
-        else:
-            painter.setPen(Qt.PenStyle.NoPen)
-
-        # Set up brush for fill
-        fill_qcolor = QColor(self.fill_color)
-        fill_qcolor.setAlphaF(self.fill_opacity)
-        brush = QBrush(fill_qcolor)
-        painter.setBrush(brush)
-
-        # Draw rectangle
-        painter.drawRect(QRectF(local_x, local_y, self.width, self.height))
-
-    def get_bounds(self) -> QRectF:
-        """Return bounding rectangle in canvas coordinates."""
-        return QRectF(self.x, self.y, self.width, self.height)
-
-    @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "RectangleItem":
-        """Create RectangleItem from QML data dictionary"""
-        # Extract and validate dimensions (must be non-negative)
-        width = max(0.0, float(data.get("width", 0)))
-        height = max(0.0, float(data.get("height", 0)))
-
-        # Extract stroke width (0 = no stroke, clamped to reasonable range)
-        stroke_width = max(0.0, min(100.0, float(data.get("strokeWidth", 1))))
-
-        # Extract and validate stroke opacity (must be in range 0.0-1.0)
-        stroke_opacity = max(0.0, min(1.0, float(data.get("strokeOpacity", 1.0))))
-
-        # Extract and validate fill opacity (must be in range 0.0-1.0)
-        fill_opacity = max(0.0, min(1.0, float(data.get("fillOpacity", 0.0))))
-
-        return RectangleItem(
-            x=float(data.get("x", 0)),
-            y=float(data.get("y", 0)),
-            width=width,
-            height=height,
-            stroke_width=stroke_width,
-            stroke_color=data.get("strokeColor", "#ffffff"),
-            fill_color=data.get("fillColor", "#ffffff"),
-            fill_opacity=fill_opacity,
-            stroke_opacity=stroke_opacity,
-            name=data.get("name", ""),
-            parent_id=data.get("parentId"),
-            visible=data.get("visible", True),
-            locked=data.get("locked", False),
-        )
-
-
-class EllipseItem(CanvasItem):
-    """Ellipse canvas item"""
-
-    def __init__(
-        self,
-        center_x: float,
-        center_y: float,
-        radius_x: float,
-        radius_y: float,
-        stroke_width: float = 1,
-        stroke_color: str = "#ffffff",
-        fill_color: str = "#ffffff",
-        fill_opacity: float = 0.0,
-        stroke_opacity: float = 1.0,
-        name: str = "",
-        parent_id: Optional[str] = None,
-        visible: bool = True,
-        locked: bool = False,
-    ) -> None:
-        self.name = name
-        self.parent_id = parent_id  # ID of parent layer, or None if top-level
-        self.visible = bool(visible)
-        self.locked = bool(locked)
-        self.center_x = center_x
-        self.center_y = center_y
-        # Validate radii (must be non-negative)
-        self.radius_x = max(0.0, radius_x)
-        self.radius_y = max(0.0, radius_y)
-        # Validate stroke width (0 = no stroke, clamped to reasonable range)
-        self.stroke_width = max(0.0, min(100.0, stroke_width))
-        self.stroke_color = stroke_color
-        # Validate stroke opacity (must be in range 0.0-1.0)
-        self.stroke_opacity = max(0.0, min(1.0, stroke_opacity))
-        self.fill_color = fill_color
-        # Validate fill opacity (must be in range 0.0-1.0)
-        self.fill_opacity = max(0.0, min(1.0, fill_opacity))
-
-    def paint(
-        self,
-        painter: QPainter,
-        zoom_level: float,
-        offset_x: float = CANVAS_OFFSET_X,
-        offset_y: float = CANVAS_OFFSET_Y,
-    ) -> None:
-        """Render this ellipse using QPainter"""
-        local_center_x = self.center_x + offset_x
-        local_center_y = self.center_y + offset_y
-
-        # Set up pen for stroke (NoPen if stroke_width is 0)
-        if self.stroke_width > 0:
-            stroke_px = self.stroke_width * zoom_level
-            clamped_px = max(0.3, min(6.0, stroke_px))
-            scaled_stroke_width = clamped_px / max(zoom_level, 0.0001)
-
-            stroke_qcolor = QColor(self.stroke_color)
-            stroke_qcolor.setAlphaF(self.stroke_opacity)
-            pen = QPen(stroke_qcolor)
-            pen.setWidthF(scaled_stroke_width)
-            painter.setPen(pen)
-        else:
-            painter.setPen(Qt.PenStyle.NoPen)
-
-        # Set up brush for fill
-        fill_qcolor = QColor(self.fill_color)
-        fill_qcolor.setAlphaF(self.fill_opacity)
-        brush = QBrush(fill_qcolor)
-        painter.setBrush(brush)
-
-        # Draw ellipse (QRectF defines bounding box)
-        painter.drawEllipse(
-            QRectF(
-                local_center_x - self.radius_x,
-                local_center_y - self.radius_y,
-                2 * self.radius_x,
-                2 * self.radius_y,
-            )
-        )
-
-    def get_bounds(self) -> QRectF:
-        """Return bounding rectangle in canvas coordinates."""
-        return QRectF(
-            self.center_x - self.radius_x,
-            self.center_y - self.radius_y,
-            2 * self.radius_x,
-            2 * self.radius_y,
-        )
-
-    @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "EllipseItem":
-        """Create EllipseItem from QML data dictionary"""
-        # Extract and validate radii (must be non-negative)
-        radius_x = max(0.0, float(data.get("radiusX", 0)))
-        radius_y = max(0.0, float(data.get("radiusY", 0)))
-
-        # Extract stroke width (0 = no stroke, clamped to reasonable range)
-        stroke_width = max(0.0, min(100.0, float(data.get("strokeWidth", 1))))
-
-        # Extract and validate stroke opacity (must be in range 0.0-1.0)
-        stroke_opacity = max(0.0, min(1.0, float(data.get("strokeOpacity", 1.0))))
-
-        # Extract and validate fill opacity (must be in range 0.0-1.0)
-        fill_opacity = max(0.0, min(1.0, float(data.get("fillOpacity", 0.0))))
-
-        return EllipseItem(
-            center_x=float(data.get("centerX", 0)),
-            center_y=float(data.get("centerY", 0)),
-            radius_x=radius_x,
-            radius_y=radius_y,
-            stroke_width=stroke_width,
-            stroke_color=data.get("strokeColor", "#ffffff"),
-            fill_color=data.get("fillColor", "#ffffff"),
-            fill_opacity=fill_opacity,
-            stroke_opacity=stroke_opacity,
-            name=data.get("name", ""),
-            parent_id=data.get("parentId"),
-            visible=data.get("visible", True),
-            locked=data.get("locked", False),
-        )
-
-
-class PathItem(CanvasItem):
-    """Polyline/path canvas item rendered as stroke with optional fill."""
-
-    def __init__(
-        self,
-        points: List[Dict[str, float]],
-        stroke_width: float = 1,
-        stroke_color: str = "#ffffff",
-        stroke_opacity: float = 1.0,
-        fill_color: str = "#ffffff",
-        fill_opacity: float = 0.0,
-        closed: bool = False,
-        name: str = "",
-        parent_id: Optional[str] = None,
-        visible: bool = True,
-        locked: bool = False,
-    ) -> None:
-        if len(points) < 2:
-            raise ValueError("PathItem requires at least two points")
+        self.geometry = geometry
+        self.appearances = appearances
+        self.transform = transform or Transform()
         self.name = name
         self.parent_id = parent_id
         self.visible = bool(visible)
         self.locked = bool(locked)
 
-        # Normalize points to float tuples
-        normalized: List[Dict[str, float]] = []
-        for p in points:
-            normalized.append({"x": float(p.get("x", 0)), "y": float(p.get("y", 0))})
-        self.points = normalized
-        self.closed = bool(closed)
+    @property
+    def fill(self) -> Optional[Fill]:
+        """Get first fill appearance."""
+        for app in self.appearances:
+            if isinstance(app, Fill):
+                return app
+        return None
 
-        # Validate stroke values (0 = no stroke)
-        self.stroke_width = max(0.0, min(100.0, stroke_width))
-        self.stroke_color = stroke_color
-        self.stroke_opacity = max(0.0, min(1.0, stroke_opacity))
-
-        # Optional fill (defaults to stroke-only)
-        self.fill_color = fill_color
-        self.fill_opacity = max(0.0, min(1.0, fill_opacity))
+    @property
+    def stroke(self) -> Optional[Stroke]:
+        """Get first stroke appearance."""
+        for app in self.appearances:
+            if isinstance(app, Stroke):
+                return app
+        return None
 
     def paint(
         self,
@@ -334,63 +105,165 @@ class PathItem(CanvasItem):
         offset_x: float = CANVAS_OFFSET_X,
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
-        """Render the polyline/path."""
-        # Set up pen for stroke (NoPen if stroke_width is 0)
-        if self.stroke_width > 0:
-            stroke_px = self.stroke_width * zoom_level
-            clamped_px = max(0.3, min(6.0, stroke_px))
-            scaled_stroke_width = clamped_px / max(zoom_level, 0.0001)
-
-            stroke_qcolor = QColor(self.stroke_color)
-            stroke_qcolor.setAlphaF(self.stroke_opacity)
-            pen = QPen(stroke_qcolor)
-            pen.setWidthF(scaled_stroke_width)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            painter.setPen(pen)
-        else:
-            painter.setPen(Qt.PenStyle.NoPen)
-
-        fill_qcolor = QColor(self.fill_color)
-        fill_qcolor.setAlphaF(self.fill_opacity)
-        painter.setBrush(QBrush(fill_qcolor))
-
-        # Build path
-        if not self.points:
+        """Render this shape using QPainter."""
+        if not self.visible:
             return
-        first = self.points[0]
-        path = QPainterPath(QPointF(first["x"] + offset_x, first["y"] + offset_y))
-        for p in self.points[1:]:
-            path.lineTo(p["x"] + offset_x, p["y"] + offset_y)
-        if self.closed:
-            path.closeSubpath()
-        painter.drawPath(path)
+
+        path = self.geometry.to_painter_path()
+        if not self.transform.is_identity():
+            path = self.transform.to_qtransform().map(path)
+
+        for appearance in self.appearances:
+            appearance.render(painter, path, zoom_level, offset_x, offset_y)
 
     def get_bounds(self) -> QRectF:
-        """Return bounding rectangle of all points in canvas coordinates."""
-        if not self.points:
-            return QRectF()
-        xs = [p["x"] for p in self.points]
-        ys = [p["y"] for p in self.points]
-        return QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+        """Return bounding rectangle in canvas coordinates."""
+        bounds = self.geometry.get_bounds()
+        if not self.transform.is_identity():
+            return self.transform.to_qtransform().mapRect(bounds)
+        return bounds
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "ShapeItem":
+        """Factory method - subclasses must override."""
+        raise NotImplementedError("ShapeItem.from_dict must be overridden")
+
+
+class RectangleItem(ShapeItem):
+    """Rectangle canvas item."""
+
+    def __init__(
+        self,
+        geometry: RectGeometry,
+        appearances: List[Appearance],
+        transform: Optional[Transform] = None,
+        name: str = "",
+        parent_id: Optional[str] = None,
+        visible: bool = True,
+        locked: bool = False,
+    ) -> None:
+        super().__init__(
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
+            name=name,
+            parent_id=parent_id,
+            visible=visible,
+            locked=locked,
+        )
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "RectangleItem":
+        """Create RectangleItem from dictionary."""
+        geom = data["geometry"]
+        geometry = RectGeometry(
+            x=float(geom.get("x", 0)),
+            y=float(geom.get("y", 0)),
+            width=float(geom.get("width", 0)),
+            height=float(geom.get("height", 0)),
+        )
+        appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
+        transform = (
+            Transform.from_dict(data["transform"]) if "transform" in data else None
+        )
+        return RectangleItem(
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
+            name=data.get("name", ""),
+            parent_id=data.get("parentId"),
+            visible=data.get("visible", True),
+            locked=data.get("locked", False),
+        )
+
+
+class EllipseItem(ShapeItem):
+    """Ellipse canvas item."""
+
+    def __init__(
+        self,
+        geometry: EllipseGeometry,
+        appearances: List[Appearance],
+        transform: Optional[Transform] = None,
+        name: str = "",
+        parent_id: Optional[str] = None,
+        visible: bool = True,
+        locked: bool = False,
+    ) -> None:
+        super().__init__(
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
+            name=name,
+            parent_id=parent_id,
+            visible=visible,
+            locked=locked,
+        )
+
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "EllipseItem":
+        """Create EllipseItem from dictionary."""
+        geom = data["geometry"]
+        geometry = EllipseGeometry(
+            center_x=float(geom.get("centerX", 0)),
+            center_y=float(geom.get("centerY", 0)),
+            radius_x=float(geom.get("radiusX", 0)),
+            radius_y=float(geom.get("radiusY", 0)),
+        )
+        appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
+        transform = (
+            Transform.from_dict(data["transform"]) if "transform" in data else None
+        )
+        return EllipseItem(
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
+            name=data.get("name", ""),
+            parent_id=data.get("parentId"),
+            visible=data.get("visible", True),
+            locked=data.get("locked", False),
+        )
+
+
+class PathItem(ShapeItem):
+    """Polyline/path canvas item."""
+
+    def __init__(
+        self,
+        geometry: PolylineGeometry,
+        appearances: List[Appearance],
+        transform: Optional[Transform] = None,
+        name: str = "",
+        parent_id: Optional[str] = None,
+        visible: bool = True,
+        locked: bool = False,
+    ) -> None:
+        super().__init__(
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
+            name=name,
+            parent_id=parent_id,
+            visible=visible,
+            locked=locked,
+        )
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "PathItem":
-        """Create PathItem from QML data dictionary."""
-        points = data.get("points") or []
-        if not isinstance(points, list):
-            raise ValueError("Path points must be a list")
-        stroke_width = max(0.0, min(100.0, float(data.get("strokeWidth", 1))))
-        stroke_opacity = max(0.0, min(1.0, float(data.get("strokeOpacity", 1.0))))
-        fill_opacity = max(0.0, min(1.0, float(data.get("fillOpacity", 0.0))))
+        """Create PathItem from dictionary."""
+        geom = data["geometry"]
+        geometry = PolylineGeometry(
+            points=geom.get("points", []),
+            closed=bool(geom.get("closed", False)),
+        )
+        appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
+        transform = (
+            Transform.from_dict(data["transform"]) if "transform" in data else None
+        )
         return PathItem(
-            points=points,
-            stroke_width=stroke_width,
-            stroke_color=data.get("strokeColor", "#ffffff"),
-            stroke_opacity=stroke_opacity,
-            fill_color=data.get("fillColor", "#ffffff"),
-            fill_opacity=fill_opacity,
-            closed=bool(data.get("closed", False)),
+            geometry=geometry,
+            appearances=appearances,
+            transform=transform,
             name=data.get("name", ""),
             parent_id=data.get("parentId"),
             visible=data.get("visible", True),
@@ -399,12 +272,7 @@ class PathItem(CanvasItem):
 
 
 class LayerItem(CanvasItem):
-    """Layer item for organizing canvas items.
-
-    Layers provide a way to group and organize items for Z-ordering.
-    They don't render directly but serve as organizational containers.
-    Each layer has a unique ID that child items reference via parent_id.
-    """
+    """Layer item for organizing canvas items."""
 
     def __init__(
         self,
@@ -416,7 +284,6 @@ class LayerItem(CanvasItem):
         self.name = name
         self.visible = bool(visible)
         self.locked = bool(locked)
-        # Generate unique ID if not provided (for new layers)
         self.id = layer_id if layer_id else str(uuid.uuid4())
 
     def paint(
@@ -426,16 +293,16 @@ class LayerItem(CanvasItem):
         offset_x: float = CANVAS_OFFSET_X,
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
-        """Layers don't render directly - they are organizational containers."""
+        """Layers don't render directly."""
         pass
 
     def get_bounds(self) -> QRectF:
-        """Layers have no intrinsic bounds (non-rendering containers)."""
+        """Layers have no intrinsic bounds."""
         return QRectF()
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "LayerItem":
-        """Create LayerItem from QML data dictionary."""
+        """Create LayerItem from dictionary."""
         return LayerItem(
             name=data.get("name", ""),
             layer_id=data.get("id"),
@@ -445,12 +312,7 @@ class LayerItem(CanvasItem):
 
 
 class GroupItem(CanvasItem):
-    """Group item for nesting shapes or other groups under a parent container.
-
-    Groups are non-rendering; they carry visibility/locking state and an ID for
-    parent-child relationships. A group can be parented to a layer or another
-    group. Rendering skips groups; only leaf shapes paint.
-    """
+    """Group item for nesting shapes."""
 
     def __init__(
         self,
@@ -477,12 +339,12 @@ class GroupItem(CanvasItem):
         pass
 
     def get_bounds(self) -> QRectF:
-        """Groups have no intrinsic bounds (non-rendering containers)."""
+        """Groups have no intrinsic bounds."""
         return QRectF()
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "GroupItem":
-        """Create GroupItem from data dictionary."""
+        """Create GroupItem from dictionary."""
         return GroupItem(
             name=data.get("name", ""),
             group_id=data.get("id"),
@@ -493,7 +355,7 @@ class GroupItem(CanvasItem):
 
 
 class TextItem(CanvasItem):
-    """Text canvas item for rendering text on the canvas."""
+    """Text canvas item."""
 
     def __init__(
         self,
@@ -519,12 +381,9 @@ class TextItem(CanvasItem):
         self.y = y
         self.text = text
         self.font_family = font_family
-        # Validate font size (must be in range 8-200)
         self.font_size = max(8.0, min(200.0, font_size))
         self.text_color = text_color
-        # Validate text opacity (must be in range 0.0-1.0)
         self.text_opacity = max(0.0, min(1.0, text_opacity))
-        # Text box dimensions (width >= 1, height >= 0 where 0 means auto)
         self.width = max(1.0, width)
         self.height = max(0.0, height)
 
@@ -535,7 +394,7 @@ class TextItem(CanvasItem):
         offset_x: float = CANVAS_OFFSET_X,
         offset_y: float = CANVAS_OFFSET_Y,
     ) -> None:
-        """Render this text item using QTextDocument for rich text support."""
+        """Render this text item."""
         if not self.text:
             return
 
@@ -558,7 +417,6 @@ class TextItem(CanvasItem):
         option.setWrapMode(QTextOption.WrapMode.WordWrap)
         doc.setDefaultTextOption(option)
 
-        # Apply color via stylesheet, then set HTML to activate it
         doc.setDefaultStyleSheet(
             f"body {{ color: {text_qcolor.name(QColor.NameFormat.HexArgb)}; }}"
         )
@@ -573,7 +431,6 @@ class TextItem(CanvasItem):
         """Return bounding rectangle in canvas coordinates."""
         if self.height > 0:
             return QRectF(self.x, self.y, self.width, self.height)
-        # Auto-height: compute from text
         doc = QTextDocument()
         doc.setDocumentMargin(0)
         font = QFont(self.font_family)
@@ -586,22 +443,17 @@ class TextItem(CanvasItem):
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "TextItem":
-        """Create TextItem from QML data dictionary."""
-        font_size = max(8.0, min(200.0, float(data.get("fontSize", 16))))
-        text_opacity = max(0.0, min(1.0, float(data.get("textOpacity", 1.0))))
-        width = max(1.0, float(data.get("width", 100)))
-        height = max(0.0, float(data.get("height", 0)))
-
+        """Create TextItem from dictionary."""
         return TextItem(
             x=float(data.get("x", 0)),
             y=float(data.get("y", 0)),
             text=str(data.get("text", "")),
             font_family=str(data.get("fontFamily", "Sans Serif")),
-            font_size=font_size,
+            font_size=float(data.get("fontSize", 16)),
             text_color=str(data.get("textColor", "#ffffff")),
-            width=width,
-            height=height,
-            text_opacity=text_opacity,
+            text_opacity=float(data.get("textOpacity", 1.0)),
+            width=float(data.get("width", 100)),
+            height=float(data.get("height", 0)),
             name=str(data.get("name", "")),
             parent_id=data.get("parentId"),
             visible=data.get("visible", True),
