@@ -4,6 +4,17 @@ import QtQuick
 QtObject {
     id: helper
 
+    // Get stroke width from appearances array
+    function getStrokeWidth(item) {
+        if (!item.appearances)
+            return 1;
+        for (var i = 0; i < item.appearances.length; i++) {
+            if (item.appearances[i].type === "stroke")
+                return item.appearances[i].width || 1;
+        }
+        return 1;
+    }
+
     function hitTest(items, canvasX, canvasY, boundingBoxCallback) {
         if (!items)
             return -1;
@@ -19,13 +30,16 @@ QtObject {
             // For boundingBoxCallback, always use modelIndex since it expects model indices
             var bbIndex = (item.modelIndex !== undefined) ? item.modelIndex : i;
 
-            if (item.type === "rectangle") {
-                if (canvasX >= item.x && canvasX <= item.x + item.width && canvasY >= item.y && canvasY <= item.y + item.height) {
+            // Get geometry (new nested format)
+            var geom = item.geometry;
+
+            if (item.type === "rectangle" && geom) {
+                if (canvasX >= geom.x && canvasX <= geom.x + geom.width && canvasY >= geom.y && canvasY <= geom.y + geom.height) {
                     return resultIndex;
                 }
-            } else if (item.type === "ellipse") {
-                var dx = (canvasX - item.centerX) / item.radiusX;
-                var dy = (canvasY - item.centerY) / item.radiusY;
+            } else if (item.type === "ellipse" && geom) {
+                var dx = (canvasX - geom.centerX) / geom.radiusX;
+                var dy = (canvasY - geom.centerY) / geom.radiusY;
                 if (dx * dx + dy * dy <= 1.0) {
                     return resultIndex;
                 }
@@ -34,7 +48,8 @@ QtObject {
                 if (boundingBoxCallback) {
                     var pathBounds = boundingBoxCallback(bbIndex);
                     if (pathBounds && pathBounds.width >= 0 && pathBounds.height >= 0) {
-                        var pathExpand = (item.strokeWidth || 1) * 0.5 + 2;
+                        var strokeWidth = getStrokeWidth(item);
+                        var pathExpand = strokeWidth * 0.5 + 2;
                         if (canvasX >= pathBounds.x - pathExpand && canvasX <= pathBounds.x + pathBounds.width + pathExpand && canvasY >= pathBounds.y - pathExpand && canvasY <= pathBounds.y + pathBounds.height + pathExpand) {
                             return resultIndex;
                         }
