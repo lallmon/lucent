@@ -3,24 +3,22 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import ".." as Lucent
 
-// Individual row item for the layer list
 Item {
     id: delegateRoot
 
-    // Parent references for accessing shared state
-    required property var panel        // LayerPanel root
-    required property var container    // layerContainer
-    required property var flickable    // layerFlickable
-    required property var repeater     // layerRepeater
-    required property var column       // layerColumn
+    required property var panel
+    required property var container
+    required property var flickable
+    required property var repeater
+    required property var column
 
-    // Model role properties (auto-bound from QAbstractListModel)
+    // Model role properties from QAbstractListModel
     required property int index
     required property string name
     required property string itemType
     required property int itemIndex
-    required property var itemId      // Layer's unique ID (null for shapes)
-    required property var parentId    // Parent layer ID (null for top-level items)
+    required property var itemId
+    required property var parentId
     required property bool modelVisible
     required property bool modelLocked
 
@@ -34,8 +32,7 @@ Item {
     readonly property bool hasParent: !!parentId
     readonly property bool isContainer: itemType === "layer" || itemType === "group"
 
-    // Computed colors and icons based on state
-    // Hide all selection highlights during any drag so drop hints are clearly visible
+    // Hide selection highlights during drag so drop hints are visible
     readonly property bool showAsSelected: isSelected && panel.draggedIndex < 0
     readonly property color itemTextColor: showAsSelected ? themePalette.highlightedText : themePalette.text
     readonly property string typeIcon: {
@@ -57,7 +54,6 @@ Item {
         }
     }
 
-    // Reset all drag-related state
     function resetDragState() {
         dragOffsetY = 0;
         panel.draggedIndex = -1;
@@ -68,7 +64,6 @@ Item {
         panel.dropInsertIndex = -1;
     }
 
-    // Delete this item with proper selection update
     function deleteItem() {
         Lucent.SelectionManager.selectedIndices = [index];
         Lucent.SelectionManager.selectedItemIndex = index;
@@ -76,7 +71,6 @@ Item {
         canvasModel.removeItem(index);
     }
 
-    // Select the item at the given index after a drag-drop
     function selectItemAt(newIndex) {
         Lucent.SelectionManager.selectedIndices = [newIndex];
         Lucent.SelectionManager.selectedItemIndex = newIndex;
@@ -168,7 +162,6 @@ Item {
                                         delegateRoot.resetDragState();
                                         return;
                                     }
-                                    // Calculate target model index for potential reordering
                                     let totalItemHeight = container.itemHeight + container.itemSpacing;
                                     let indexDelta = Math.round(delegateRoot.dragOffsetY / totalItemHeight);
                                     let targetDisplayIndex = panel.dropInsertIndex >= 0 ? panel.dropInsertIndex : delegateRoot.displayIndex + indexDelta;
@@ -190,7 +183,6 @@ Item {
                                         targetModelIndex = Math.min(targetModelIndex + 1, rowCount - 1);
                                     }
 
-                                    // Determine the action based on drag context
                                     let didMove = false;
                                     const draggedParent = panel.draggedItemParentId || "";
                                     const isLayer = panel.draggedItemType === "layer";
@@ -202,32 +194,26 @@ Item {
                                             didMove = true;
                                         }
                                     } else if (panel.dropTargetContainerId !== "") {
-                                        // Dropping onto container center - reparent with default position
                                         if (panel.dropTargetContainerId !== draggedParent) {
                                             canvasModel.reparentItem(panel.draggedIndex, panel.dropTargetContainerId, -1);
                                             didMove = true;
                                         } else if (targetModelIndex !== panel.draggedIndex) {
-                                            // Same parent - just reorder
                                             canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
                                             didMove = true;
                                         }
                                     } else {
-                                        // Dropping in edge zone (between items or on top-level)
                                         const targetParent = panel.dropTargetParentId || "";
                                         if (draggedParent === targetParent) {
-                                            // Same parent (or both top-level) - reorder
                                             if (targetModelIndex !== panel.draggedIndex) {
                                                 canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
                                                 didMove = true;
                                             }
                                         } else {
-                                            // Different parent - reparent to target's parent
                                             canvasModel.reparentItem(panel.draggedIndex, targetParent, targetModelIndex);
                                             didMove = true;
                                         }
                                     }
 
-                                    // Select the dropped item
                                     if (didMove) {
                                         delegateRoot.selectItemAt(targetModelIndex);
                                     }
@@ -242,12 +228,9 @@ Item {
 
                     onTranslationChanged: {
                         if (active) {
-                            // Compensate for flickable contentY changes during auto-scroll
                             let compensatedY = translation.y + (flickable.contentY - container.dragStartContentY);
                             delegateRoot.dragOffsetY = compensatedY;
-                            // Calculate which item we're hovering over
                             updateDropTarget();
-                            // Auto-scroll handled via timer using scene position
                             const p = delegateRoot.mapToItem(flickable, 0, dragHandler.centroid.position.y);
                             panel.lastDragYInFlick = p.y;
                         }
@@ -259,26 +242,23 @@ Item {
                         if (!dragHandler.centroid || !dragHandler.centroid.position)
                             return;
 
-                        // Use pointer position within the list to determine target row
                         const totalItemHeight = container.itemHeight + container.itemSpacing;
                         const rowCount = repeater.count;
                         const p = delegateRoot.mapToItem(column, 0, dragHandler.centroid.position.y);
-                        let yInColumn = p.y;
-                        // Clamp to column bounds
-                        yInColumn = Math.max(0, Math.min(column.contentHeight - 1, yInColumn));
+                        let yInColumn = Math.max(0, Math.min(column.contentHeight - 1, p.y));
 
                         let targetDisplayIndex = Math.floor(yInColumn / totalItemHeight);
                         targetDisplayIndex = Math.max(0, Math.min(rowCount - 1, targetDisplayIndex));
 
-                        // Calculate fractional position within the target row using absolute pointer
                         const positionInRow = yInColumn / totalItemHeight;
                         const fractionalPart = positionInRow - Math.floor(positionInRow);
-                        const isLayerParentingZone = fractionalPart > 0.25 && fractionalPart < 0.75;
+                        const isContainerCenterZone = fractionalPart > 0.25 && fractionalPart < 0.75;
 
                         const targetModelIndex = panel.modelIndexForDisplay(targetDisplayIndex);
                         const targetItem = repeater.itemAt(targetModelIndex);
-                        if (targetItem && targetItem.isContainer && panel.draggedItemType !== "layer" && isLayerParentingZone) {
-                            // Center of a container - show as drop target for parenting
+
+                        if (targetItem && targetItem.isContainer && panel.draggedItemType !== "layer" && isContainerCenterZone) {
+                            // Hovering on container center - show as drop target for parenting
                             panel.dropTargetContainerId = targetItem.itemId;
                             panel.dropTargetParentId = null;
                             panel.dropInsertIndex = -1;
@@ -286,16 +266,9 @@ Item {
                             // Edge zone - show insertion indicator
                             panel.dropTargetContainerId = "";
                             panel.dropTargetParentId = targetItem ? targetItem.parentId : null;
-                            // Insert indicator shows on the item below the insertion gap
-                            if (fractionalPart >= 0.5) {
-                                // Dropping below target row, indicator on next item
-                                // Allow rowCount as valid value for "after last item"
-                                panel.dropInsertIndex = Math.min(targetDisplayIndex + 1, rowCount);
-                            } else {
-                                // Dropping above target row, indicator on target item
-                                panel.dropInsertIndex = targetDisplayIndex;
-                            }
-                            // Hide indicator when dragging over self or adjacent position (no move would occur)
+                            panel.dropInsertIndex = fractionalPart >= 0.5 ? Math.min(targetDisplayIndex + 1, rowCount) : targetDisplayIndex;
+
+                            // Hide indicator when over self or adjacent (no move would occur)
                             const draggedDisplayIndex = delegateRoot.displayIndex;
                             if (panel.dropInsertIndex === draggedDisplayIndex || panel.dropInsertIndex === draggedDisplayIndex + 1) {
                                 panel.dropInsertIndex = -1;

@@ -22,7 +22,6 @@ Item {
     property int dropInsertIndex: -1
     property real lastDragYInFlick: 0
 
-    // Expose timer for delegate access
     property alias autoScrollTimer: autoScrollTimer
 
     function setSelectionFromDelegate(modelIndex, multi) {
@@ -164,8 +163,8 @@ Item {
                 Label {
                     anchors.centerIn: parent
                     visible: layerRepeater.count === 0
-                    text: qsTr("No objects")
-                    font.pixelSize: 11
+                    text: qsTr("Empty")
+                    font.pixelSize: 12
                     color: themePalette.text
                 }
             }
