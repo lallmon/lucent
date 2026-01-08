@@ -8,10 +8,7 @@ Item {
     id: root
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
-    // Signal to request focus return to canvas after editing
-    signal focusCanvasRequested
-
-    property var selectedItem: null
+    readonly property var selectedItem: Lucent.SelectionManager.selectedItem
 
     // Check if the selected item supports bounding box editing
     readonly property bool hasEditableBounds: {
@@ -251,24 +248,36 @@ Item {
         id: contentLayout
         anchors.left: parent.left
         anchors.right: parent.right
+        spacing: 0
 
-        Label {
-            text: qsTr("Transform")
-            font.pixelSize: 12
-            color: themePalette.text
+        RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: Lucent.Styles.pad.sm
+            Layout.rightMargin: Lucent.Styles.pad.sm
+
+            Label {
+                text: qsTr("Transform")
+                font.pixelSize: 12
+                color: themePalette.text
+                Layout.fillWidth: true
+            }
         }
 
-        Rectangle {
+        ToolSeparator {
             Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: themePalette.mid
+            orientation: Qt.Horizontal
+            contentItem: Rectangle {
+                implicitHeight: 1
+                color: themePalette.mid
+            }
         }
 
         // Transform properties: Origin, X/W, Y/H
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4
+            Layout.leftMargin: Lucent.Styles.pad.sm
+            Layout.rightMargin: Lucent.Styles.pad.sm
             spacing: 8
             enabled: root.controlsEnabled
             opacity: root.controlsEnabled ? 1.0 : 0.5
@@ -370,7 +379,7 @@ Item {
                     Layout.fillWidth: true
                     onValueModified: {
                         root.updatePosition("x", value);
-                        root.focusCanvasRequested();
+                        appController.focusCanvas();
                     }
                 }
 
@@ -392,7 +401,7 @@ Item {
                     Layout.fillWidth: true
                     onValueModified: {
                         root.updateBounds("width", value);
-                        root.focusCanvasRequested();
+                        appController.focusCanvas();
                     }
                 }
             }
@@ -417,7 +426,7 @@ Item {
                     Layout.fillWidth: true
                     onValueModified: {
                         root.updatePosition("y", value);
-                        root.focusCanvasRequested();
+                        appController.focusCanvas();
                     }
                 }
 
@@ -439,7 +448,7 @@ Item {
                     Layout.fillWidth: true
                     onValueModified: {
                         root.updateBounds("height", value);
-                        root.focusCanvasRequested();
+                        appController.focusCanvas();
                     }
                 }
             }
@@ -449,6 +458,8 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4
+            Layout.leftMargin: Lucent.Styles.pad.sm
+            Layout.rightMargin: Lucent.Styles.pad.sm
             spacing: 8
             enabled: root.controlsEnabled
             opacity: root.controlsEnabled ? 1.0 : 0.5
@@ -484,7 +495,7 @@ Item {
                     } else {
                         root.updateTransform("scaleX", newScaleX);
                     }
-                    root.focusCanvasRequested();
+                    appController.focusCanvas();
                 }
             }
 
@@ -519,7 +530,7 @@ Item {
                     } else {
                         root.updateTransform("scaleY", newScaleY);
                     }
-                    root.focusCanvasRequested();
+                    appController.focusCanvas();
                 }
             }
 
@@ -557,6 +568,8 @@ Item {
             Layout.fillWidth: true
             Layout.topMargin: 4
             Layout.bottomMargin: 8
+            Layout.leftMargin: Lucent.Styles.pad.xsm
+            Layout.rightMargin: Lucent.Styles.pad.xsm
             spacing: 8
             enabled: root.controlsEnabled
             opacity: root.controlsEnabled ? 1.0 : 0.5
@@ -600,7 +613,7 @@ Item {
                     var val = parseInt(text) || 0;
                     val = Math.max(-360, Math.min(360, val));
                     root.updateTransform("rotate", val);
-                    root.focusCanvasRequested();
+                    appController.focusCanvas();
 
                     isCommitting = false;
                 }

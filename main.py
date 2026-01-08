@@ -20,6 +20,7 @@ from lucent.canvas_renderer import CanvasRenderer
 from lucent.canvas_model import CanvasModel
 from lucent.document_manager import DocumentManager
 from lucent.font_provider import FontProvider
+from lucent.app_controller import AppController
 
 # Version placeholder - replaced by GitHub Actions during release builds
 __version__ = "__VERSION__"
@@ -131,6 +132,10 @@ if __name__ == "__main__":
 
     app_info = AppInfo(__version__)
     engine.rootContext().setContextProperty("appInfo", app_info)
+
+    # App controller for cross-cutting UI actions
+    app_controller = AppController()
+    engine.rootContext().setContextProperty("appController", app_controller)
 
     # Expose renderer backend info helper
     def _renderer_backend(api: QSGRendererInterface.GraphicsApi) -> str:

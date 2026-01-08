@@ -27,6 +27,17 @@ ApplicationWindow {
         }
     }
 
+    // Handle cross-cutting UI actions from nested components
+    Connections {
+        target: appController
+        function onExportRequested(layerId, layerName) {
+            root.openExportDialog(layerId, layerName);
+        }
+        function onFocusCanvasRequested() {
+            viewport.forceActiveFocus();
+        }
+    }
+
     menuBar: MenuBar {
         viewport: viewport
         canvas: canvas
@@ -36,7 +47,6 @@ ApplicationWindow {
         onSaveRequested: root.handleSave()
         onSaveAsRequested: saveDialog.open()
         onExitRequested: root.close()
-        onExportLayerRequested: (layerId, layerName) => root.openExportDialog(layerId, layerName)
     }
 
     footer: StatusBar {
@@ -246,8 +256,6 @@ ApplicationWindow {
                     SplitView.minimumWidth: 128
                     SplitView.maximumWidth: 400
                     SplitView.fillHeight: true
-                    onExportLayerRequested: (layerId, layerName) => root.openExportDialog(layerId, layerName)
-                    onFocusCanvasRequested: viewport.forceActiveFocus()
                 }
             }
         }

@@ -22,6 +22,7 @@ QtObject {
     }
 
     readonly property QtObject pad: QtObject {
+        readonly property int xsm: 4
         readonly property int sm: 4
         readonly property int md: 8
         readonly property int lg: 12

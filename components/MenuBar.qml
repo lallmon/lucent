@@ -18,7 +18,6 @@ MenuBar {
     signal saveRequested
     signal saveAsRequested
     signal exitRequested
-    signal exportLayerRequested(string layerId, string layerName)
 
     Menu {
         title: qsTr("&File")
@@ -57,7 +56,7 @@ MenuBar {
             onTriggered: {
                 var item = Lucent.SelectionManager.selectedItem;
                 if (item && item.type === "layer") {
-                    root.exportLayerRequested(item.id, item.name || "Layer");
+                    appController.openExportDialog(item.id, item.name || "Layer");
                 }
             }
         }
