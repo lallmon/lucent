@@ -406,7 +406,12 @@ Item {
     Connections {
         target: canvasModel
         function onItemTransformChanged(index) {
-            // Update overlay if the changed item is currently selected
+            if (index === Lucent.SelectionManager.selectedItemIndex) {
+                refreshSelectionTransform();
+                refreshSelectionGeometryBounds();
+            }
+        }
+        function onItemModified(index) {
             if (index === Lucent.SelectionManager.selectedItemIndex) {
                 refreshSelectionTransform();
                 refreshSelectionGeometryBounds();

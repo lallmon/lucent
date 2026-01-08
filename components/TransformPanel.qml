@@ -60,6 +60,7 @@ Item {
         }
         function onItemModified(index) {
             if (index === Lucent.SelectionManager.selectedItemIndex) {
+                root.refreshTransform();
                 root.refreshBounds();
             }
         }
@@ -440,8 +441,10 @@ Item {
                 onValueModified: {
                     var newScaleX = value / 100.0;
                     if (root.proportionalScale) {
+                        canvasModel.beginTransaction();
                         root.updateTransform("scaleX", newScaleX);
                         root.updateTransform("scaleY", newScaleX);
+                        canvasModel.endTransaction();
                     } else {
                         root.updateTransform("scaleX", newScaleX);
                     }
@@ -472,8 +475,10 @@ Item {
                 onValueModified: {
                     var newScaleY = value / 100.0;
                     if (root.proportionalScale) {
+                        canvasModel.beginTransaction();
                         root.updateTransform("scaleX", newScaleY);
                         root.updateTransform("scaleY", newScaleY);
+                        canvasModel.endTransaction();
                     } else {
                         root.updateTransform("scaleY", newScaleY);
                     }
@@ -550,6 +555,14 @@ Item {
                 to: 180
                 value: root.currentTransform ? root.currentTransform.rotate : 0
                 Layout.fillWidth: true
+
+                onPressedChanged: {
+                    if (pressed) {
+                        canvasModel.beginTransaction();
+                    } else {
+                        canvasModel.endTransaction();
+                    }
+                }
 
                 onMoved: root.updateTransform("rotate", value)
 

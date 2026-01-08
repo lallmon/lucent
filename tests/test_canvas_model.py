@@ -787,6 +787,38 @@ class TestCanvasModelGetGeometryBounds:
         assert bounds["width"] == 100
         assert bounds["height"] == 50
 
+    def test_get_geometry_bounds_ignores_scale(self, canvas_model):
+        """getGeometryBounds should ignore scale transform."""
+        data = make_rectangle(x=10, y=20, width=100, height=50)
+        data["transform"] = {"scaleX": 2.0, "scaleY": 3.0}
+        canvas_model.addItem(data)
+        bounds = canvas_model.getGeometryBounds(0)
+        # Should return untransformed geometry, not scaled dimensions
+        assert bounds["x"] == 10
+        assert bounds["y"] == 20
+        assert bounds["width"] == 100  # Not 200
+        assert bounds["height"] == 50  # Not 150
+
+    def test_get_geometry_bounds_ignores_all_transforms(self, canvas_model):
+        """getGeometryBounds should ignore all transform properties."""
+        data = make_rectangle(x=0, y=0, width=100, height=100)
+        data["transform"] = {
+            "translateX": 50,
+            "translateY": 50,
+            "rotate": 45,
+            "scaleX": 2.0,
+            "scaleY": 0.5,
+            "originX": 0.5,
+            "originY": 0.5,
+        }
+        canvas_model.addItem(data)
+        bounds = canvas_model.getGeometryBounds(0)
+        # Should return original geometry regardless of any transform
+        assert bounds["x"] == 0
+        assert bounds["y"] == 0
+        assert bounds["width"] == 100
+        assert bounds["height"] == 100
+
     def test_get_geometry_bounds_invalid_index(self, canvas_model):
         """getGeometryBounds returns None for invalid index."""
         assert canvas_model.getGeometryBounds(-1) is None
