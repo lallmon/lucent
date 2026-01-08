@@ -9,6 +9,7 @@ Pane {
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     signal exportLayerRequested(string layerId, string layerName)
+    signal focusCanvasRequested
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,6 +24,7 @@ Pane {
                 id: transformPanel
                 anchors.left: parent.left
                 anchors.right: parent.right
+                onFocusCanvasRequested: root.focusCanvasRequested()
             }
         }
 

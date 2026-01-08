@@ -8,6 +8,9 @@ Item {
     id: root
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
+    // Signal to request focus return to canvas after editing
+    signal focusCanvasRequested
+
     property var selectedItem: null
 
     // Check if the selected item supports bounding box editing
@@ -365,7 +368,10 @@ Item {
                     value: Math.round(root.displayedX)
                     editable: true
                     Layout.fillWidth: true
-                    onValueModified: root.updatePosition("x", value)
+                    onValueModified: {
+                        root.updatePosition("x", value);
+                        root.focusCanvasRequested();
+                    }
                 }
 
                 Label {
@@ -384,7 +390,10 @@ Item {
                     }
                     editable: true
                     Layout.fillWidth: true
-                    onValueModified: root.updateBounds("width", value)
+                    onValueModified: {
+                        root.updateBounds("width", value);
+                        root.focusCanvasRequested();
+                    }
                 }
             }
 
@@ -406,7 +415,10 @@ Item {
                     value: Math.round(root.displayedY)
                     editable: true
                     Layout.fillWidth: true
-                    onValueModified: root.updatePosition("y", value)
+                    onValueModified: {
+                        root.updatePosition("y", value);
+                        root.focusCanvasRequested();
+                    }
                 }
 
                 Label {
@@ -425,7 +437,10 @@ Item {
                     }
                     editable: true
                     Layout.fillWidth: true
-                    onValueModified: root.updateBounds("height", value)
+                    onValueModified: {
+                        root.updateBounds("height", value);
+                        root.focusCanvasRequested();
+                    }
                 }
             }
         }
@@ -469,6 +484,7 @@ Item {
                     } else {
                         root.updateTransform("scaleX", newScaleX);
                     }
+                    root.focusCanvasRequested();
                 }
             }
 
@@ -503,6 +519,7 @@ Item {
                     } else {
                         root.updateTransform("scaleY", newScaleY);
                     }
+                    root.focusCanvasRequested();
                 }
             }
 
@@ -551,7 +568,6 @@ Item {
             }
             TextField {
                 id: rotationField
-                text: root.currentTransform ? Math.round(root.currentTransform.rotate).toString() : "0"
                 horizontalAlignment: TextInput.AlignHCenter
                 Layout.preferredWidth: 50
                 validator: IntValidator {
@@ -559,10 +575,22 @@ Item {
                     top: 360
                 }
 
+                // Compute the expected text value from current transform
+                readonly property string expectedText: root.currentTransform ? Math.round(root.currentTransform.rotate).toString() : "0"
+
+                // Initialize text
+                Component.onCompleted: text = expectedText
+
+                // Always update text when expectedText changes (handles undo/redo)
+                // This is safe because expectedText only changes when the model changes,
+                // not when the user is actively typing (model updates on editingFinished)
+                onExpectedTextChanged: text = expectedText
+
                 onEditingFinished: {
                     var val = parseInt(text) || 0;
                     val = Math.max(-360, Math.min(360, val));
                     root.updateTransform("rotate", val);
+                    root.focusCanvasRequested();
                 }
             }
             Label {

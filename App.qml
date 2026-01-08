@@ -52,6 +52,36 @@ ApplicationWindow {
         }
     }
 
+    // Helper to check if focused item is a text input
+    function isTextInputActive() {
+        var item = root.activeFocusItem;
+        if (!item)
+            return false;
+        // Check if the focused item is a text editing control
+        var typeName = item.toString();
+        return typeName.indexOf("TextField") >= 0 || typeName.indexOf("TextInput") >= 0 || typeName.indexOf("TextEdit") >= 0 || typeName.indexOf("TextArea") >= 0 || typeName.indexOf("SpinBox") >= 0;  // SpinBox has editable text
+    }
+
+    // Global delete shortcut - works regardless of focus (except in text inputs)
+    Shortcut {
+        sequence: "Del"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!root.isTextInputActive()) {
+                canvas.deleteSelectedItem();
+            }
+        }
+    }
+    Shortcut {
+        sequence: "Backspace"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!root.isTextInputActive()) {
+                canvas.deleteSelectedItem();
+            }
+        }
+    }
+
     Platform.FileDialog {
         id: openDialog
         title: qsTr("Open Document")
@@ -217,6 +247,7 @@ ApplicationWindow {
                     SplitView.maximumWidth: 400
                     SplitView.fillHeight: true
                     onExportLayerRequested: (layerId, layerName) => root.openExportDialog(layerId, layerName)
+                    onFocusCanvasRequested: viewport.forceActiveFocus()
                 }
             }
         }
