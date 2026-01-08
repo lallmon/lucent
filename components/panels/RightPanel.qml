@@ -13,6 +13,7 @@ Pane {
 
         Pane {
             Layout.fillWidth: true
+            padding: 0
 
             TransformPanel {
                 id: transformPanel
@@ -34,6 +35,7 @@ Pane {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 150
+            padding: 0
 
             LayerPanel {
                 id: layerPanel

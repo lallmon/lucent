@@ -32,7 +32,8 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 0
+            Layout.leftMargin: Lucent.Styles.pad.xsm
+            Layout.rightMargin: Lucent.Styles.pad.xsm
 
             Label {
                 text: qsTr("Layers")
