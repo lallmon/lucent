@@ -128,7 +128,7 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: delegateRoot.hasParent ? 20 : 4
+            anchors.leftMargin: delegateRoot.hasParent ? 6 : 0
             anchors.rightMargin: 8
             spacing: 4
 
@@ -202,7 +202,8 @@ Item {
                                             }
                                         } else {
                                             // Different container - reparent to that container
-                                            canvasModel.reparentItem(panel.draggedIndex, panel.dropTargetContainerId, targetModelIndex);
+                                            // Use default position (-1) to place at top of container's children
+                                            canvasModel.reparentItem(panel.draggedIndex, panel.dropTargetContainerId, -1);
                                             didMove = true;
                                         }
                                     } else if (panel.dropTargetParentId && panel.draggedItemType !== "layer") {

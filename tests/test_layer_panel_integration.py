@@ -176,6 +176,30 @@ class TestLayerPanelModelBehaviors:
         assert rect_data is not None, "Rectangle not found after reparent"
         assert rect_data["parentId"] == layer_id
 
+    def test_reparent_item_default_position_below_container(self, model):
+        """Reparenting without explicit position places item below container.
+
+        When dropping onto a container center (not between children), the
+        item should appear as the first child below the container in display.
+        """
+        # Setup: Items added before layer, so layer is at top of display
+        model.addItem({"type": "rectangle", "name": "Square1"})
+        model.addItem({"type": "rectangle", "name": "Square2"})
+        model.addLayer()
+
+        layer_data = model.getItemData(2)
+        layer_id = layer_data["id"]
+
+        # Reparent without explicit position (simulates dropping onto container center)
+        model.reparentItem(0, layer_id)  # No insert_index
+
+        # Square1 should now be a child of Layer, positioned right below it
+        # Model order should be: [Square2@0, Square1@1, Layer@2]
+        # Display (reversed): Layer, Square1, Square2
+        sq1_data = model.getItemData(1)
+        assert sq1_data["name"] == "Square1"
+        assert sq1_data["parentId"] == layer_id
+
     def test_reparent_item_with_position_inserts_correctly(self, model):
         """Reparenting with explicit position places item at correct index.
 
