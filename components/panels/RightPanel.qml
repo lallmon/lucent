@@ -43,21 +43,4 @@ Pane {
             }
         }
     }
-
-    // Keep panel selection in sync without introducing a binding loop
-    Component.onCompleted: {
-        transformPanel.selectedItem = Lucent.SelectionManager.selectedItem;
-    }
-    Connections {
-        target: Lucent.SelectionManager
-        function onSelectedItemChanged() {
-            transformPanel.selectedItem = Lucent.SelectionManager.selectedItem;
-        }
-        function onSelectedItemIndexChanged() {
-            transformPanel.selectedItem = Lucent.SelectionManager.selectedItem;
-        }
-        function onSelectedIndicesChanged() {
-            transformPanel.selectedItem = Lucent.SelectionManager.selectedItem;
-        }
-    }
 }

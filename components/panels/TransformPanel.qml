@@ -11,7 +11,7 @@ Item {
     // Signal to request focus return to canvas after editing
     signal focusCanvasRequested
 
-    property var selectedItem: null
+    readonly property var selectedItem: Lucent.SelectionManager.selectedItem
 
     // Check if the selected item supports bounding box editing
     readonly property bool hasEditableBounds: {
