@@ -35,7 +35,9 @@ Item {
     readonly property bool isContainer: itemType === "layer" || itemType === "group"
 
     // Computed colors and icons based on state
-    readonly property color itemTextColor: isSelected ? themePalette.highlightedText : themePalette.text
+    // When dragging, show as unselected so drop hints are visible
+    readonly property bool showAsSelected: isSelected && !isBeingDragged
+    readonly property color itemTextColor: showAsSelected ? themePalette.highlightedText : themePalette.text
     readonly property string typeIcon: {
         switch (itemType) {
         case "layer":
@@ -74,6 +76,13 @@ Item {
         canvasModel.removeItem(index);
     }
 
+    // Select the item at the given index after a drag-drop
+    function selectItemAt(newIndex) {
+        Lucent.SelectionManager.selectedIndices = [newIndex];
+        Lucent.SelectionManager.selectedItemIndex = newIndex;
+        Lucent.SelectionManager.selectedItem = canvasModel.getItemData(newIndex);
+    }
+
     anchors.left: parent ? parent.left : undefined
     anchors.right: parent ? parent.right : undefined
     height: container.itemHeight
@@ -90,7 +99,7 @@ Item {
         id: background
         anchors.fill: parent
         radius: Lucent.Styles.rad.sm
-        color: delegateRoot.isDropTarget ? themePalette.highlight : delegateRoot.isSelected ? themePalette.highlight : nameHoverHandler.hovered ? themePalette.midlight : "transparent"
+        color: delegateRoot.isDropTarget ? themePalette.highlight : delegateRoot.showAsSelected ? themePalette.highlight : nameHoverHandler.hovered ? themePalette.midlight : "transparent"
         border.width: delegateRoot.isDropTarget ? 2 : 0
         border.color: themePalette.highlight
 
@@ -160,16 +169,19 @@ Item {
                                     }
 
                                     // Determine the action based on drag context
+                                    let didMove = false;
                                     if (panel.dropTargetContainerId !== "" && panel.draggedItemType !== "layer") {
                                         // Check if dropping onto the SAME parent (sibling reorder, not reparent)
                                         if (panel.dropTargetContainerId === panel.draggedItemParentId) {
                                             // Same parent - just reorder within the container
                                             if (targetModelIndex !== panel.draggedIndex) {
                                                 canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
+                                                didMove = true;
                                             }
                                         } else {
                                             // Different container - reparent to that container
                                             canvasModel.reparentItem(panel.draggedIndex, panel.dropTargetContainerId, targetModelIndex);
+                                            didMove = true;
                                         }
                                     } else if (panel.dropTargetParentId && panel.draggedItemType !== "layer") {
                                         // Dropping onto a gap between children of a layer
@@ -177,23 +189,33 @@ Item {
                                         if (isSameParent) {
                                             if (targetModelIndex !== panel.draggedIndex) {
                                                 canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
+                                                didMove = true;
                                             }
                                         } else {
                                             canvasModel.reparentItem(panel.draggedIndex, panel.dropTargetParentId, targetModelIndex);
+                                            didMove = true;
                                         }
                                     } else if (panel.draggedItemParentId && panel.dropTargetParentId === panel.draggedItemParentId) {
                                         // Dropping onto a sibling (same parent) - just reorder, keep parent
                                         if (targetModelIndex !== panel.draggedIndex) {
                                             canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
+                                            didMove = true;
                                         }
                                     } else if (panel.draggedItemParentId && !panel.dropTargetParentId && panel.dropTargetContainerId === "") {
                                         // Dropping a child onto a top-level item - unparent
                                         canvasModel.reparentItem(panel.draggedIndex, "", targetModelIndex);
+                                        didMove = true;
                                     } else {
                                         // Normal z-order reordering for top-level items
                                         if (targetModelIndex !== panel.draggedIndex) {
                                             canvasModel.moveItem(panel.draggedIndex, targetModelIndex);
+                                            didMove = true;
                                         }
+                                    }
+
+                                    // Select the dropped item
+                                    if (didMove) {
+                                        delegateRoot.selectItemAt(targetModelIndex);
                                     }
                                 }
                                 delegateRoot.resetDragState();
