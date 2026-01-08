@@ -919,3 +919,323 @@ class TestCanvasModelBoundingBoxWithTransforms:
         # Bounding box should be different (transformed)
         bbox = canvas_model.getBoundingBox(0)
         assert bbox["x"] != 10 or bbox["y"] != 20
+
+
+class TestCanvasModelTransforms:
+    """Tests for getItemTransform and setItemTransform methods."""
+
+    def test_get_item_transform_rectangle(self, canvas_model):
+        """getItemTransform returns transform dict for rectangle."""
+        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+        rect_data["transform"] = {
+            "translateX": 10,
+            "translateY": 20,
+            "rotate": 45,
+            "scaleX": 1.5,
+            "scaleY": 2.0,
+        }
+        canvas_model.addItem(rect_data)
+
+        transform = canvas_model.getItemTransform(0)
+        assert transform is not None
+        assert transform["translateX"] == 10
+        assert transform["translateY"] == 20
+        assert transform["rotate"] == 45
+        assert transform["scaleX"] == 1.5
+        assert transform["scaleY"] == 2.0
+
+    def test_get_item_transform_invalid_index(self, canvas_model):
+        """getItemTransform returns None for invalid index."""
+        assert canvas_model.getItemTransform(-1) is None
+        assert canvas_model.getItemTransform(999) is None
+
+    def test_get_item_transform_layer_returns_none(self, canvas_model):
+        """getItemTransform returns None for layers (no transform)."""
+        canvas_model.addItem(make_layer(name="Test Layer"))
+        assert canvas_model.getItemTransform(0) is None
+
+    def test_set_item_transform(self, canvas_model, qtbot):
+        """setItemTransform updates transform and emits signal."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=100, height=50))
+
+        new_transform = {
+            "translateX": 50,
+            "translateY": 25,
+            "rotate": 90,
+            "scaleX": 2.0,
+            "scaleY": 2.0,
+        }
+
+        with qtbot.waitSignal(
+            canvas_model.itemTransformChanged, timeout=1000
+        ) as blocker:
+            canvas_model.setItemTransform(0, new_transform)
+
+        assert blocker.args == [0]
+
+        transform = canvas_model.getItemTransform(0)
+        assert transform["translateX"] == 50
+        assert transform["rotate"] == 90
+
+    def test_set_item_transform_invalid_index(self, canvas_model):
+        """setItemTransform does nothing for invalid index."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=100, height=50))
+        # Should not raise
+        canvas_model.setItemTransform(-1, {"rotate": 45})
+        canvas_model.setItemTransform(999, {"rotate": 45})
+
+    def test_set_item_transform_layer_no_op(self, canvas_model):
+        """setItemTransform does nothing for layers."""
+        canvas_model.addItem(make_layer(name="Test Layer"))
+        # Should not raise
+        canvas_model.setItemTransform(0, {"rotate": 45})
+
+
+class TestCanvasModelDataRolesExtended:
+    """Tests for additional data roles."""
+
+    def test_type_role_ellipse(self, canvas_model):
+        """TypeRole returns 'ellipse' for ellipse items."""
+        canvas_model.addItem(
+            make_ellipse(center_x=50, center_y=50, radius_x=30, radius_y=20)
+        )
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "ellipse"
+
+    def test_type_role_path(self, canvas_model):
+        """TypeRole returns 'path' for path items."""
+        canvas_model.addItem(make_path(points=[{"x": 0, "y": 0}, {"x": 100, "y": 100}]))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "path"
+
+    def test_type_role_layer(self, canvas_model):
+        """TypeRole returns 'layer' for layer items."""
+        canvas_model.addItem(make_layer(name="Test Layer"))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "layer"
+
+    def test_type_role_text(self, canvas_model):
+        """TypeRole returns 'text' for text items."""
+        canvas_model.addItem(make_text(x=0, y=0, width=100, text="Hello"))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "text"
+
+    def test_type_role_group(self, canvas_model):
+        """TypeRole returns 'group' for group items."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        canvas_model.addItem(make_rectangle(x=60, y=0, width=50, height=50))
+        group_idx = canvas_model.groupItems([0, 1])
+        # Use the returned group index
+        index = canvas_model.index(group_idx, 0)
+        assert canvas_model.data(index, canvas_model.TypeRole) == "group"
+
+    def test_index_role(self, canvas_model):
+        """IndexRole returns the item's index."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        canvas_model.addItem(make_rectangle(x=60, y=0, width=50, height=50))
+        index0 = canvas_model.index(0, 0)
+        index1 = canvas_model.index(1, 0)
+        assert canvas_model.data(index0, canvas_model.IndexRole) == 0
+        assert canvas_model.data(index1, canvas_model.IndexRole) == 1
+
+    def test_item_id_role_layer(self, canvas_model):
+        """ItemIdRole returns ID for layers."""
+        canvas_model.addItem(make_layer(name="Test Layer"))
+        index = canvas_model.index(0, 0)
+        item_id = canvas_model.data(index, canvas_model.ItemIdRole)
+        assert item_id is not None
+        assert isinstance(item_id, str)
+        assert len(item_id) > 0
+
+    def test_item_id_role_group(self, canvas_model):
+        """ItemIdRole returns ID for groups."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        canvas_model.addItem(make_rectangle(x=60, y=0, width=50, height=50))
+        group_idx = canvas_model.groupItems([0, 1])
+        index = canvas_model.index(group_idx, 0)
+        item_id = canvas_model.data(index, canvas_model.ItemIdRole)
+        assert item_id is not None
+        assert isinstance(item_id, str)
+
+    def test_item_id_role_rectangle_returns_none(self, canvas_model):
+        """ItemIdRole returns None for non-container items."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.ItemIdRole) is None
+
+    def test_parent_id_role(self, canvas_model):
+        """ParentIdRole returns parent ID for items with parents."""
+        canvas_model.addItem(make_layer(name="Parent Layer"))
+        layer = canvas_model.getItems()[0]
+        layer_id = layer.id
+
+        rect_data = make_rectangle(x=0, y=0, width=50, height=50)
+        rect_data["parentId"] = layer_id
+        canvas_model.addItem(rect_data)
+
+        index = canvas_model.index(1, 0)
+        assert canvas_model.data(index, canvas_model.ParentIdRole) == layer_id
+
+    def test_parent_id_role_no_parent(self, canvas_model):
+        """ParentIdRole returns None for items without parents."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.ParentIdRole) is None
+
+    def test_effective_visible_role(self, canvas_model):
+        """EffectiveVisibleRole returns visibility state."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.EffectiveVisibleRole) is True
+
+        canvas_model.toggleVisibility(0)
+        assert canvas_model.data(index, canvas_model.EffectiveVisibleRole) is False
+
+    def test_effective_locked_role(self, canvas_model):
+        """EffectiveLockedRole returns locked state."""
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+        index = canvas_model.index(0, 0)
+        assert canvas_model.data(index, canvas_model.EffectiveLockedRole) is False
+
+        canvas_model.toggleLocked(0)
+        assert canvas_model.data(index, canvas_model.EffectiveLockedRole) is True
+
+
+class TestCanvasModelMoveGroupExtended:
+    """Extended tests for moveGroup with different item types."""
+
+    def test_move_group_with_ellipse(self, canvas_model):
+        """moveGroup correctly moves ellipse children."""
+        canvas_model.addItem(make_layer(name="Layer"))
+        layer = canvas_model.getItems()[0]
+
+        ellipse_data = make_ellipse(center_x=50, center_y=50, radius_x=30, radius_y=20)
+        ellipse_data["parentId"] = layer.id
+        canvas_model.addItem(ellipse_data)
+
+        # Move layer by (10, 20)
+        canvas_model.moveGroup(0, 10, 20)
+
+        # Check ellipse center moved
+        ellipse = canvas_model.getItems()[1]
+        assert ellipse.geometry.center_x == 60  # 50 + 10
+        assert ellipse.geometry.center_y == 70  # 50 + 20
+
+    def test_move_group_with_text(self, canvas_model):
+        """moveGroup correctly moves text children."""
+        canvas_model.addItem(make_layer(name="Layer"))
+        layer = canvas_model.getItems()[0]
+
+        text_data = make_text(x=100, y=200, width=150, text="Hello")
+        text_data["parentId"] = layer.id
+        canvas_model.addItem(text_data)
+
+        # Move layer by (15, 25)
+        canvas_model.moveGroup(0, 15, 25)
+
+        # Check text position moved
+        text = canvas_model.getItems()[1]
+        assert text.x == 115  # 100 + 15
+        assert text.y == 225  # 200 + 25
+
+    def test_move_group_with_path(self, canvas_model):
+        """moveGroup correctly moves path children."""
+        canvas_model.addItem(make_layer(name="Layer"))
+        layer = canvas_model.getItems()[0]
+
+        path_data = make_path(points=[{"x": 10, "y": 20}, {"x": 110, "y": 70}])
+        path_data["parentId"] = layer.id
+        canvas_model.addItem(path_data)
+
+        # Move layer by (5, 10)
+        canvas_model.moveGroup(0, 5, 10)
+
+        # Check path points moved
+        path = canvas_model.getItems()[1]
+        assert path.geometry.points[0]["x"] == 15  # 10 + 5
+        assert path.geometry.points[0]["y"] == 30  # 20 + 10
+        assert path.geometry.points[1]["x"] == 115  # 110 + 5
+        assert path.geometry.points[1]["y"] == 80  # 70 + 10
+
+
+class TestCanvasModelSetParent:
+    """Tests for setParent method."""
+
+    def test_set_parent_rectangle(self, canvas_model):
+        """setParent assigns parent to rectangle."""
+        canvas_model.addItem(make_layer(name="Parent Layer"))
+        canvas_model.addItem(make_rectangle(x=0, y=0, width=50, height=50))
+
+        layer = canvas_model.getItems()[0]
+        canvas_model.setParent(1, layer.id)
+
+        rect = canvas_model.getItems()[1]
+        assert rect.parent_id == layer.id
+
+    def test_set_parent_ellipse(self, canvas_model):
+        """setParent assigns parent to ellipse."""
+        canvas_model.addItem(make_layer(name="Parent Layer"))
+        canvas_model.addItem(
+            make_ellipse(center_x=50, center_y=50, radius_x=30, radius_y=20)
+        )
+
+        layer = canvas_model.getItems()[0]
+        canvas_model.setParent(1, layer.id)
+
+        ellipse = canvas_model.getItems()[1]
+        assert ellipse.parent_id == layer.id
+
+    def test_set_parent_empty_string_removes_parent(self, canvas_model):
+        """setParent with empty string removes parent."""
+        canvas_model.addItem(make_layer(name="Parent Layer"))
+        layer = canvas_model.getItems()[0]
+
+        rect_data = make_rectangle(x=0, y=0, width=50, height=50)
+        rect_data["parentId"] = layer.id
+        canvas_model.addItem(rect_data)
+
+        # Remove parent
+        canvas_model.setParent(1, "")
+
+        rect = canvas_model.getItems()[1]
+        assert rect.parent_id is None
+
+    def test_set_parent_invalid_index(self, canvas_model):
+        """setParent does nothing for invalid index."""
+        canvas_model.addItem(make_layer(name="Layer"))
+        layer = canvas_model.getItems()[0]
+        # Should not raise
+        canvas_model.setParent(-1, layer.id)
+        canvas_model.setParent(999, layer.id)
+
+    def test_set_parent_layer_no_op(self, canvas_model):
+        """setParent does nothing for layers (they can't have parents)."""
+        canvas_model.addItem(make_layer(name="Layer 1"))
+        canvas_model.addItem(make_layer(name="Layer 2"))
+
+        layer1 = canvas_model.getItems()[0]
+        # Try to set parent on layer - should be no-op
+        canvas_model.setParent(1, layer1.id)
+
+        # Layer 2 should not have a parent
+        layer2 = canvas_model.getItems()[1]
+        assert not hasattr(layer2, "parent_id") or layer2.parent_id is None
+
+
+class TestCanvasModelRoleNames:
+    """Tests for roleNames method."""
+
+    def test_role_names_returns_dict(self, canvas_model):
+        """roleNames returns a dictionary of role names."""
+        role_names = canvas_model.roleNames()
+        assert isinstance(role_names, dict)
+        assert len(role_names) > 0
+
+    def test_role_names_contains_expected_roles(self, canvas_model):
+        """roleNames includes expected role mappings."""
+        role_names = canvas_model.roleNames()
+        # Check that key roles are present
+        assert canvas_model.NameRole in role_names
+        assert canvas_model.TypeRole in role_names
+        assert canvas_model.VisibleRole in role_names
+        assert canvas_model.LockedRole in role_names
