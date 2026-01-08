@@ -1,9 +1,11 @@
 import QtQuick
+import QtQuick.Shapes
 import "." as Lucent
 
 // Renders a bounding box for the currently selected item in canvas coordinates.
 // The overlay transforms with the shape (translate, rotate, scale around origin).
-Rectangle {
+// Uses Shape/ShapePath for better thin line rendering at all zoom levels.
+Shape {
     id: selectionOverlay
 
     property var geometryBounds  // Object with x, y, width, height (untransformed)
@@ -32,10 +34,6 @@ Rectangle {
     width: _geomWidth + selectionPadding * 2
     height: _geomHeight + selectionPadding * 2
 
-    color: "transparent"
-    border.color: accentColor
-    border.width: (zoomLevel > 0 ? 1 / zoomLevel : 0)
-
     transform: [
         Scale {
             origin.x: selectionOverlay.width * selectionOverlay._originX
@@ -49,4 +47,33 @@ Rectangle {
             angle: selectionOverlay._rotation
         }
     ]
+
+    // ShapePath provides better thin line rendering than Rectangle border
+    ShapePath {
+        strokeColor: selectionOverlay.accentColor
+        strokeWidth: selectionOverlay.zoomLevel > 0 ? 1 / selectionOverlay.zoomLevel : 0
+        fillColor: "transparent"
+        joinStyle: ShapePath.MiterJoin
+        capStyle: ShapePath.FlatCap
+
+        // Draw closed rectangle path
+        startX: 0
+        startY: 0
+        PathLine {
+            x: selectionOverlay.width
+            y: 0
+        }
+        PathLine {
+            x: selectionOverlay.width
+            y: selectionOverlay.height
+        }
+        PathLine {
+            x: 0
+            y: selectionOverlay.height
+        }
+        PathLine {
+            x: 0
+            y: 0
+        }
+    }
 }
