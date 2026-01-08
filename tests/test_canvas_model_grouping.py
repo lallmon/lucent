@@ -1,6 +1,6 @@
 """Grouping, duplication, and hierarchy movement tests for CanvasModel."""
 
-from lucent.canvas_items import RectangleItem
+from lucent.canvas_items import GroupItem, RectangleItem
 from lucent.commands import DEFAULT_DUPLICATE_OFFSET
 from test_helpers import make_rectangle, make_ellipse, make_path, make_text, make_layer
 
@@ -66,6 +66,40 @@ class TestCanvasModelGrouping:
         canvas_model.addItem(make_rectangle())
         canvas_model.ungroup(0)
         assert canvas_model.count() == 1
+
+    def test_ungroup_undo_restores_group_with_children(self, canvas_model):
+        """Undoing ungroup should restore the group with its children."""
+        canvas_model.addItem(make_rectangle(name="A"))
+        canvas_model.addItem(make_rectangle(name="B"))
+
+        group_idx = canvas_model.groupItems([0, 1])
+        group_data = canvas_model.getItemData(group_idx)
+        group_id = group_data["id"]
+
+        # Verify children are parented to the group
+        items_before = canvas_model.getItems()
+        children_before = [
+            i for i in items_before if getattr(i, "parent_id", None) == group_id
+        ]
+        assert len(children_before) == 2
+
+        # Ungroup
+        canvas_model.ungroup(group_idx)
+        assert canvas_model.count() == 2  # Group removed, 2 shapes remain
+
+        # Undo the ungroup
+        canvas_model.undo()
+        assert canvas_model.count() == 3  # Group restored
+
+        # Verify children are back under the group
+        items_after = canvas_model.getItems()
+        groups = [i for i in items_after if isinstance(i, GroupItem)]
+        assert len(groups) == 1
+        restored_group_id = groups[0].id
+        children_after = [
+            i for i in items_after if getattr(i, "parent_id", None) == restored_group_id
+        ]
+        assert len(children_after) == 2
 
 
 class TestCanvasModelMoveGroup:

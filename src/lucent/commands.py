@@ -540,6 +540,57 @@ class GroupItemsCommand(Command):
         return self._result_index
 
 
+class UngroupItemsCommand(Command):
+    """Ungroup a group: move children to group's parent and remove the group."""
+
+    def __init__(self, model: "CanvasModel", group_index: int) -> None:
+        self._model = model
+        self._group_index = group_index
+        self._snapshot: List[Dict[str, Any]] = []
+
+    @property
+    def description(self) -> str:
+        return "Ungroup"
+
+    def execute(self) -> None:
+        if not (0 <= self._group_index < len(self._model._items)):
+            return
+        group = self._model._items[self._group_index]
+        if not isinstance(group, GroupItem):
+            return
+
+        # Snapshot before modification
+        self._snapshot = [item_to_dict(item) for item in self._model._items]
+
+        parent_id = getattr(group, "parent_id", None) or ""
+        group_id = group.id
+
+        # Build new items list with children reparented and group removed
+        new_items: List[Dict[str, Any]] = []
+        for item in self._model._items:
+            item_dict = item_to_dict(item)
+            if item_dict.get("id") == group_id:
+                # Skip the group itself (remove it)
+                continue
+            if item_dict.get("parentId") == group_id:
+                # Reparent child to group's parent
+                item_dict["parentId"] = parent_id if parent_id else None
+            new_items.append(item_dict)
+
+        self._reset_model_from_dicts(new_items)
+
+    def undo(self) -> None:
+        if not self._snapshot:
+            return
+        self._reset_model_from_dicts(self._snapshot)
+
+    def _reset_model_from_dicts(self, items_data: List[Dict[str, Any]]) -> None:
+        self._model.beginResetModel()
+        self._model._items = [parse_item(data) for data in items_data]
+        self._model.endResetModel()
+        self._model.itemsReordered.emit()
+
+
 class TransactionCommand(Command):
     """Command that groups multiple commands into a single undoable unit."""
 

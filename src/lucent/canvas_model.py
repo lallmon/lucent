@@ -269,26 +269,10 @@ class CanvasModel(QAbstractListModel):
     @Slot(int)
     def ungroup(self, group_index: int) -> None:
         """Ungroup a group: move its children to the group's parent and remove it."""
-        if not (0 <= group_index < len(self._items)):
-            return
-        group = self._items[group_index]
-        if not isinstance(group, GroupItem):
-            return
-        parent_id = getattr(group, "parent_id", None) or ""
+        from lucent.commands import UngroupItemsCommand
 
-        # Reparent direct children to the group's parent
-        child_indices = []
-        for i in range(len(self._items)):
-            child = self._items[i]
-            if getattr(child, "parent_id", None) == group.id:
-                child_indices.append(i)
-
-        # Reparent children (bottom-up to keep indices stable)
-        for idx in reversed(child_indices):
-            self.reparentItem(idx, parent_id)
-
-        # Remove the group itself
-        self.removeItem(group_index)
+        command = UngroupItemsCommand(self, group_index)
+        self._execute_command(command)
 
     @Slot(list, result=int)
     def groupItems(self, indices: list[int]) -> int:
