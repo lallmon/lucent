@@ -2,12 +2,12 @@ import QtQuick
 import "." as Lucent
 
 // Renders a bounding box for the currently selected item in canvas coordinates.
-// The overlay rotates with the shape's transform.
+// The overlay transforms with the shape (translate, rotate, scale around origin).
 Rectangle {
     id: selectionOverlay
 
     property var geometryBounds  // Object with x, y, width, height (untransformed)
-    property var itemTransform   // Transform object with rotate, translateX, etc.
+    property var itemTransform   // Transform object with rotate, translateX, scaleX, etc.
     property real zoomLevel: 1.0
     property real selectionPadding: 0
     property color accentColor: Lucent.Themed.selector
@@ -20,6 +20,8 @@ Rectangle {
     readonly property real _rotation: itemTransform ? (itemTransform.rotate || 0) : 0
     readonly property real _translateX: itemTransform ? (itemTransform.translateX || 0) : 0
     readonly property real _translateY: itemTransform ? (itemTransform.translateY || 0) : 0
+    readonly property real _scaleX: itemTransform ? (itemTransform.scaleX || 1) : 1
+    readonly property real _scaleY: itemTransform ? (itemTransform.scaleY || 1) : 1
     readonly property real _originX: itemTransform ? (itemTransform.originX || 0) : 0
     readonly property real _originY: itemTransform ? (itemTransform.originY || 0) : 0
 
@@ -34,9 +36,17 @@ Rectangle {
     border.color: accentColor
     border.width: (zoomLevel > 0 ? 1 / zoomLevel : 0)
 
-    transform: Rotation {
-        origin.x: selectionOverlay.width * selectionOverlay._originX
-        origin.y: selectionOverlay.height * selectionOverlay._originY
-        angle: selectionOverlay._rotation
-    }
+    transform: [
+        Scale {
+            origin.x: selectionOverlay.width * selectionOverlay._originX
+            origin.y: selectionOverlay.height * selectionOverlay._originY
+            xScale: selectionOverlay._scaleX
+            yScale: selectionOverlay._scaleY
+        },
+        Rotation {
+            origin.x: selectionOverlay.width * selectionOverlay._originX
+            origin.y: selectionOverlay.height * selectionOverlay._originY
+            angle: selectionOverlay._rotation
+        }
+    ]
 }

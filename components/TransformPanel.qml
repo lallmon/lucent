@@ -21,16 +21,25 @@ Item {
     // Check if selected item is effectively locked
     readonly property bool isLocked: (Lucent.SelectionManager.selectedItemIndex >= 0) && canvasModel && canvasModel.isEffectivelyLocked(Lucent.SelectionManager.selectedItemIndex)
 
-    // Current bounding box from the model
-    readonly property var currentBounds: {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel)
-            return null;
-        return canvasModel.getBoundingBox(idx);
-    }
+    // Current bounding box from the model (transformed) - updated reactively via signal
+    property var currentBounds: null
+
+    // Current geometry bounds (untransformed) - for position calculations
+    property var geometryBounds: null
 
     // Current transform - updated reactively via signal
     property var currentTransform: null
+
+    function refreshBounds() {
+        var idx = Lucent.SelectionManager.selectedItemIndex;
+        if (idx >= 0 && canvasModel) {
+            currentBounds = canvasModel.getBoundingBox(idx);
+            geometryBounds = canvasModel.getGeometryBounds(idx);
+        } else {
+            currentBounds = null;
+            geometryBounds = null;
+        }
+    }
 
     function refreshTransform() {
         var idx = Lucent.SelectionManager.selectedItemIndex;
@@ -46,6 +55,12 @@ Item {
         function onItemTransformChanged(index) {
             if (index === Lucent.SelectionManager.selectedItemIndex) {
                 root.refreshTransform();
+                root.refreshBounds();
+            }
+        }
+        function onItemModified(index) {
+            if (index === Lucent.SelectionManager.selectedItemIndex) {
+                root.refreshBounds();
             }
         }
     }
@@ -54,10 +69,14 @@ Item {
         target: Lucent.SelectionManager
         function onSelectedItemIndexChanged() {
             root.refreshTransform();
+            root.refreshBounds();
         }
     }
 
-    Component.onCompleted: refreshTransform()
+    Component.onCompleted: {
+        refreshTransform();
+        refreshBounds();
+    }
 
     // Controls are enabled only when an editable item is selected and not locked
     readonly property bool controlsEnabled: hasEditableBounds && !isLocked
@@ -65,29 +84,32 @@ Item {
     readonly property int labelSize: 10
     readonly property color labelColor: themePalette.text
 
-    // Computed canvas position: geometry origin point + translation
+    // Proportional scaling toggle
+    property bool proportionalScale: true
+
+    // Computed canvas position: geometry origin point + translation (using untransformed geometry)
     readonly property real displayedX: {
-        if (!currentBounds)
+        if (!geometryBounds)
             return 0;
         var t = currentTransform;
         var originX = t ? (t.originX || 0) : 0;
         var translateX = t ? (t.translateX || 0) : 0;
-        return currentBounds.x + currentBounds.width * originX + translateX;
+        return geometryBounds.x + geometryBounds.width * originX + translateX;
     }
 
     readonly property real displayedY: {
-        if (!currentBounds)
+        if (!geometryBounds)
             return 0;
         var t = currentTransform;
         var originY = t ? (t.originY || 0) : 0;
         var translateY = t ? (t.translateY || 0) : 0;
-        return currentBounds.y + currentBounds.height * originY + translateY;
+        return geometryBounds.y + geometryBounds.height * originY + translateY;
     }
 
     // Update translation to achieve a desired canvas position for the origin point
     function updatePosition(axis, newValue) {
         var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel || !currentBounds)
+        if (idx < 0 || !canvasModel || !geometryBounds)
             return;
 
         var t = currentTransform || {};
@@ -107,9 +129,9 @@ Item {
         if (axis === "x") {
             // newValue = geometry.x + geometry.width * originX + translateX
             // So: translateX = newValue - geometry.x - geometry.width * originX
-            newTransform.translateX = newValue - currentBounds.x - currentBounds.width * originX;
+            newTransform.translateX = newValue - geometryBounds.x - geometryBounds.width * originX;
         } else if (axis === "y") {
-            newTransform.translateY = newValue - currentBounds.y - currentBounds.height * originY;
+            newTransform.translateY = newValue - geometryBounds.y - geometryBounds.height * originY;
         }
 
         canvasModel.setItemTransform(idx, newTransform);
@@ -168,23 +190,37 @@ Item {
         var oldOx = currentTransform ? (currentTransform.originX || 0) : 0;
         var oldOy = currentTransform ? (currentTransform.originY || 0) : 0;
         var rotation = currentTransform ? (currentTransform.rotate || 0) : 0;
+        var scaleX = currentTransform ? (currentTransform.scaleX || 1) : 1;
+        var scaleY = currentTransform ? (currentTransform.scaleY || 1) : 1;
         var oldTx = currentTransform ? (currentTransform.translateX || 0) : 0;
         var oldTy = currentTransform ? (currentTransform.translateY || 0) : 0;
 
         // Adjust translation to keep shape visually in place when origin changes
+        // Formula: adjustment = delta - R(S(delta))
+        // Where delta is unscaled displacement, R is rotation, S is scale
         var dx = (oldOx - newOx) * bounds.width;
         var dy = (oldOy - newOy) * bounds.height;
+
+        // Scale the displacement
+        var scaledDx = dx * scaleX;
+        var scaledDy = dy * scaleY;
+
+        // Rotate the scaled displacement
         var radians = rotation * Math.PI / 180;
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var adjustX = dx - (dx * cos - dy * sin);
-        var adjustY = dy - (dx * sin + dy * cos);
+        var rotatedScaledDx = scaledDx * cos - scaledDy * sin;
+        var rotatedScaledDy = scaledDx * sin + scaledDy * cos;
+
+        // Adjustment = unscaled delta - rotated scaled delta
+        var adjustX = dx - rotatedScaledDx;
+        var adjustY = dy - rotatedScaledDy;
 
         var newTransform = {
             translateX: oldTx + adjustX,
             translateY: oldTy + adjustY,
             rotate: rotation,
-            scaleX: currentTransform ? (currentTransform.scaleX || 1) : 1,
+            scaleX: scaleX,
             scaleY: currentTransform ? (currentTransform.scaleY || 1) : 1,
             originX: newOx,
             originY: newOy
@@ -372,6 +408,107 @@ Item {
             }
         }
 
+        // Scale row
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 4
+            spacing: 8
+            enabled: root.controlsEnabled
+            opacity: root.controlsEnabled ? 1.0 : 0.5
+
+            Label {
+                text: qsTr("Scale X:")
+                font.pixelSize: root.labelSize
+                color: root.labelColor
+            }
+            SpinBox {
+                id: scaleXSpinBox
+                from: 1
+                to: 1000
+                value: root.currentTransform ? Math.round((root.currentTransform.scaleX || 1) * 100) : 100
+                editable: true
+                Layout.fillWidth: true
+
+                property int decimals: 0
+                textFromValue: function (value, locale) {
+                    return value + "%";
+                }
+                valueFromText: function (text, locale) {
+                    return parseInt(text.replace("%", "")) || 100;
+                }
+
+                onValueModified: {
+                    var newScaleX = value / 100.0;
+                    if (root.proportionalScale) {
+                        root.updateTransform("scaleX", newScaleX);
+                        root.updateTransform("scaleY", newScaleX);
+                    } else {
+                        root.updateTransform("scaleX", newScaleX);
+                    }
+                }
+            }
+
+            Label {
+                text: qsTr("Y:")
+                font.pixelSize: root.labelSize
+                color: root.labelColor
+            }
+            SpinBox {
+                id: scaleYSpinBox
+                from: 1
+                to: 1000
+                value: root.currentTransform ? Math.round((root.currentTransform.scaleY || 1) * 100) : 100
+                editable: true
+                Layout.fillWidth: true
+
+                property int decimals: 0
+                textFromValue: function (value, locale) {
+                    return value + "%";
+                }
+                valueFromText: function (text, locale) {
+                    return parseInt(text.replace("%", "")) || 100;
+                }
+
+                onValueModified: {
+                    var newScaleY = value / 100.0;
+                    if (root.proportionalScale) {
+                        root.updateTransform("scaleX", newScaleY);
+                        root.updateTransform("scaleY", newScaleY);
+                    } else {
+                        root.updateTransform("scaleY", newScaleY);
+                    }
+                }
+            }
+
+            // Proportional scale toggle
+            Button {
+                id: proportionalToggle
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                checkable: true
+                checked: root.proportionalScale
+                onCheckedChanged: root.proportionalScale = checked
+
+                background: Rectangle {
+                    color: proportionalToggle.checked ? root.themePalette.highlight : root.themePalette.button
+                    border.color: root.themePalette.mid
+                    border.width: 1
+                    radius: 2
+                }
+
+                contentItem: Lucent.PhIcon {
+                    name: proportionalToggle.checked ? "lock" : "lock-open"
+                    size: 14
+                    color: proportionalToggle.checked ? root.themePalette.highlightedText : root.themePalette.buttonText
+                    anchors.centerIn: parent
+                }
+
+                ToolTip.visible: hovered
+                ToolTip.text: proportionalToggle.checked ? qsTr("Proportional scaling on") : qsTr("Proportional scaling off")
+                ToolTip.delay: 500
+            }
+        }
+
         // Rotation row
         RowLayout {
             Layout.fillWidth: true
@@ -382,7 +519,7 @@ Item {
             opacity: root.controlsEnabled ? 1.0 : 0.5
 
             Label {
-                text: qsTr("R:")
+                text: qsTr("Rotate:")
                 font.pixelSize: root.labelSize
                 color: root.labelColor
             }
