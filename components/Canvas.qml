@@ -179,7 +179,7 @@ Item {
     }
 
     function handleMouseClick(viewportX, viewportY, button) {
-        if (currentToolLoader.item && button === Qt.LeftButton) {
+        if (currentToolLoader.item && currentToolLoader.item.handleClick && button === Qt.LeftButton) {
             var canvasCoords = viewportToCanvas(viewportX, viewportY);
             currentToolLoader.item.handleClick(canvasCoords.x, canvasCoords.y);
         }

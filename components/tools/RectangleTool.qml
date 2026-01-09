@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 import ".." as Lucent
 
 // Rectangle drawing tool component
@@ -15,160 +16,123 @@ Item {
         id: helper
     }
     property var currentRect: null
+    property real mouseX: 0
+    property real mouseY: 0
 
-    // Signal emitted when an item is completed
     signal itemCompleted(var itemData)
 
-    // Starting point indicator (black dot shown during rectangle drawing)
-    Rectangle {
-        id: startPointIndicator
-        visible: helper.isDrawing
-        x: helper.startX - (6 / tool.zoomLevel)
-        y: helper.startY - (6 / tool.zoomLevel)
-        width: 12 / tool.zoomLevel
-        height: 12 / tool.zoomLevel
-        radius: 6 / tool.zoomLevel
-        color: Lucent.Themed.palette.text
-        border.color: Lucent.Themed.palette.base
-        border.width: 1 / tool.zoomLevel
-    }
-
-    // Preview rectangle (shown while drawing) - using explicit rectangles for reliable rendering
-    Item {
+    // Preview rectangle using Shape for better performance
+    Shape {
         id: previewRect
 
-        // Enable layer smoothing to match QPainter antialiasing
-        layer.enabled: true
-        layer.smooth: true
-
-        property real strokeW: (settings ? settings.strokeWidth : 1) / tool.zoomLevel
-        property color strokeColor: {
-            if (!settings)
-                return Lucent.Themed.palette.text;
-            var c = Qt.color(settings.strokeColor);
-            c.a = settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0;
-            return c;
-        }
-        property color fillColor: {
-            if (!settings)
-                return "transparent";
-            var c = Qt.color(settings.fillColor);
-            c.a = settings.fillOpacity;
-            return c;
-        }
-
-        visible: tool.currentRect !== null && tool.currentRect !== undefined && tool.currentRect.width > 0 && tool.currentRect.height > 0
+        visible: tool.currentRect !== null && tool.currentRect.width > 0 && tool.currentRect.height > 0
 
         x: tool.currentRect ? tool.currentRect.x : 0
         y: tool.currentRect ? tool.currentRect.y : 0
         width: tool.currentRect ? tool.currentRect.width : 0
         height: tool.currentRect ? tool.currentRect.height : 0
 
-        // Fill rectangle
-        Rectangle {
-            anchors.fill: parent
-            color: previewRect.fillColor
-        }
+        ShapePath {
+            strokeWidth: (settings ? settings.strokeWidth : 1) / tool.zoomLevel
+            strokeColor: {
+                if (!settings)
+                    return Lucent.Themed.palette.text;
+                var c = Qt.color(settings.strokeColor);
+                c.a = settings.strokeOpacity !== undefined ? settings.strokeOpacity : 1.0;
+                return c;
+            }
+            fillColor: {
+                if (!settings)
+                    return "transparent";
+                var c = Qt.color(settings.fillColor);
+                c.a = settings.fillOpacity;
+                return c;
+            }
+            joinStyle: ShapePath.MiterJoin
 
-        // Top border
-        Rectangle {
-            x: -previewRect.strokeW / 2
-            y: -previewRect.strokeW / 2
-            width: parent.width + previewRect.strokeW
-            height: previewRect.strokeW
-            color: previewRect.strokeColor
-            radius: 0.5
-            antialiasing: true
-        }
-
-        // Bottom border
-        Rectangle {
-            x: -previewRect.strokeW / 2
-            y: parent.height - previewRect.strokeW / 2
-            width: parent.width + previewRect.strokeW
-            height: previewRect.strokeW
-            color: previewRect.strokeColor
-            radius: 0.5
-            antialiasing: true
-        }
-
-        // Left border
-        Rectangle {
-            x: -previewRect.strokeW / 2
-            y: previewRect.strokeW / 2
-            width: previewRect.strokeW
-            height: parent.height - previewRect.strokeW
-            color: previewRect.strokeColor
-            radius: 0.5
-            antialiasing: true
-        }
-
-        // Right border
-        Rectangle {
-            x: parent.width - previewRect.strokeW / 2
-            y: previewRect.strokeW / 2
-            width: previewRect.strokeW
-            height: parent.height - previewRect.strokeW
-            color: previewRect.strokeColor
-            radius: 0.5
-            antialiasing: true
+            startX: 0
+            startY: 0
+            PathLine {
+                x: previewRect.width
+                y: 0
+            }
+            PathLine {
+                x: previewRect.width
+                y: previewRect.height
+            }
+            PathLine {
+                x: 0
+                y: previewRect.height
+            }
+            PathLine {
+                x: 0
+                y: 0
+            }
         }
     }
 
-    // Handle clicks for rectangle drawing
-    function handleClick(canvasX, canvasY) {
-        if (!tool.active)
+    Lucent.ToolTipCanvas {
+        visible: helper.isDrawing && tool.currentRect !== null
+        zoomLevel: tool.zoomLevel
+        cursorX: tool.mouseX
+        cursorY: tool.mouseY
+        text: tool.currentRect ? Math.round(tool.currentRect.width) + " × " + Math.round(tool.currentRect.height) : ""
+    }
+
+    function handleMousePress(canvasX, canvasY, button, modifiers) {
+        if (!tool.active || button !== Qt.LeftButton)
             return;
 
-        if (!helper.isDrawing) {
-            // First click: Start drawing a rectangle
-            helper.begin(canvasX, canvasY);
+        helper.begin(canvasX, canvasY);
+        currentRect = {
+            x: helper.startX,
+            y: helper.startY,
+            width: 1,
+            height: 1
+        };
+    }
 
-            // Initialize rectangle at start point with minimal size
-            currentRect = {
-                x: helper.startX,
-                y: helper.startY,
-                width: 1,
-                height: 1
-            };
-        } else {
-            // Second click: Finalize the rectangle
-            if (helper.hasSize(currentRect)) {
-                var style = helper.extractStyle(settings);
-                itemCompleted({
-                    type: "rectangle",
-                    geometry: {
-                        x: currentRect.x,
-                        y: currentRect.y,
-                        width: currentRect.width,
-                        height: currentRect.height
+    function handleMouseRelease(canvasX, canvasY) {
+        if (!tool.active || !helper.isDrawing)
+            return;
+
+        if (helper.hasSize(currentRect)) {
+            var style = helper.extractStyle(settings);
+            itemCompleted({
+                type: "rectangle",
+                geometry: {
+                    x: currentRect.x,
+                    y: currentRect.y,
+                    width: currentRect.width,
+                    height: currentRect.height
+                },
+                appearances: [
+                    {
+                        type: "fill",
+                        color: style.fillColor,
+                        opacity: style.fillOpacity,
+                        visible: true
                     },
-                    appearances: [
-                        {
-                            type: "fill",
-                            color: style.fillColor,
-                            opacity: style.fillOpacity,
-                            visible: true
-                        },
-                        {
-                            type: "stroke",
-                            color: style.strokeColor,
-                            width: style.strokeWidth,
-                            opacity: style.strokeOpacity,
-                            visible: true
-                        }
-                    ]
-                });
-            }
-
-            // Clear current rectangle and reset drawing state
-            currentRect = null;
-            helper.reset();
+                    {
+                        type: "stroke",
+                        color: style.strokeColor,
+                        width: style.strokeWidth,
+                        opacity: style.strokeOpacity,
+                        visible: true
+                    }
+                ]
+            });
         }
+
+        currentRect = null;
+        helper.reset();
     }
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
+        mouseX = canvasX;
+        mouseY = canvasY;
+
         if (!tool.active || !helper.isDrawing)
             return;
 

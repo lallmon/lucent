@@ -6,8 +6,21 @@ import "." as Lucent
 MenuBar {
     id: root
 
+    readonly property SystemPalette themePalette: Lucent.Themed.palette
+
     // Property to reference the viewport for zoom operations
     property var viewport: null
+
+    background: Rectangle {
+        color: themePalette.window
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: themePalette.mid
+        }
+    }
     // Property to reference the canvas for edit operations
     property var canvas: null
 

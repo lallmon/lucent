@@ -12,6 +12,17 @@ Pane {
     property string activeTool: ""
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
+    background: Rectangle {
+        color: themePalette.window
+        Rectangle {
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            width: 1
+            color: themePalette.mid
+        }
+    }
+
     ButtonGroup {
         id: toolButtonGroup
         exclusive: true

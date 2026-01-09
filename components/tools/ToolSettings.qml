@@ -10,6 +10,17 @@ ToolBar {
     property string activeTool: ""
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
+    background: Rectangle {
+        color: themePalette.window
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: themePalette.mid
+        }
+    }
+
     // Selection awareness: when a shape is selected, show its properties
     // Use a non-readonly property to avoid binding loops when itemModified updates the selection
     property var currentSelection: null
@@ -52,7 +63,7 @@ ToolBar {
         anchors.fill: parent
         anchors.leftMargin: 8
         anchors.rightMargin: 8
-        spacing: 8
+        spacing: 4
 
         Lucent.RectangleToolSettings {
             id: rectangleSettings
