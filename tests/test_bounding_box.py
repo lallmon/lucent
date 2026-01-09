@@ -7,7 +7,7 @@ from lucent.bounding_box import (
     get_ellipse_bounds,
     get_path_bounds,
     get_text_bounds,
-    translate_path_to_bounds,
+    scale_path_to_bounds,
     bbox_to_ellipse_geometry,
     get_item_bounds,
 )
@@ -255,21 +255,48 @@ class TestGetTextBounds:
         assert result == {"x": 10, "y": 20, "width": 100, "height": 24.0}
 
 
-class TestTranslatePathToBounds:
-    """Tests for translate_path_to_bounds function."""
+class TestScalePathToBounds:
+    """Tests for scale_path_to_bounds function."""
 
     def test_returns_empty_for_empty_points(self):
-        assert translate_path_to_bounds([], 100, 100) == []
+        assert scale_path_to_bounds([], 100, 100, 50, 50) == []
 
-    def test_translates_points_to_new_origin(self):
+    def test_translates_points_to_new_origin_same_size(self):
         points = [{"x": 0, "y": 0}, {"x": 50, "y": 50}]
-        result = translate_path_to_bounds(points, 100, 100)
+        result = scale_path_to_bounds(points, 100, 100, 50, 50)
         assert result == [{"x": 100, "y": 100}, {"x": 150, "y": 150}]
 
-    def test_handles_non_origin_path(self):
-        points = [{"x": 50, "y": 50}, {"x": 100, "y": 100}]
-        result = translate_path_to_bounds(points, 0, 0)
+    def test_scales_path_to_double_size(self):
+        points = [{"x": 0, "y": 0}, {"x": 50, "y": 50}]
+        result = scale_path_to_bounds(points, 0, 0, 100, 100)
+        assert result == [{"x": 0, "y": 0}, {"x": 100, "y": 100}]
+
+    def test_scales_path_to_half_size(self):
+        points = [{"x": 0, "y": 0}, {"x": 100, "y": 100}]
+        result = scale_path_to_bounds(points, 0, 0, 50, 50)
         assert result == [{"x": 0, "y": 0}, {"x": 50, "y": 50}]
+
+    def test_scales_and_translates(self):
+        points = [{"x": 10, "y": 10}, {"x": 60, "y": 60}]
+        result = scale_path_to_bounds(points, 100, 200, 100, 100)
+        assert result == [{"x": 100, "y": 200}, {"x": 200, "y": 300}]
+
+    def test_handles_non_proportional_scaling(self):
+        points = [{"x": 0, "y": 0}, {"x": 50, "y": 100}]
+        result = scale_path_to_bounds(points, 0, 0, 100, 50)
+        assert result == [{"x": 0, "y": 0}, {"x": 100, "y": 50}]
+
+    def test_handles_zero_width_path(self):
+        points = [{"x": 50, "y": 0}, {"x": 50, "y": 100}]
+        result = scale_path_to_bounds(points, 100, 0, 0, 200)
+        # x stays at new_x since width is 0, y scales
+        assert result == [{"x": 100, "y": 0}, {"x": 100, "y": 200}]
+
+    def test_handles_zero_height_path(self):
+        points = [{"x": 0, "y": 50}, {"x": 100, "y": 50}]
+        result = scale_path_to_bounds(points, 0, 100, 200, 0)
+        # x scales, y stays at new_y since height is 0
+        assert result == [{"x": 0, "y": 100}, {"x": 200, "y": 100}]
 
 
 class TestBboxToEllipseGeometry:

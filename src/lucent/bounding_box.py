@@ -124,30 +124,46 @@ def get_text_bounds(
     return rect_bounds(x, y, width, actual_height)
 
 
-def translate_path_to_bounds(
+def scale_path_to_bounds(
     points: List[Dict[str, float]],
     new_x: float,
     new_y: float,
+    new_width: float,
+    new_height: float,
 ) -> List[Dict[str, float]]:
-    """Translate path points to align with new bounding box position.
+    """Scale and translate path points to fit a new bounding box.
 
     Args:
         points: Original list of point dictionaries.
         new_x: New left edge x-coordinate.
         new_y: New top edge y-coordinate.
+        new_width: New bounding box width.
+        new_height: New bounding box height.
 
     Returns:
-        New list of translated points.
+        New list of scaled and translated points.
     """
     if not points:
         return []
+
     xs = [p["x"] for p in points]
     ys = [p["y"] for p in points]
     old_min_x = min(xs)
     old_min_y = min(ys)
-    dx = new_x - old_min_x
-    dy = new_y - old_min_y
-    return [{"x": p["x"] + dx, "y": p["y"] + dy} for p in points]
+    old_width = max(xs) - old_min_x
+    old_height = max(ys) - old_min_y
+
+    # Avoid division by zero for degenerate paths
+    scale_x = new_width / old_width if old_width > 0 else 1
+    scale_y = new_height / old_height if old_height > 0 else 1
+
+    return [
+        {
+            "x": new_x + (p["x"] - old_min_x) * scale_x,
+            "y": new_y + (p["y"] - old_min_y) * scale_y,
+        }
+        for p in points
+    ]
 
 
 def bbox_to_ellipse_geometry(bbox: Dict[str, float]) -> Dict[str, float]:

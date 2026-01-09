@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 from lucent.bounding_box import (
     bbox_to_ellipse_geometry,
     get_item_bounds,
-    translate_path_to_bounds,
+    scale_path_to_bounds,
     union_bounds,
 )
 from lucent.canvas_items import (
@@ -93,8 +93,8 @@ def apply_bounding_box(
         points = item.geometry.points
         if not points:
             return None
-        current_data["geometry"]["points"] = translate_path_to_bounds(
-            points, new_x, new_y
+        current_data["geometry"]["points"] = scale_path_to_bounds(
+            points, new_x, new_y, new_width, new_height
         )
         return current_data
 
