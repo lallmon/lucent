@@ -244,6 +244,10 @@ Item {
         // Get reference to Canvas component
         property var canvasComponent: contentContainer.children.length > 0 ? contentContainer.children[0] : null
 
+        // Track last mouse position for modifier key updates
+        property real lastMouseX: 0
+        property real lastMouseY: 0
+
         // Bind cursor shape to Canvas's currentCursorShape
         cursorShape: canvasComponent ? canvasComponent.currentCursorShape : Qt.ArrowCursor
 
@@ -256,6 +260,18 @@ Item {
         Keys.onEscapePressed: {
             if (canvasComponent) {
                 canvasComponent.cancelCurrentTool();
+            }
+        }
+
+        Keys.onPressed: event => {
+            if ((event.key === Qt.Key_Shift || event.key === Qt.Key_Alt) && canvasComponent) {
+                canvasComponent.handleMouseMove(lastMouseX, lastMouseY, event.modifiers);
+            }
+        }
+
+        Keys.onReleased: event => {
+            if ((event.key === Qt.Key_Shift || event.key === Qt.Key_Alt) && canvasComponent) {
+                canvasComponent.handleMouseMove(lastMouseX, lastMouseY, event.modifiers);
             }
         }
 
@@ -279,6 +295,8 @@ Item {
         }
 
         onPositionChanged: mouse => {
+            lastMouseX = mouse.x;
+            lastMouseY = mouse.y;
             if (canvasComponent) {
                 canvasComponent.handleMouseMove(mouse.x, mouse.y, mouse.modifiers);
             }

@@ -16,6 +16,8 @@ Item {
         id: helper
     }
     property var currentRect: null
+    property real mouseX: 0
+    property real mouseY: 0
 
     signal itemCompleted(var itemData)
 
@@ -69,6 +71,14 @@ Item {
         }
     }
 
+    Lucent.ToolTipCanvas {
+        visible: helper.isDrawing && tool.currentRect !== null
+        zoomLevel: tool.zoomLevel
+        cursorX: tool.mouseX
+        cursorY: tool.mouseY
+        text: tool.currentRect ? Math.round(tool.currentRect.width) + " × " + Math.round(tool.currentRect.height) : ""
+    }
+
     function handleMousePress(canvasX, canvasY, button, modifiers) {
         if (!tool.active || button !== Qt.LeftButton)
             return;
@@ -120,6 +130,9 @@ Item {
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
+        mouseX = canvasX;
+        mouseY = canvasY;
+
         if (!tool.active || !helper.isDrawing)
             return;
 

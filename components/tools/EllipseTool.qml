@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
-import "." as Lucent
+import ".." as Lucent
 
 // Ellipse drawing tool component
 Item {
@@ -16,6 +16,8 @@ Item {
         id: helper
     }
     property var currentEllipse: null
+    property real mouseX: 0
+    property real mouseY: 0
 
     signal itemCompleted(var itemData)
 
@@ -66,6 +68,14 @@ Item {
                 useLargeArc: true
             }
         }
+    }
+
+    Lucent.ToolTipCanvas {
+        visible: helper.isDrawing && tool.currentEllipse !== null
+        zoomLevel: tool.zoomLevel
+        cursorX: tool.mouseX
+        cursorY: tool.mouseY
+        text: tool.currentEllipse ? Math.round(tool.currentEllipse.width) + " × " + Math.round(tool.currentEllipse.height) : ""
     }
 
     function handleMousePress(canvasX, canvasY, button, modifiers) {
@@ -124,6 +134,9 @@ Item {
 
     // Update preview during mouse movement
     function handleMouseMove(canvasX, canvasY, modifiers) {
+        mouseX = canvasX;
+        mouseY = canvasY;
+
         if (!tool.active || !helper.isDrawing)
             return;
 
