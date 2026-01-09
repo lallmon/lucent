@@ -35,22 +35,43 @@ Item {
     // Hide selection highlights during drag so drop hints are visible
     readonly property bool showAsSelected: isSelected && panel.draggedIndex < 0
     readonly property color itemTextColor: showAsSelected ? themePalette.highlightedText : themePalette.text
-    readonly property string typeIcon: {
+    readonly property var typeIconInfo: {
         switch (itemType) {
         case "layer":
-            return "stack";
+            return {
+                name: "stack-fill",
+                weight: "fill"
+            };
         case "group":
-            return "folder-simple";
+            return {
+                name: "folders-fill",
+                weight: "fill"
+            };
         case "rectangle":
-            return "rectangle";
+            return {
+                name: "rectangle",
+                weight: "regular"
+            };
         case "ellipse":
-            return "circle";
+            return {
+                name: "circle",
+                weight: "regular"
+            };
         case "path":
-            return "pen-nib";
+            return {
+                name: "pen-nib",
+                weight: "regular"
+            };
         case "text":
-            return "text-t";
+            return {
+                name: "text-t",
+                weight: "regular"
+            };
         default:
-            return "shapes";
+            return {
+                name: "shapes-fill",
+                weight: "fill"
+            };
         }
     }
 
@@ -133,7 +154,8 @@ Item {
 
                 Lucent.PhIcon {
                     anchors.centerIn: parent
-                    name: delegateRoot.typeIcon
+                    name: delegateRoot.typeIconInfo.name
+                    weight: delegateRoot.typeIconInfo.weight
                     size: 18
                     color: delegateRoot.itemTextColor
                 }
@@ -431,26 +453,23 @@ Item {
             }
 
             Lucent.IconButton {
-                iconName: delegateRoot.modelVisible ? "eye" : "eye-closed"
+                iconName: delegateRoot.modelVisible ? "eye-fill" : "eye-slash-fill"
                 iconBaseColor: delegateRoot.itemTextColor
-                size: 28
-                iconSize: 16
+                iconSize: 18
                 onClicked: canvasModel.toggleVisibility(delegateRoot.index)
             }
 
             Lucent.IconButton {
-                iconName: delegateRoot.modelLocked ? "lock" : "lock-open"
+                iconName: delegateRoot.modelLocked ? "lock-simple-fill" : "lock-simple-open-fill"
                 iconBaseColor: delegateRoot.itemTextColor
-                size: 28
-                iconSize: 16
+                iconSize: 18
                 onClicked: canvasModel.toggleLocked(delegateRoot.index)
             }
 
             Lucent.IconButton {
-                iconName: "trash"
+                iconName: "trash-simple-fill"
                 iconBaseColor: delegateRoot.itemTextColor
-                size: 28
-                iconSize: 16
+                iconSize: 18
                 onClicked: delegateRoot.deleteItem()
             }
         }

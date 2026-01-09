@@ -29,5 +29,6 @@ OpacitySlider 1.0 controls/OpacitySlider.qml
 ToolIconButton 1.0 controls/ToolIconButton.qml
 IconButton 1.0 controls/IconButton.qml
 PhIcon 1.0 controls/PhIcon.qml
+ToolTipStyled 1.0 controls/ToolTipStyled.qml
 AboutDialog 1.0 dialogs/AboutDialog.qml
 ExportDialog 1.0 dialogs/ExportDialog.qml

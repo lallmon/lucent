@@ -557,9 +557,10 @@ Item {
                     anchors.centerIn: parent
                 }
 
-                ToolTip.visible: hovered
-                ToolTip.text: proportionalToggle.checked ? qsTr("Proportional scaling on") : qsTr("Proportional scaling off")
-                ToolTip.delay: 500
+                Lucent.ToolTipStyled {
+                    visible: proportionalToggle.hovered
+                    text: proportionalToggle.checked ? qsTr("Proportional scaling on") : qsTr("Proportional scaling off")
+                }
             }
         }
 

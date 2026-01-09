@@ -5,8 +5,8 @@ import ".." as Lucent
 
 Pane {
     id: root
-    width: 48
-    padding: Lucent.Styles.pad.md
+    width: 36
+    padding: Lucent.Styles.pad.sm
 
     signal toolSelected(string toolName)
     property string activeTool: ""
@@ -21,7 +21,7 @@ Pane {
         Lucent.ToolIconButton {
             id: selButton
             toolName: "select"
-            iconName: "hand-pointing"
+            iconName: "cursor-fill"
             tooltipText: ""
             activeTool: root.activeTool
             buttonGroup: toolButtonGroup
@@ -36,6 +36,7 @@ Pane {
             id: rectButton
             toolName: "rectangle"
             iconName: "rectangle"
+            iconWeight: "regular"
             tooltipText: "Rectangle Tool\n\nShift: Constrain to square\nAlt: Draw from center"
             activeTool: root.activeTool
             buttonGroup: toolButtonGroup
@@ -48,6 +49,7 @@ Pane {
             id: ellipseButton
             toolName: "ellipse"
             iconName: "circle"
+            iconWeight: "regular"
             tooltipText: "Ellipse Tool\n\nShift: Constrain to circle\nAlt: Draw from center"
             activeTool: root.activeTool
             buttonGroup: toolButtonGroup
@@ -60,6 +62,7 @@ Pane {
             id: penButton
             toolName: "pen"
             iconName: "pen-nib"
+            iconWeight: "regular"
             tooltipText: "Pen Tool\n\nClick to add points, click first point to close"
             activeTool: root.activeTool
             buttonGroup: toolButtonGroup
@@ -72,6 +75,7 @@ Pane {
             id: textButton
             toolName: "text"
             iconName: "text-t"
+            iconWeight: "regular"
             tooltipText: "Text Tool\n\nClick to place text, type, then press Enter to confirm"
             activeTool: root.activeTool
             buttonGroup: toolButtonGroup

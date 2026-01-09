@@ -7,6 +7,7 @@ ToolButton {
     id: root
     property string toolName: ""
     property string iconName: ""
+    property string iconWeight: "fill"
     property string tooltipText: ""
     property string activeTool: ""
     property ButtonGroup buttonGroup: null
@@ -24,16 +25,18 @@ ToolButton {
     checked: isDefaultSelect ? (activeTool === toolName || activeTool === "") : activeTool === toolName
     ButtonGroup.group: buttonGroup
 
-    ToolTip.visible: hovered && tooltipText !== ""
-    ToolTip.delay: 1000
-    ToolTip.text: tooltipText
+    Lucent.ToolTipStyled {
+        visible: root.hovered && root.tooltipText !== ""
+        text: root.tooltipText
+    }
 
     contentItem: Item {
         anchors.fill: parent
         Lucent.PhIcon {
             anchors.centerIn: parent
             name: iconName
-            color: themePalette.buttonText
+            weight: iconWeight
+            color: root.checked ? themePalette.highlight : themePalette.buttonText
         }
     }
 

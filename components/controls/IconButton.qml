@@ -7,9 +7,10 @@ Rectangle {
     id: root
 
     property string iconName: ""
+    property string iconWeight: "fill"
     property string tooltipText: ""
     property int size: 24
-    property int iconSize: 18
+    property int iconSize: 20
     // Base icon color when not hovered (e.g. based on selection state)
     property color iconBaseColor: themePalette.text
     // Final icon color: highlight on hover, otherwise use base
@@ -28,6 +29,7 @@ Rectangle {
     Lucent.PhIcon {
         anchors.centerIn: parent
         name: root.iconName
+        weight: root.iconWeight
         size: root.iconSize
         color: root.iconColor
     }
@@ -41,20 +43,8 @@ Rectangle {
         onTapped: root.clicked()
     }
 
-    ToolTip {
+    Lucent.ToolTipStyled {
         visible: root.hovered && root.tooltipText !== ""
-        delay: 1000
         text: root.tooltipText
-
-        background: Rectangle {
-            color: themePalette.window
-            radius: Lucent.Styles.rad.sm
-        }
-
-        contentItem: Label {
-            text: root.tooltipText
-            color: themePalette.text
-            font.pixelSize: 10
-        }
     }
 }

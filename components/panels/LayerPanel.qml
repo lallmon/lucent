@@ -48,13 +48,13 @@ Item {
                 spacing: 2
 
                 Lucent.IconButton {
-                    iconName: "stack-plus"
+                    iconName: "stack-plus-fill"
                     tooltipText: qsTr("Add Layer")
                     onClicked: canvasModel.addLayer()
                 }
 
                 Lucent.IconButton {
-                    iconName: "folder-simple-plus"
+                    iconName: "folder-plus-fill"
                     tooltipText: qsTr("Add Group")
                     onClicked: {
                         canvasModel.addItem({
@@ -66,7 +66,7 @@ Item {
                 }
 
                 Lucent.IconButton {
-                    iconName: "folders"
+                    iconName: "folders-fill"
                     tooltipText: qsTr("Group Selection")
                     onClicked: {
                         var indices = Lucent.SelectionManager.currentSelectionIndices();
