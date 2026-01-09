@@ -793,6 +793,18 @@ class CanvasModel(QAbstractListModel):
         """Return axis-aligned bounding box for an item (or its descendants)."""
         return compute_bounding_box(self._items, index, self._get_descendant_indices)
 
+    @Slot(list, result="QVariant")  # type: ignore[arg-type]
+    def getUnionBoundingBox(self, indices: List[int]) -> Optional[Dict[str, float]]:
+        """Return union bounding box for multiple items."""
+        from lucent.bounding_box import union_bounds
+
+        bounds_list = []
+        for idx in indices:
+            bb = self.getBoundingBox(idx)
+            if bb:
+                bounds_list.append(bb)
+        return union_bounds(bounds_list)
+
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getGeometryBounds(self, index: int) -> Optional[Dict[str, float]]:
         """Return untransformed geometry bounds for an item.

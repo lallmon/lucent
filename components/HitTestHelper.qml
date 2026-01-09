@@ -25,6 +25,10 @@ QtObject {
             if (!item || !item.type)
                 continue;
 
+            // Skip containers - they're selectable via LayerPanel, not canvas clicks
+            if (item.type === "layer" || item.type === "group")
+                continue;
+
             // Use modelIndex from item if available, otherwise fall back to array index
             var resultIndex = (item.modelIndex !== undefined) ? item.modelIndex : i;
             // For boundingBoxCallback, always use modelIndex since it expects model indices
@@ -48,7 +52,6 @@ QtObject {
             if (canvasX >= bounds.x - expand && canvasX <= bounds.x + bounds.width + expand && canvasY >= bounds.y - expand && canvasY <= bounds.y + bounds.height + expand) {
                 return resultIndex;
             }
-            // Groups and layers are not hit-testable on canvas - select via Layer Panel
         }
         return -1;
     }

@@ -269,17 +269,22 @@ Item {
     }
 
     function refreshSelectionGeometryBounds() {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx >= 0 && canvasModel) {
-            // getGeometryBounds returns null for containers (layers/groups)
-            // Fall back to getBoundingBox which computes union of children
-            var bounds = canvasModel.getGeometryBounds(idx);
+        var indices = Lucent.SelectionManager.currentSelectionIndices();
+        if (indices.length === 0 || !canvasModel) {
+            _selectionGeometryBounds = null;
+            return;
+        }
+
+        if (indices.length === 1) {
+            // Single selection: try geometry bounds first, fall back to bounding box
+            var bounds = canvasModel.getGeometryBounds(indices[0]);
             if (!bounds) {
-                bounds = canvasModel.getBoundingBox(idx);
+                bounds = canvasModel.getBoundingBox(indices[0]);
             }
             _selectionGeometryBounds = bounds;
         } else {
-            _selectionGeometryBounds = null;
+            // Multi-selection: compute union of all bounding boxes
+            _selectionGeometryBounds = canvasModel.getUnionBoundingBox(indices);
         }
     }
 

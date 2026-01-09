@@ -282,6 +282,31 @@ class TestLayerPanelModelBehaviors:
         assert bounds["width"] == 50
         assert bounds["height"] == 50
 
+    def test_union_bounding_box_for_multiselection(self, model):
+        """Multi-selection needs getUnionBoundingBox for selection overlay."""
+        model.addItem(
+            {
+                "type": "rectangle",
+                "name": "Rect1",
+                "geometry": {"x": 0, "y": 0, "width": 50, "height": 50},
+            }
+        )
+        model.addItem(
+            {
+                "type": "rectangle",
+                "name": "Rect2",
+                "geometry": {"x": 100, "y": 100, "width": 50, "height": 50},
+            }
+        )
+
+        # Get union bounds for both items
+        union = model.getUnionBoundingBox([0, 1])
+        assert union is not None
+        assert union["x"] == 0
+        assert union["y"] == 0
+        assert union["width"] == 150
+        assert union["height"] == 150
+
     def test_model_roles_match_qml_expectations(self, model):
         """Verify model exposes roles that LayerPanel.qml binds to."""
         model.addLayer()
