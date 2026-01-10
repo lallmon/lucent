@@ -19,7 +19,7 @@ excluded_qml_plugins = QtCharts,QtSensors,QtWebEngine
 modules = Core,DBus,Gui,Network,Qml
 
 [nuitka]
-extra_args = --jobs=6 --assume-yes-for-downloads --include-package=lucent --include-data-files=App.qml=App.qml --include-data-dir=components=components --include-data-dir=assets=assets
+extra_args = --jobs=6 --assume-yes-for-downloads --windows-disable-console --include-package=lucent --include-data-files=App.qml=App.qml --include-data-dir=components=components --include-data-dir=assets=assets
 
 [linux]
 appimage = true
