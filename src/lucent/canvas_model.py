@@ -52,6 +52,7 @@ from lucent.model_geometry import (
     apply_bounding_box,
     compute_bounding_box,
     compute_geometry_bounds,
+    shape_to_path_data,
 )
 from lucent.render_query import get_render_items, get_hit_test_items
 
@@ -967,8 +968,8 @@ class CanvasModel(QAbstractListModel):
     def bakeTransform(self, index: int) -> None:
         """Apply transform to geometry and reset transform to identity.
 
-        This "flattens" the visual appearance into the geometry, useful
-        for export or when the user wants to reset transform values.
+        For shapes with rotation, converts to a path with transformed corners.
+        For scale/translate only, updates geometry bounds directly.
         The operation is undoable.
 
         Args:
@@ -985,15 +986,22 @@ class CanvasModel(QAbstractListModel):
         if item.transform.is_identity():
             return
 
-        # Get current transformed bounds
+        # For rotated shapes, convert to path with baked transform
+        path_data = shape_to_path_data(item, self._itemToDict)
+        if path_data is not None:
+            self.beginTransaction()
+            # Must use replaceItem since updateItem preserves type
+            self._replaceItem(index, path_data)
+            self.endTransaction()
+            return
+
+        # No rotation - apply scale/translate to geometry bounds
         transformed_bounds = item.get_bounds()
         if transformed_bounds.isEmpty():
             return
 
-        # Begin transaction for single undo step
         self.beginTransaction()
 
-        # Apply transformed bounds to geometry
         self.setBoundingBox(
             index,
             {
@@ -1004,7 +1012,6 @@ class CanvasModel(QAbstractListModel):
             },
         )
 
-        # Reset transform to identity
         self.setItemTransform(
             index,
             {
@@ -1019,6 +1026,30 @@ class CanvasModel(QAbstractListModel):
         )
 
         self.endTransaction()
+
+    def _replaceItem(self, index: int, new_data: Dict[str, Any]) -> None:
+        """Replace an item at index with a new item (allows type changes)."""
+        if not (0 <= index < len(self._items)):
+            return
+
+        old_data = self._itemToDict(self._items[index])
+
+        try:
+            parsed = parse_item_data(new_data)
+            new_item = parse_item(parsed.data)
+        except ItemSchemaError as exc:
+            print(f"Warning: Failed to replace item: {exc}")
+            return
+
+        self._items[index] = new_item
+
+        if not self._transaction_active:
+            command = UpdateItemCommand(self, index, old_data, parsed.data)
+            self._history.execute(command)
+
+        model_index = self.index(index, 0)
+        self.dataChanged.emit(model_index, model_index, [])
+        self.itemModified.emit(index, parsed.data)
 
     @Slot(result="QVariant")  # type: ignore[arg-type]
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:

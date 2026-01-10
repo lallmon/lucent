@@ -204,21 +204,69 @@ class TestBakeTransform:
         assert transform["scaleX"] == 1
         assert transform["scaleY"] == 1
 
-    def test_bake_transform_rectangle_rotation(self, canvas_model):
-        """Baking rotation should update geometry bounds."""
-        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+    def test_bake_transform_rectangle_rotation_converts_to_path(self, canvas_model):
+        """Baking rotated rectangle should convert to path with rotated corners."""
+        import math
+
+        # 100x100 square centered at origin (0,0 to 100,100, center at 50,50)
+        rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "rotate": 90,
+            "rotate": 45,
             "originX": 0.5,
             "originY": 0.5,
         }
         canvas_model.addItem(rect_data)
 
+        # Get the item type before baking
+        item_before = canvas_model.getItemData(0)
+        assert item_before["type"] == "rectangle"
+
         canvas_model.bakeTransform(0)
 
-        # Transform should be reset
+        # Item should now be a path
+        item_after = canvas_model.getItemData(0)
+        assert item_after["type"] == "path"
+
+        # Transform should be reset to identity
         transform = canvas_model.getItemTransform(0)
         assert transform["rotate"] == 0
+        assert transform["scaleX"] == 1
+        assert transform["scaleY"] == 1
+
+        # The path should have 4 points (corners of rotated square)
+        points = item_after["geometry"]["points"]
+        assert len(points) == 4
+
+        # For a 100x100 square rotated 45° around center (50,50):
+        # The diagonal half-length is 50*sqrt(2) ≈ 70.71
+        # Top corner should be at (50, 50 - 70.71)
+        # Right corner at (50 + 70.71, 50)
+        # Bottom corner at (50, 50 + 70.71)
+        # Left corner at (50 - 70.71, 50)
+        half_diag = 50 * math.sqrt(2)
+
+        # Verify the path bounds match the rotated rectangle bounds
+        xs = [p["x"] for p in points]
+        ys = [p["y"] for p in points]
+        assert abs(min(xs) - (50 - half_diag)) < 0.01
+        assert abs(max(xs) - (50 + half_diag)) < 0.01
+        assert abs(min(ys) - (50 - half_diag)) < 0.01
+        assert abs(max(ys) - (50 + half_diag)) < 0.01
+
+    def test_bake_transform_rectangle_no_rotation_keeps_rectangle(self, canvas_model):
+        """Baking rectangle without rotation should keep it as rectangle."""
+        rect_data = make_rectangle(x=0, y=0, width=100, height=50)
+        rect_data["transform"] = {
+            "scaleX": 2.0,
+            "translateX": 10,
+        }
+        canvas_model.addItem(rect_data)
+
+        canvas_model.bakeTransform(0)
+
+        # Item should still be a rectangle
+        item_after = canvas_model.getItemData(0)
+        assert item_after["type"] == "rectangle"
 
     def test_bake_transform_identity_no_op(self, canvas_model):
         """Baking identity transform should do nothing."""
