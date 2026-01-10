@@ -259,6 +259,14 @@ Item {
         if (root.drawingMode === "") {
             selectTool.handlePress(viewportX, viewportY, button, modifiers);
         } else if (currentToolLoader.item && currentToolLoader.item.handleMousePress) {
+            // When using a drawing tool, don't start drawing if clicking on selection handles
+            // This allows manipulating selected shapes without switching to select tool
+            if (Lucent.SelectionManager.selectedItemIndex >= 0) {
+                var nearHandle = selectTool.isNearRotationHandle(viewportX, viewportY) || selectTool.isNearResizeHandle(viewportX, viewportY);
+                if (nearHandle) {
+                    return;  // Let SelectionOverlay handle it
+                }
+            }
             var canvasCoords = viewportToCanvas(viewportX, viewportY);
             currentToolLoader.item.handleMousePress(canvasCoords.x, canvasCoords.y, button, modifiers);
         }
