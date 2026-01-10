@@ -149,20 +149,29 @@ Item {
             getBoundsCallback: function (idx) {
                 return canvasModel.getBoundingBox(idx);
             }
-            // Overlay geometry for manual rotation handle hit testing
+            // Overlay geometry for manual rotation/resize handle hit testing
             overlayGeometry: root._selectionGeometryBounds && selectionOverlay.itemTransform ? {
-                centerX: root._selectionGeometryBounds.x + root._selectionGeometryBounds.width / 2 + (selectionOverlay.itemTransform.translateX || 0),
-                centerY: root._selectionGeometryBounds.y + root._selectionGeometryBounds.height / 2 + (selectionOverlay.itemTransform.translateY || 0),
+                // The rotation/scale pivot point in canvas coordinates
+                originX: selectionOverlay.itemTransform.originX || 0,
+                originY: selectionOverlay.itemTransform.originY || 0,
+                // Geometry bounds
+                geomX: root._selectionGeometryBounds.x,
+                geomY: root._selectionGeometryBounds.y,
+                geomWidth: root._selectionGeometryBounds.width,
+                geomHeight: root._selectionGeometryBounds.height,
+                // Transform properties
+                translateX: selectionOverlay.itemTransform.translateX || 0,
+                translateY: selectionOverlay.itemTransform.translateY || 0,
+                scaleX: selectionOverlay.itemTransform.scaleX || 1,
+                scaleY: selectionOverlay.itemTransform.scaleY || 1,
                 rotation: selectionOverlay.itemTransform.rotate || 0,
+                // Handle sizing
                 armLength: 30 / root.zoomLevel,
                 handleSize: 8 / root.zoomLevel,
-                halfHeight: (root._selectionGeometryBounds.height * (selectionOverlay.itemTransform.scaleY || 1)) / 2,
                 zoomLevel: root.zoomLevel
             } : null
             // Don't drag object when overlay resize/rotate handles are being used
-            overlayActive: selectionOverlay.isResizing || selectionOverlay.isRotating || selectionOverlay.isHandlePressed
-            // Prevent object drag initiation when hovering over overlay handles
-            isHoveringHandle: selectionOverlay.isHoveringHandle
+            overlayActive: selectionOverlay.isResizing || selectionOverlay.isRotating
 
             onPanDelta: (dx, dy) => {
                 root.panRequested(dx, dy);

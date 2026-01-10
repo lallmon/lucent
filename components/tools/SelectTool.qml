@@ -9,98 +9,135 @@ Item {
     property bool active: false
     property var hitTestCallback: null
     property var viewportToCanvasCallback: null
-    property var getBoundsCallback: null  // For checking if click is inside selected group
-    property var canvasToViewportCallback: null  // For converting canvas coords to viewport
+    property var getBoundsCallback: null
+    property var canvasToViewportCallback: null
 
-    // Overlay geometry for manual hit testing of rotation handle
-    property var overlayGeometry: null  // {centerX, centerY, rotation, armLength, handleSize}
+    // Overlay geometry for manual hit testing of handles
+    property var overlayGeometry: null
 
     // When true, overlay handles are being used - don't interfere with dragging
     property bool overlayActive: false
 
-    // When true, cursor is hovering over an overlay handle - don't initiate object drag on press
-    property bool isHoveringHandle: false
+    // Calculate overlay position and dimensions accounting for origin and scale
+    function getOverlayBounds(geom) {
+        var displayedWidth = geom.geomWidth * geom.scaleX;
+        var displayedHeight = geom.geomHeight * geom.scaleY;
+
+        var overlayX = geom.geomX + geom.translateX + (geom.geomWidth * geom.originX) - (displayedWidth * geom.originX);
+        var overlayY = geom.geomY + geom.translateY + (geom.geomHeight * geom.originY) - (displayedHeight * geom.originY);
+
+        var pivotX = overlayX + displayedWidth * geom.originX;
+        var pivotY = overlayY + displayedHeight * geom.originY;
+
+        return {
+            x: overlayX,
+            y: overlayY,
+            width: displayedWidth,
+            height: displayedHeight,
+            pivotX: pivotX,
+            pivotY: pivotY
+        };
+    }
+
+    // Transform a point from overlay-local coords to canvas coords
+    function overlayToCanvas(localX, localY, bounds, geom) {
+        var dx = localX - bounds.width * geom.originX;
+        var dy = localY - bounds.height * geom.originY;
+        var angleRad = geom.rotation * Math.PI / 180;
+        var rotatedX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
+        var rotatedY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
+        return {
+            x: bounds.pivotX + rotatedX,
+            y: bounds.pivotY + rotatedY
+        };
+    }
 
     // Check if viewport coordinates are near the rotation handle
     function isNearRotationHandle(viewportX, viewportY) {
-        if (!overlayGeometry || !canvasToViewportCallback) {
-            // #region agent log
-            var xhrNoGeom = new XMLHttpRequest();
-            xhrNoGeom.open("POST", "http://127.0.0.1:7243/ingest/72fbc74d-dfe2-4303-96ca-b309ef45018d", true);
-            xhrNoGeom.setRequestHeader("Content-Type", "application/json");
-            xhrNoGeom.send(JSON.stringify({
-                location: "SelectTool.qml:isNearRotationHandle",
-                message: "Early return - no geometry",
-                data: {
-                    hasOverlayGeometry: !!overlayGeometry,
-                    hasCallback: !!canvasToViewportCallback
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                hypothesisId: "D"
-            }));
-            // #endregion
+        if (!overlayGeometry || !canvasToViewportCallback)
             return false;
-        }
 
         var geom = overlayGeometry;
-        var angleRad = geom.rotation * Math.PI / 180;
+        var bounds = getOverlayBounds(geom);
 
-        // Rotation handle is at top center of overlay, which is at (centerX, centerY - halfHeight - armLength - handleSize/2)
-        // The grip's offset from the shape's center (rotation origin) is:
-        var offsetX = 0;
-        var offsetY = -(geom.halfHeight + geom.armLength + geom.handleSize / 2);
+        // Rotation grip is at top-center of overlay, extending upward
+        var localX = bounds.width / 2;
+        var localY = -geom.armLength - geom.handleSize / 2;
 
-        // Apply rotation
-        var rotatedOffsetX = offsetX * Math.cos(angleRad) - offsetY * Math.sin(angleRad);
-        var rotatedOffsetY = offsetX * Math.sin(angleRad) + offsetY * Math.cos(angleRad);
+        var handleCanvas = overlayToCanvas(localX, localY, bounds, geom);
+        var handleViewport = canvasToViewportCallback(handleCanvas.x, handleCanvas.y);
 
-        // Handle position in canvas coords
-        var handleCanvasX = geom.centerX + rotatedOffsetX;
-        var handleCanvasY = geom.centerY + rotatedOffsetY;
-
-        // Convert to viewport coords
-        var handleViewport = canvasToViewportCallback(handleCanvasX, handleCanvasY);
-
-        // Check distance (use a generous hit radius)
         var dx = viewportX - handleViewport.x;
         var dy = viewportY - handleViewport.y;
         var dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Hit radius: handleSize + some padding (in viewport space, scale by zoom)
         var hitRadius = (geom.handleSize + geom.armLength) * geom.zoomLevel;
-
-        // #region agent log
-        var xhrGeo = new XMLHttpRequest();
-        xhrGeo.open("POST", "http://127.0.0.1:7243/ingest/72fbc74d-dfe2-4303-96ca-b309ef45018d", true);
-        xhrGeo.setRequestHeader("Content-Type", "application/json");
-        xhrGeo.send(JSON.stringify({
-            location: "SelectTool.qml:isNearRotationHandle",
-            message: "Geometry check",
-            data: {
-                viewportX: viewportX,
-                viewportY: viewportY,
-                handleViewportX: handleViewport.x,
-                handleViewportY: handleViewport.y,
-                dist: dist,
-                hitRadius: hitRadius,
-                rotation: geom.rotation,
-                centerX: geom.centerX,
-                centerY: geom.centerY,
-                halfHeight: geom.halfHeight,
-                offsetY: offsetY,
-                result: dist < hitRadius
-            },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            hypothesisId: "D"
-        }));
-        // #endregion
-
         return dist < hitRadius;
     }
 
-    // Reset drag state when overlay becomes active to prevent drag after overlay release
+    // Check if viewport coordinates are near any resize handle
+    function isNearResizeHandle(viewportX, viewportY) {
+        if (!overlayGeometry || !canvasToViewportCallback)
+            return false;
+
+        var geom = overlayGeometry;
+        var bounds = getOverlayBounds(geom);
+
+        var w = bounds.width;
+        var h = bounds.height;
+
+        var handlePositions = [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: w / 2,
+                y: 0
+            },
+            {
+                x: w,
+                y: 0
+            },
+            {
+                x: w,
+                y: h / 2
+            },
+            {
+                x: w,
+                y: h
+            },
+            {
+                x: w / 2,
+                y: h
+            },
+            {
+                x: 0,
+                y: h
+            },
+            {
+                x: 0,
+                y: h / 2
+            }
+        ];
+
+        var hitRadius = geom.handleSize * geom.zoomLevel * 2;
+
+        for (var i = 0; i < handlePositions.length; i++) {
+            var pos = handlePositions[i];
+            var handleCanvas = overlayToCanvas(pos.x, pos.y, bounds, geom);
+            var handleViewport = canvasToViewportCallback(handleCanvas.x, handleCanvas.y);
+
+            var dx = viewportX - handleViewport.x;
+            var dy = viewportY - handleViewport.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < hitRadius)
+                return true;
+        }
+        return false;
+    }
+
     onOverlayActiveChanged: {
         if (overlayActive) {
             clickedOnSelectedObject = false;
@@ -150,52 +187,16 @@ Item {
             lastY = screenY;
             clickedOnSelectedObject = false;
             lastModifiers = modifiers;
-            lastModifiers = modifiers;
 
-            // Check if press is near rotation handle (manual hit test since HoverHandler doesn't work on rotated items)
-            var nearRotationHandle = isNearRotationHandle(screenX, screenY);
-
-            // #region agent log
-            var xhr1 = new XMLHttpRequest();
-            xhr1.open("POST", "http://127.0.0.1:7243/ingest/72fbc74d-dfe2-4303-96ca-b309ef45018d", true);
-            xhr1.setRequestHeader("Content-Type", "application/json");
-            xhr1.send(JSON.stringify({
-                location: "SelectTool.qml:handlePress",
-                message: "Press event",
-                data: {
-                    isHoveringHandle: isHoveringHandle,
-                    nearRotationHandle: nearRotationHandle,
-                    overlayActive: overlayActive,
-                    selectedIdx: Lucent.SelectionManager.selectedItemIndex
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                hypothesisId: "A,C"
-            }));
-            // #endregion
             // Don't initiate object drag if cursor is over an overlay handle
-            if (!nearRotationHandle && !isHoveringHandle && hitTestCallback && viewportToCanvasCallback && Lucent.SelectionManager.selectedItemIndex >= 0) {
+            var nearAnyHandle = isNearRotationHandle(screenX, screenY) || isNearResizeHandle(screenX, screenY);
+
+            if (!nearAnyHandle && hitTestCallback && viewportToCanvasCallback && Lucent.SelectionManager.selectedItemIndex >= 0) {
                 var canvasCoords = viewportToCanvasCallback(screenX, screenY);
                 var hitIndex = hitTestCallback(canvasCoords.x, canvasCoords.y);
                 if (hitIndex === Lucent.SelectionManager.selectedItemIndex) {
-                    // #region agent log
-                    var xhr2 = new XMLHttpRequest();
-                    xhr2.open("POST", "http://127.0.0.1:7243/ingest/72fbc74d-dfe2-4303-96ca-b309ef45018d", true);
-                    xhr2.setRequestHeader("Content-Type", "application/json");
-                    xhr2.send(JSON.stringify({
-                        location: "SelectTool.qml:handlePress",
-                        message: "clickedOnSelectedObject set TRUE via hitTest",
-                        data: {
-                            hitIndex: hitIndex
-                        },
-                        timestamp: Date.now(),
-                        sessionId: "debug-session",
-                        hypothesisId: "C"
-                    }));
-                    // #endregion
                     clickedOnSelectedObject = true;
                 }
-                // Check if click is inside the selected item's bounding box
                 if (!clickedOnSelectedObject && getBoundsCallback) {
                     var selectedItem = Lucent.SelectionManager.selectedItem;
                     if (selectedItem) {
@@ -285,32 +286,11 @@ Item {
             return true;
         }
 
-        // Don't drag object if overlay handles (resize/rotate) are being used
         if (isSelecting && clickedOnSelectedObject && !overlayActive && Lucent.SelectionManager.selectedItemIndex >= 0) {
             var dx = Math.abs(screenX - selectPressX);
             var dy = Math.abs(screenY - selectPressY);
 
             if (!isDraggingObject && (dx >= clickThreshold || dy >= clickThreshold)) {
-                // #region agent log
-                var xhr3 = new XMLHttpRequest();
-                xhr3.open("POST", "http://127.0.0.1:7243/ingest/72fbc74d-dfe2-4303-96ca-b309ef45018d", true);
-                xhr3.setRequestHeader("Content-Type", "application/json");
-                xhr3.send(JSON.stringify({
-                    location: "SelectTool.qml:handleMouseMove",
-                    message: "STARTING OBJECT DRAG",
-                    data: {
-                        dx: dx,
-                        dy: dy,
-                        clickThreshold: clickThreshold,
-                        clickedOnSelectedObject: clickedOnSelectedObject,
-                        overlayActive: overlayActive,
-                        isHoveringHandle: isHoveringHandle
-                    },
-                    timestamp: Date.now(),
-                    sessionId: "debug-session",
-                    hypothesisId: "C"
-                }));
-                // #endregion
                 isDraggingObject = true;
                 canvasModel.beginTransaction();
                 cursorShapeChanged(Qt.ClosedHandCursor);
