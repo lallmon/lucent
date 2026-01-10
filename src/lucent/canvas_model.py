@@ -52,6 +52,7 @@ from lucent.model_geometry import (
     apply_bounding_box,
     compute_bounding_box,
     compute_geometry_bounds,
+    shape_to_path_data,
 )
 from lucent.render_query import get_render_items, get_hit_test_items
 
@@ -779,6 +780,276 @@ class CanvasModel(QAbstractListModel):
         current_data["transform"] = transform
         self.updateItem(index, current_data)
         self.itemTransformChanged.emit(index)
+
+    @Slot(int, str, float)
+    def updateTransformProperty(self, index: int, prop: str, value: float) -> None:
+        """Update a single transform property, preserving others.
+
+        Args:
+            index: Index of the item.
+            prop: Property name (translateX, translateY, rotate, scaleX, scaleY).
+            value: New value for the property.
+        """
+        current = self.getItemTransform(index) or {}
+        new_transform = {
+            "translateX": current.get("translateX", 0),
+            "translateY": current.get("translateY", 0),
+            "rotate": current.get("rotate", 0),
+            "scaleX": current.get("scaleX", 1),
+            "scaleY": current.get("scaleY", 1),
+            "originX": current.get("originX", 0),
+            "originY": current.get("originY", 0),
+        }
+        new_transform[prop] = value
+        self.setItemTransform(index, new_transform)
+
+    @Slot(int, float, float, float, float)
+    def applyScaleResize(
+        self,
+        index: int,
+        new_scale_x: float,
+        new_scale_y: float,
+        anchor_x: float,
+        anchor_y: float,
+    ) -> None:
+        """Apply scale-based resize with anchor point.
+
+        Sets scale factors and adjusts origin/translation so the anchor
+        point remains visually fixed. Used by resize handles.
+
+        Args:
+            index: Item index.
+            new_scale_x: New X scale factor.
+            new_scale_y: New Y scale factor.
+            anchor_x: Anchor point X (0=left, 0.5=center, 1=right).
+            anchor_y: Anchor point Y (0=top, 0.5=center, 1=bottom).
+        """
+        if not (0 <= index < len(self._items)):
+            return
+
+        item = self._items[index]
+        if not hasattr(item, "transform"):
+            return
+
+        current = self.getItemTransform(index) or {}
+        bounds = compute_geometry_bounds(item)
+        if not bounds:
+            return
+
+        old_origin_x = current.get("originX", 0)
+        old_origin_y = current.get("originY", 0)
+        old_scale_x = current.get("scaleX", 1)
+        old_scale_y = current.get("scaleY", 1)
+        rotation = current.get("rotate", 0)
+        old_tx = current.get("translateX", 0)
+        old_ty = current.get("translateY", 0)
+
+        import math
+
+        # Origin points in geometry space
+        old_origin_geom_x = bounds["x"] + bounds["width"] * old_origin_x
+        old_origin_geom_y = bounds["y"] + bounds["height"] * old_origin_y
+        anchor_geom_x = bounds["x"] + bounds["width"] * anchor_x
+        anchor_geom_y = bounds["y"] + bounds["height"] * anchor_y
+
+        # Displacement from old origin to anchor in geometry space
+        d_x = anchor_geom_x - old_origin_geom_x
+        d_y = anchor_geom_y - old_origin_geom_y
+
+        # Scale the displacement
+        scaled_d_x = d_x * old_scale_x
+        scaled_d_y = d_y * old_scale_y
+
+        # Rotate the scaled displacement
+        radians = rotation * math.pi / 180
+        cos_r = math.cos(radians)
+        sin_r = math.sin(radians)
+        rotated_d_x = scaled_d_x * cos_r - scaled_d_y * sin_r
+        rotated_d_y = scaled_d_x * sin_r + scaled_d_y * cos_r
+
+        # Formula: T_new = T_old - d + R(S_old * d)
+        # where d = anchor - old_origin (in geometry space)
+        new_tx = old_tx - d_x + rotated_d_x
+        new_ty = old_ty - d_y + rotated_d_y
+
+        new_transform = {
+            "translateX": new_tx,
+            "translateY": new_ty,
+            "rotate": rotation,
+            "scaleX": new_scale_x,
+            "scaleY": new_scale_y,
+            "originX": anchor_x,
+            "originY": anchor_y,
+        }
+
+        self.setItemTransform(index, new_transform)
+
+    @Slot(int)
+    def ensureOriginCentered(self, index: int) -> None:
+        """Move transform origin to center without changing visual appearance.
+
+        Should be called before starting rotation to ensure rotation
+        happens around center. Adjusts translation to compensate.
+
+        Args:
+            index: Item index.
+        """
+        if not (0 <= index < len(self._items)):
+            return
+
+        item = self._items[index]
+        if not hasattr(item, "transform"):
+            return
+
+        current = self.getItemTransform(index) or {}
+        bounds = compute_geometry_bounds(item)
+        if not bounds:
+            return
+
+        old_origin_x = current.get("originX", 0.5)
+        old_origin_y = current.get("originY", 0.5)
+
+        center_x = 0.5
+        center_y = 0.5
+
+        # If origin is already at center, nothing to do
+        if (
+            abs(old_origin_x - center_x) < 0.001
+            and abs(old_origin_y - center_y) < 0.001
+        ):
+            return
+
+        old_scale_x = current.get("scaleX", 1)
+        old_scale_y = current.get("scaleY", 1)
+        old_rotation = current.get("rotate", 0)
+        old_tx = current.get("translateX", 0)
+        old_ty = current.get("translateY", 0)
+
+        import math
+
+        # Origin points in geometry space
+        old_origin_geom_x = bounds["x"] + bounds["width"] * old_origin_x
+        old_origin_geom_y = bounds["y"] + bounds["height"] * old_origin_y
+        center_geom_x = bounds["x"] + bounds["width"] * center_x
+        center_geom_y = bounds["y"] + bounds["height"] * center_y
+
+        # Displacement from old origin to center in geometry space
+        d_x = center_geom_x - old_origin_geom_x
+        d_y = center_geom_y - old_origin_geom_y
+
+        # Scale the displacement
+        scaled_d_x = d_x * old_scale_x
+        scaled_d_y = d_y * old_scale_y
+
+        # Rotate the scaled displacement
+        radians = old_rotation * math.pi / 180
+        cos_r = math.cos(radians)
+        sin_r = math.sin(radians)
+        rotated_d_x = scaled_d_x * cos_r - scaled_d_y * sin_r
+        rotated_d_y = scaled_d_x * sin_r + scaled_d_y * cos_r
+
+        # Translation adjustment: T_new = T_old - d + R(S * d)
+        new_tx = old_tx - d_x + rotated_d_x
+        new_ty = old_ty - d_y + rotated_d_y
+
+        new_transform = {
+            "translateX": new_tx,
+            "translateY": new_ty,
+            "rotate": old_rotation,  # Keep rotation unchanged
+            "scaleX": old_scale_x,
+            "scaleY": old_scale_y,
+            "originX": center_x,
+            "originY": center_y,
+        }
+
+        self.setItemTransform(index, new_transform)
+
+    @Slot(int)
+    def bakeTransform(self, index: int) -> None:
+        """Apply transform to geometry and reset transform to identity.
+
+        For shapes with rotation, converts to a path with transformed corners.
+        For scale/translate only, updates geometry bounds directly.
+        The operation is undoable.
+
+        Args:
+            index: Item index.
+        """
+        if not (0 <= index < len(self._items)):
+            return
+
+        item = self._items[index]
+        if not hasattr(item, "transform"):
+            return
+
+        # Skip if already identity
+        if item.transform.is_identity():
+            return
+
+        # For rotated shapes, convert to path with baked transform
+        path_data = shape_to_path_data(item, self._itemToDict)
+        if path_data is not None:
+            self.beginTransaction()
+            # Must use replaceItem since updateItem preserves type
+            self._replaceItem(index, path_data)
+            self.endTransaction()
+            return
+
+        # No rotation - apply scale/translate to geometry bounds
+        transformed_bounds = item.get_bounds()
+        if transformed_bounds.isEmpty():
+            return
+
+        self.beginTransaction()
+
+        self.setBoundingBox(
+            index,
+            {
+                "x": transformed_bounds.x(),
+                "y": transformed_bounds.y(),
+                "width": transformed_bounds.width(),
+                "height": transformed_bounds.height(),
+            },
+        )
+
+        self.setItemTransform(
+            index,
+            {
+                "translateX": 0,
+                "translateY": 0,
+                "rotate": 0,
+                "scaleX": 1,
+                "scaleY": 1,
+                "originX": 0.5,
+                "originY": 0.5,
+            },
+        )
+
+        self.endTransaction()
+
+    def _replaceItem(self, index: int, new_data: Dict[str, Any]) -> None:
+        """Replace an item at index with a new item (allows type changes)."""
+        if not (0 <= index < len(self._items)):
+            return
+
+        old_data = self._itemToDict(self._items[index])
+
+        try:
+            parsed = parse_item_data(new_data)
+            new_item = parse_item(parsed.data)
+        except ItemSchemaError as exc:
+            print(f"Warning: Failed to replace item: {exc}")
+            return
+
+        self._items[index] = new_item
+
+        if not self._transaction_active:
+            command = UpdateItemCommand(self, index, old_data, parsed.data)
+            self._history.execute(command)
+
+        model_index = self.index(index, 0)
+        self.dataChanged.emit(model_index, model_index, [])
+        self.itemModified.emit(index, parsed.data)
 
     @Slot(result="QVariant")  # type: ignore[arg-type]
     def getItemsForHitTest(self) -> List[Dict[str, Any]]:

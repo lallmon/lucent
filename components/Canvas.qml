@@ -16,6 +16,9 @@ Item {
     property real cursorX: 0
     property real cursorY: 0
 
+    // Current keyboard modifiers (updated during mouse move)
+    property int currentModifiers: 0
+
     // Signal for pan requests (handled by Viewport)
     signal panRequested(real dx, real dy)
 
@@ -61,12 +64,79 @@ Item {
             }
         }
 
-        // Selection indicator overlay
         SelectionOverlay {
             id: selectionOverlay
             geometryBounds: root._selectionGeometryBounds
             itemTransform: root._selectionTransform
             zoomLevel: root.zoomLevel
+            cursorX: root.cursorX
+            cursorY: root.cursorY
+            shiftPressed: !!(root.currentModifiers & Qt.ShiftModifier)
+
+            onIsResizingChanged: {
+                if (isResizing) {
+                    canvasModel.beginTransaction();
+                } else {
+                    canvasModel.endTransaction();
+                }
+            }
+
+            onIsRotatingChanged: {
+                if (isRotating) {
+                    canvasModel.beginTransaction();
+                    // Move origin to center BEFORE rotation starts to prevent visual jump
+                    var idx = Lucent.SelectionManager.selectedItemIndex;
+                    if (idx >= 0) {
+                        canvasModel.ensureOriginCentered(idx);
+                    }
+                } else {
+                    canvasModel.endTransaction();
+                }
+            }
+
+            onResizeRequested: function (newBounds) {
+                var idx = Lucent.SelectionManager.selectedItemIndex;
+                if (idx >= 0 && canvasModel) {
+                    canvasModel.setBoundingBox(idx, newBounds);
+                }
+            }
+
+            onRotateRequested: function (angle) {
+                var idx = Lucent.SelectionManager.selectedItemIndex;
+                if (idx >= 0 && canvasModel) {
+                    // Origin is already at center (set in onIsRotatingChanged)
+                    canvasModel.updateTransformProperty(idx, "rotate", angle);
+                }
+            }
+
+            onScaleResizeRequested: function (scaleX, scaleY, anchorX, anchorY) {
+                var idx = Lucent.SelectionManager.selectedItemIndex;
+                if (idx >= 0 && canvasModel) {
+                    canvasModel.applyScaleResize(idx, scaleX, scaleY, anchorX, anchorY);
+                }
+            }
+        }
+
+        Lucent.ToolTipCanvas {
+            visible: (selectionOverlay.isResizing || selectionOverlay.isRotating) && root._selectionGeometryBounds
+            zoomLevel: root.zoomLevel
+            cursorX: root.cursorX
+            cursorY: root.cursorY
+            text: {
+                if (selectionOverlay.isRotating) {
+                    var angle = root._selectionTransform ? Math.round(root._selectionTransform.rotate || 0) : 0;
+                    return angle + "°";
+                }
+                // Show displayed size (geometry × scale) during resize
+                if (root._selectionGeometryBounds) {
+                    var scaleX = root._selectionTransform ? (root._selectionTransform.scaleX || 1) : 1;
+                    var scaleY = root._selectionTransform ? (root._selectionTransform.scaleY || 1) : 1;
+                    var displayedWidth = Math.round(root._selectionGeometryBounds.width * scaleX);
+                    var displayedHeight = Math.round(root._selectionGeometryBounds.height * scaleY);
+                    return displayedWidth + " × " + displayedHeight;
+                }
+                return "";
+            }
         }
 
         // Select tool for object selection (panning handled by Viewport)
@@ -75,9 +145,20 @@ Item {
             active: root.drawingMode === ""
             hitTestCallback: root.hitTest
             viewportToCanvasCallback: root.viewportToCanvas
+            canvasToViewportCallback: root.canvasToViewport
             getBoundsCallback: function (idx) {
                 return canvasModel.getBoundingBox(idx);
             }
+            // Overlay geometry for manual handle hit testing
+            overlayGeometry: root._selectionGeometryBounds ? {
+                bounds: root._selectionGeometryBounds,
+                transform: selectionOverlay.itemTransform || {},
+                armLength: 30 / root.zoomLevel,
+                handleSize: 8 / root.zoomLevel,
+                zoomLevel: root.zoomLevel
+            } : null
+            // Don't drag object when overlay resize/rotate handles are being used
+            overlayActive: selectionOverlay.isResizing || selectionOverlay.isRotating
 
             onPanDelta: (dx, dy) => {
                 root.panRequested(dx, dy);
@@ -158,12 +239,34 @@ Item {
         };
     }
 
+    // Convert canvas coordinates to viewport coordinates
+    function canvasToViewport(canvasX, canvasY) {
+        var centerX = root.width / 2;
+        var centerY = root.height / 2;
+
+        var viewportX = canvasX * root.zoomLevel + centerX + root.offsetX;
+        var viewportY = canvasY * root.zoomLevel + centerY + root.offsetY;
+
+        return {
+            x: viewportX,
+            y: viewportY
+        };
+    }
+
     // Public event handlers called from Viewport MouseArea
     function handleMousePress(viewportX, viewportY, button, modifiers) {
         // Delegate to active tool (SelectTool uses viewport coords)
         if (root.drawingMode === "") {
             selectTool.handlePress(viewportX, viewportY, button, modifiers);
         } else if (currentToolLoader.item && currentToolLoader.item.handleMousePress) {
+            // When using a drawing tool, don't start drawing if clicking on selection handles
+            // This allows manipulating selected shapes without switching to select tool
+            if (Lucent.SelectionManager.selectedItemIndex >= 0) {
+                var nearHandle = selectTool.isNearRotationHandle(viewportX, viewportY) || selectTool.isNearResizeHandle(viewportX, viewportY);
+                if (nearHandle) {
+                    return;  // Let SelectionOverlay handle it
+                }
+            }
             var canvasCoords = viewportToCanvas(viewportX, viewportY);
             currentToolLoader.item.handleMousePress(canvasCoords.x, canvasCoords.y, button, modifiers);
         }
@@ -186,10 +289,11 @@ Item {
     }
 
     function handleMouseMove(viewportX, viewportY, modifiers) {
-        // Update cursor position in canvas coordinates
+        // Update cursor position and modifiers
         var canvasCoords = viewportToCanvas(viewportX, viewportY);
         root.cursorX = canvasCoords.x;
         root.cursorY = canvasCoords.y;
+        root.currentModifiers = modifiers;
 
         // Only log if coordinates are invalid
         if (!isFinite(root.cursorX) || !isFinite(root.cursorY)) {

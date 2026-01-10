@@ -329,3 +329,101 @@ class TestTransformOrigin:
         result = qtransform.map(top_left)
         assert abs(result.x() - 200) < 0.001
         assert abs(result.y() - 100) < 0.001
+
+
+class TestCalculateScaleForResize:
+    """Tests for calculate_scale_for_resize helper function."""
+
+    def test_scale_from_right_edge_increase(self):
+        """Dragging right edge to the right should increase scale."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # 100px wide geometry at 1.0 scale, drag right by 50px
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=100.0,
+            delta=50.0,
+            from_min_edge=False,
+        )
+        assert abs(new_scale - 1.5) < 0.001
+
+    def test_scale_from_right_edge_decrease(self):
+        """Dragging right edge to the left should decrease scale."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # 100px wide geometry at 1.0 scale, drag left by 50px
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=100.0,
+            delta=-50.0,
+            from_min_edge=False,
+        )
+        assert abs(new_scale - 0.5) < 0.001
+
+    def test_scale_from_left_edge_increase(self):
+        """Dragging left edge to the left should increase scale."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # 100px wide geometry at 1.0 scale, drag left by 50px (negative delta)
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=100.0,
+            delta=-50.0,
+            from_min_edge=True,
+        )
+        assert abs(new_scale - 1.5) < 0.001
+
+    def test_scale_from_left_edge_decrease(self):
+        """Dragging left edge to the right should decrease scale."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # 100px wide geometry at 1.0 scale, drag right by 50px
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=100.0,
+            delta=50.0,
+            from_min_edge=True,
+        )
+        assert abs(new_scale - 0.5) < 0.001
+
+    def test_scale_with_existing_scale(self):
+        """Should work correctly when item already has non-1.0 scale."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # 100px geometry at 2.0 scale (displayed 200px), drag right 100px
+        new_scale = calculate_scale_for_resize(
+            current_scale=2.0,
+            geometry_size=100.0,
+            delta=100.0,
+            from_min_edge=False,
+        )
+        # Displayed was 200, now 300, so scale should be 3.0
+        assert abs(new_scale - 3.0) < 0.001
+
+    def test_scale_prevents_zero(self):
+        """Scale should not go below minimum threshold."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # Try to shrink beyond zero
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=100.0,
+            delta=-150.0,  # Would make it -50px
+            from_min_edge=False,
+        )
+        # Should clamp to minimum (1px displayed → 0.01 scale)
+        assert new_scale >= 0.01
+
+    def test_scale_with_zero_geometry_size(self):
+        """Should handle zero geometry size gracefully."""
+        from lucent.transforms import calculate_scale_for_resize
+
+        # Degenerate case - zero size geometry
+        new_scale = calculate_scale_for_resize(
+            current_scale=1.0,
+            geometry_size=0.0,
+            delta=50.0,
+            from_min_edge=False,
+        )
+        # Should return current scale unchanged
+        assert new_scale == 1.0

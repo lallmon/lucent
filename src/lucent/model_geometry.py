@@ -4,12 +4,13 @@ This module keeps CanvasModel thinner by providing pure helpers for geometry,
 bounding boxes, and transform-friendly updates that can be tested in isolation.
 """
 
+import math
 from typing import Any, Callable, Dict, List, Optional
 
 from lucent.bounding_box import (
     bbox_to_ellipse_geometry,
     get_item_bounds,
-    translate_path_to_bounds,
+    scale_path_to_bounds,
     union_bounds,
 )
 from lucent.canvas_items import (
@@ -93,8 +94,8 @@ def apply_bounding_box(
         points = item.geometry.points
         if not points:
             return None
-        current_data["geometry"]["points"] = translate_path_to_bounds(
-            points, new_x, new_y
+        current_data["geometry"]["points"] = scale_path_to_bounds(
+            points, new_x, new_y, new_width, new_height
         )
         return current_data
 
@@ -110,3 +111,113 @@ def apply_bounding_box(
         return None
 
     return None
+
+
+def shape_to_path_data(
+    item: Any,
+    item_to_dict: Callable[[Any], Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Convert a rotated shape to path data with transform baked into geometry.
+
+    For rectangles and ellipses with rotation, converts to a path with the
+    transformed corner/point positions. The resulting path has identity transform.
+
+    Returns None if the item is not a shape or has no rotation.
+    """
+    if not hasattr(item, "transform") or not hasattr(item, "geometry"):
+        return None
+
+    transform = item.transform
+    if transform is None or transform.rotate == 0:
+        return None
+
+    current_data = item_to_dict(item)
+    geom = item.geometry
+    bounds = geom.get_bounds()
+
+    # Compute transform origin in world coordinates
+    origin_x = bounds.x() + bounds.width() * transform.origin_x
+    origin_y = bounds.y() + bounds.height() * transform.origin_y
+
+    def apply_transform(x: float, y: float) -> Dict[str, float]:
+        """Apply scale, rotation, and translation to a point."""
+        # Translate to origin, scale, rotate, translate back
+        dx = x - origin_x
+        dy = y - origin_y
+
+        # Apply scale
+        dx *= transform.scale_x
+        dy *= transform.scale_y
+
+        # Apply rotation
+        angle_rad = math.radians(transform.rotate)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        rx = dx * cos_a - dy * sin_a
+        ry = dx * sin_a + dy * cos_a
+
+        # Translate back and add translation offset
+        return {
+            "x": origin_x + rx + transform.translate_x,
+            "y": origin_y + ry + transform.translate_y,
+        }
+
+    points: List[Dict[str, float]] = []
+
+    if isinstance(item, RectangleItem):
+        # 4 corners of rectangle
+        corners = [
+            (bounds.x(), bounds.y()),
+            (bounds.x() + bounds.width(), bounds.y()),
+            (bounds.x() + bounds.width(), bounds.y() + bounds.height()),
+            (bounds.x(), bounds.y() + bounds.height()),
+        ]
+        points = [apply_transform(x, y) for x, y in corners]
+
+    elif isinstance(item, EllipseItem):
+        # Approximate ellipse with points (32 points for smooth curve)
+        num_points = 32
+        cx, cy = geom.center_x, geom.center_y
+        rx, ry = geom.radius_x, geom.radius_y
+        for i in range(num_points):
+            angle = 2 * math.pi * i / num_points
+            x = cx + rx * math.cos(angle)
+            y = cy + ry * math.sin(angle)
+            points.append(apply_transform(x, y))
+
+    elif isinstance(item, PathItem):
+        # Apply transform to existing path points
+        points = [apply_transform(p["x"], p["y"]) for p in geom.points]
+
+    else:
+        return None
+
+    if not points:
+        return None
+
+    # Create path data with identity transform
+    path_data = {
+        "type": "path",
+        "geometry": {
+            "points": points,
+            "closed": True,  # Shapes are closed
+        },
+        "appearances": current_data.get("appearances", []),
+        "transform": {
+            "translateX": 0,
+            "translateY": 0,
+            "rotate": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "originX": 0.5,
+            "originY": 0.5,
+        },
+        "name": current_data.get("name", ""),
+        "visible": current_data.get("visible", True),
+        "locked": current_data.get("locked", False),
+    }
+
+    if current_data.get("parentId"):
+        path_data["parentId"] = current_data["parentId"]
+
+    return path_data

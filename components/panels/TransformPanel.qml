@@ -166,28 +166,9 @@ Item {
 
     function updateTransform(property, value) {
         var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel)
-            return;
-
-        var newTransform = currentTransform ? {
-            translateX: currentTransform.translateX || 0,
-            translateY: currentTransform.translateY || 0,
-            rotate: currentTransform.rotate || 0,
-            scaleX: currentTransform.scaleX || 1,
-            scaleY: currentTransform.scaleY || 1,
-            originX: currentTransform.originX || 0,
-            originY: currentTransform.originY || 0
-        } : {
-            translateX: 0,
-            translateY: 0,
-            rotate: 0,
-            scaleX: 1,
-            scaleY: 1,
-            originX: 0,
-            originY: 0
-        };
-        newTransform[property] = value;
-        canvasModel.setItemTransform(idx, newTransform);
+        if (idx >= 0 && canvasModel) {
+            canvasModel.updateTransformProperty(idx, property, value);
+        }
     }
 
     function setOrigin(newOx, newOy) {
@@ -651,6 +632,49 @@ Item {
                     color: rotationSlider.pressed ? root.themePalette.highlight : root.themePalette.button
                     border.color: root.themePalette.mid
                     border.width: 1
+                }
+            }
+
+            // Flatten Transform button
+            Button {
+                id: flattenButton
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
+                enabled: root.controlsEnabled && root.currentTransform && !isIdentityTransform()
+
+                function isIdentityTransform() {
+                    if (!root.currentTransform)
+                        return true;
+                    var t = root.currentTransform;
+                    return (t.rotate === 0 || t.rotate === undefined) && (t.scaleX === 1 || t.scaleX === undefined) && (t.scaleY === 1 || t.scaleY === undefined) && (t.translateX === 0 || t.translateX === undefined) && (t.translateY === 0 || t.translateY === undefined);
+                }
+
+                onClicked: {
+                    var idx = Lucent.SelectionManager.selectedItemIndex;
+                    if (idx >= 0 && canvasModel) {
+                        canvasModel.bakeTransform(idx);
+                        appController.focusCanvas();
+                    }
+                }
+
+                background: Rectangle {
+                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlight : root.themePalette.button) : root.themePalette.window
+                    border.color: root.themePalette.mid
+                    border.width: 1
+                    radius: 2
+                }
+
+                contentItem: Lucent.PhIcon {
+                    name: "stack-simple-fill"
+                    weight: "fill"
+                    size: 14
+                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlightedText : root.themePalette.buttonText) : root.themePalette.mid
+                    anchors.centerIn: parent
+                }
+
+                Lucent.ToolTipStyled {
+                    visible: flattenButton.hovered
+                    text: qsTr("Flatten Transform")
                 }
             }
         }

@@ -111,3 +111,47 @@ class Transform:
             origin_x=float(data.get("originX", 0)),
             origin_y=float(data.get("originY", 0)),
         )
+
+
+def calculate_scale_for_resize(
+    current_scale: float,
+    geometry_size: float,
+    delta: float,
+    from_min_edge: bool,
+) -> float:
+    """Calculate new scale factor for a resize operation.
+
+    This helper computes the new scale when dragging a resize handle,
+    taking into account the current scale and which edge is being dragged.
+
+    Args:
+        current_scale: Current scale factor (scaleX or scaleY).
+        geometry_size: Original geometry dimension (width or height).
+        delta: Mouse movement delta in local (unrotated) coordinates.
+        from_min_edge: True if resizing from left/top edge (min edge),
+            False if resizing from right/bottom edge (max edge).
+
+    Returns:
+        New scale factor, clamped to prevent zero or negative sizes.
+    """
+    # Handle degenerate case of zero geometry size
+    if geometry_size <= 0:
+        return current_scale
+
+    # Calculate current displayed size
+    displayed_size = geometry_size * current_scale
+
+    # Apply delta based on which edge is being dragged
+    if from_min_edge:
+        # Dragging min edge: positive delta shrinks, negative delta grows
+        new_displayed_size = displayed_size - delta
+    else:
+        # Dragging max edge: positive delta grows, negative delta shrinks
+        new_displayed_size = displayed_size + delta
+
+    # Clamp to minimum displayed size (1 pixel)
+    min_displayed = 1.0
+    new_displayed_size = max(min_displayed, new_displayed_size)
+
+    # Convert back to scale factor
+    return new_displayed_size / geometry_size
