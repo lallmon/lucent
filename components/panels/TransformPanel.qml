@@ -634,24 +634,12 @@ Item {
                     border.width: 1
                 }
             }
-        }
 
-        // Flatten Transform button row
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: 8
-            Layout.bottomMargin: 8
-            Layout.leftMargin: Lucent.Styles.pad.sm
-            Layout.rightMargin: Lucent.Styles.pad.sm
-            spacing: 8
-
-            Item {
-                Layout.fillWidth: true
-            }  // Left spacer
-
+            // Flatten Transform button
             Button {
                 id: flattenButton
-                text: qsTr("Flatten Transform")
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 24
                 enabled: root.controlsEnabled && root.currentTransform && !isIdentityTransform()
 
                 function isIdentityTransform() {
@@ -669,15 +657,26 @@ Item {
                     }
                 }
 
+                background: Rectangle {
+                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlight : root.themePalette.button) : root.themePalette.window
+                    border.color: root.themePalette.mid
+                    border.width: 1
+                    radius: 2
+                }
+
+                contentItem: Lucent.PhIcon {
+                    name: "stack-simple-fill"
+                    weight: "fill"
+                    size: 14
+                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlightedText : root.themePalette.buttonText) : root.themePalette.mid
+                    anchors.centerIn: parent
+                }
+
                 Lucent.ToolTipStyled {
                     visible: flattenButton.hovered
-                    text: qsTr("Apply transform to geometry and reset to identity")
+                    text: qsTr("Flatten Transform")
                 }
             }
-
-            Item {
-                Layout.fillWidth: true
-            }  // Right spacer
         }
     }
 }
