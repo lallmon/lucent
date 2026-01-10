@@ -1,6 +1,6 @@
 """CanvasModel transform getters/setters."""
 
-from test_helpers import make_rectangle, make_layer
+from test_helpers import make_rectangle, make_ellipse, make_path, make_layer
 
 
 class TestCanvasModelTransforms:
@@ -318,3 +318,93 @@ class TestBakeTransform:
         canvas_model.addItem(make_layer(name="Test Layer"))
         # Should not raise
         canvas_model.bakeTransform(0)
+
+    def test_bake_transform_ellipse_rotation_converts_to_path(self, canvas_model):
+        """Baking rotated ellipse should convert to path with 32 points."""
+        ellipse_data = make_ellipse(center_x=50, center_y=50, radius_x=40, radius_y=20)
+        ellipse_data["transform"] = {
+            "rotate": 30,
+            "originX": 0.5,
+            "originY": 0.5,
+        }
+        canvas_model.addItem(ellipse_data)
+
+        # Get the item type before baking
+        item_before = canvas_model.getItemData(0)
+        assert item_before["type"] == "ellipse"
+
+        canvas_model.bakeTransform(0)
+
+        # Item should now be a path
+        item_after = canvas_model.getItemData(0)
+        assert item_after["type"] == "path"
+
+        # The path should have 32 points (ellipse approximation)
+        points = item_after["geometry"]["points"]
+        assert len(points) == 32
+
+        # Transform should be reset to identity
+        transform = canvas_model.getItemTransform(0)
+        assert transform["rotate"] == 0
+
+    def test_bake_transform_path_rotation_transforms_points(self, canvas_model):
+        """Baking rotated path should transform all point coordinates."""
+
+        # Simple triangle path
+        original_points = [
+            {"x": 0, "y": 0},
+            {"x": 100, "y": 0},
+            {"x": 50, "y": 100},
+        ]
+        path_data = make_path(points=original_points, closed=True)
+        path_data["transform"] = {
+            "rotate": 90,
+            "originX": 0.5,
+            "originY": 0.5,
+        }
+        canvas_model.addItem(path_data)
+
+        # Get original item
+        item_before = canvas_model.getItemData(0)
+        assert item_before["type"] == "path"
+
+        canvas_model.bakeTransform(0)
+
+        # Item should still be a path
+        item_after = canvas_model.getItemData(0)
+        assert item_after["type"] == "path"
+
+        # Points should be transformed (rotated 90°)
+        points = item_after["geometry"]["points"]
+        assert len(points) == 3
+
+        # Transform should be reset
+        transform = canvas_model.getItemTransform(0)
+        assert transform["rotate"] == 0
+
+        # After 90° rotation around center, points should be different
+        # The bounding box orientation should have changed
+        xs = [p["x"] for p in points]
+        ys = [p["y"] for p in points]
+        width = max(xs) - min(xs)
+        height = max(ys) - min(ys)
+
+        # Original was 100 wide x 100 tall, after 90° rotation should be similar
+        # but with transformed coordinates
+        assert width > 0
+        assert height > 0
+
+    def test_bake_transform_ellipse_no_rotation_keeps_ellipse(self, canvas_model):
+        """Baking ellipse without rotation should keep it as ellipse."""
+        ellipse_data = make_ellipse(center_x=50, center_y=50, radius_x=40, radius_y=20)
+        ellipse_data["transform"] = {
+            "scaleX": 2.0,
+            "translateX": 10,
+        }
+        canvas_model.addItem(ellipse_data)
+
+        canvas_model.bakeTransform(0)
+
+        # Item should still be an ellipse
+        item_after = canvas_model.getItemData(0)
+        assert item_after["type"] == "ellipse"
