@@ -16,6 +16,10 @@ Shape {
     property real cursorY: 0
 
     signal resizeRequested(var newBounds)
+    signal rotateRequested(real angle)
+
+    property bool shiftPressed: false
+    property bool isRotating: false
 
     readonly property real _geomX: geometryBounds ? geometryBounds.x : 0
     readonly property real _geomY: geometryBounds ? geometryBounds.y : 0
@@ -52,6 +56,7 @@ Shape {
     ]
 
     readonly property real handleSize: 8 / zoomLevel
+    readonly property real rotationArmLength: 30 / zoomLevel
     property bool isResizing: false
 
     ShapePath {
@@ -78,6 +83,66 @@ Shape {
         PathLine {
             x: 0
             y: 0
+        }
+    }
+
+    // Rotation arm line from center-top upward
+    ShapePath {
+        strokeColor: selectionOverlay.accentColor
+        strokeWidth: selectionOverlay.zoomLevel > 0 ? 1 / selectionOverlay.zoomLevel : 0
+        fillColor: "transparent"
+
+        startX: selectionOverlay.width / 2
+        startY: 0
+        PathLine {
+            x: selectionOverlay.width / 2
+            y: -selectionOverlay.rotationArmLength
+        }
+    }
+
+    // Rotation grip at end of arm
+    Rectangle {
+        id: rotationGrip
+        x: selectionOverlay.width / 2 - selectionOverlay.handleSize / 2
+        y: -selectionOverlay.rotationArmLength - selectionOverlay.handleSize / 2
+        width: selectionOverlay.handleSize
+        height: selectionOverlay.handleSize
+        radius: selectionOverlay.handleSize / 2
+        color: selectionOverlay.accentColor
+
+        property real startAngle: 0
+
+        DragHandler {
+            id: rotationDragHandler
+            target: null
+
+            onActiveChanged: {
+                selectionOverlay.isRotating = active;
+                if (active) {
+                    rotationGrip.startAngle = selectionOverlay._rotation;
+                }
+            }
+
+            onTranslationChanged: {
+                if (!active)
+                    return;
+
+                // Shape center in canvas coordinates
+                var centerX = selectionOverlay._geomX + selectionOverlay._geomWidth / 2;
+                var centerY = selectionOverlay._geomY + selectionOverlay._geomHeight / 2;
+
+                // Angle from center to cursor (atan2 with -dy because up is negative Y)
+                var dx = selectionOverlay.cursorX - centerX;
+                var dy = selectionOverlay.cursorY - centerY;
+                var rawAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
+
+                // Snap to 15 degrees if Shift held
+                if (selectionOverlay.shiftPressed) {
+                    rawAngle = Math.round(rawAngle / 15) * 15;
+                }
+
+                selectionOverlay.rotateRequested(rawAngle);
+            }
         }
     }
 
