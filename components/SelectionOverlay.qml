@@ -99,52 +99,13 @@ Shape {
         }
     }
 
-    // Invisible hit area for the rotation arm stem
-    Rectangle {
-        id: rotationStemHitArea
-        x: selectionOverlay.width / 2 - selectionOverlay.handleSize / 2
-        y: -selectionOverlay.rotationArmLength
-        width: selectionOverlay.handleSize
-        height: selectionOverlay.rotationArmLength
-        color: "transparent"
-
-        DragHandler {
-            target: null
-            onActiveChanged: {
-                selectionOverlay.isRotating = active;
-                if (active) {
-                    rotationGrip.startAngle = selectionOverlay._rotation;
-                    rotationGrip.initialAngleCaptured = false;
-                }
-            }
-            onTranslationChanged: {
-                if (!active)
-                    return;
-                if (!rotationGrip.initialAngleCaptured) {
-                    rotationGrip.initialCursorAngle = rotationGrip.calculateCursorAngle();
-                    rotationGrip.initialAngleCaptured = true;
-                    return;
-                }
-                var currentCursorAngle = rotationGrip.calculateCursorAngle();
-                var deltaAngle = currentCursorAngle - rotationGrip.initialCursorAngle;
-                var newAngle = rotationGrip.startAngle + deltaAngle;
-                if (selectionOverlay.shiftPressed) {
-                    newAngle = Math.round(newAngle / 15) * 15;
-                }
-                selectionOverlay.rotateRequested(newAngle);
-            }
-        }
-    }
-
-    // Rotation grip at end of arm
-    Rectangle {
-        id: rotationGrip
+    // Rotation handle: stem + grip as a single interactive area
+    Item {
+        id: rotationHandle
         x: selectionOverlay.width / 2 - selectionOverlay.handleSize / 2
         y: -selectionOverlay.rotationArmLength - selectionOverlay.handleSize / 2
         width: selectionOverlay.handleSize
-        height: selectionOverlay.handleSize
-        radius: selectionOverlay.handleSize / 2
-        color: selectionOverlay.accentColor
+        height: selectionOverlay.rotationArmLength + selectionOverlay.handleSize / 2
 
         property real startAngle: 0
         property real initialCursorAngle: 0
@@ -158,6 +119,17 @@ Shape {
             return Math.atan2(dx, -dy) * 180 / Math.PI;
         }
 
+        // Visible grip circle at the top
+        Rectangle {
+            id: rotationGrip
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: selectionOverlay.handleSize
+            height: selectionOverlay.handleSize
+            radius: selectionOverlay.handleSize / 2
+            color: selectionOverlay.accentColor
+        }
+
         DragHandler {
             id: rotationDragHandler
             target: null
@@ -165,8 +137,8 @@ Shape {
             onActiveChanged: {
                 selectionOverlay.isRotating = active;
                 if (active) {
-                    rotationGrip.startAngle = selectionOverlay._rotation;
-                    rotationGrip.initialAngleCaptured = false;
+                    rotationHandle.startAngle = selectionOverlay._rotation;
+                    rotationHandle.initialAngleCaptured = false;
                 }
             }
 
@@ -174,16 +146,15 @@ Shape {
                 if (!active)
                     return;
 
-                // Capture initial angle on first translation event
-                if (!rotationGrip.initialAngleCaptured) {
-                    rotationGrip.initialCursorAngle = rotationGrip.calculateCursorAngle();
-                    rotationGrip.initialAngleCaptured = true;
+                if (!rotationHandle.initialAngleCaptured) {
+                    rotationHandle.initialCursorAngle = rotationHandle.calculateCursorAngle();
+                    rotationHandle.initialAngleCaptured = true;
                     return;
                 }
 
-                var currentCursorAngle = rotationGrip.calculateCursorAngle();
-                var deltaAngle = currentCursorAngle - rotationGrip.initialCursorAngle;
-                var newAngle = rotationGrip.startAngle + deltaAngle;
+                var currentCursorAngle = rotationHandle.calculateCursorAngle();
+                var deltaAngle = currentCursorAngle - rotationHandle.initialCursorAngle;
+                var newAngle = rotationHandle.startAngle + deltaAngle;
 
                 if (selectionOverlay.shiftPressed) {
                     newAngle = Math.round(newAngle / 15) * 15;

@@ -149,23 +149,10 @@ Item {
             getBoundsCallback: function (idx) {
                 return canvasModel.getBoundingBox(idx);
             }
-            // Overlay geometry for manual rotation/resize handle hit testing
-            overlayGeometry: root._selectionGeometryBounds && selectionOverlay.itemTransform ? {
-                // The rotation/scale pivot point in canvas coordinates
-                originX: selectionOverlay.itemTransform.originX || 0,
-                originY: selectionOverlay.itemTransform.originY || 0,
-                // Geometry bounds
-                geomX: root._selectionGeometryBounds.x,
-                geomY: root._selectionGeometryBounds.y,
-                geomWidth: root._selectionGeometryBounds.width,
-                geomHeight: root._selectionGeometryBounds.height,
-                // Transform properties
-                translateX: selectionOverlay.itemTransform.translateX || 0,
-                translateY: selectionOverlay.itemTransform.translateY || 0,
-                scaleX: selectionOverlay.itemTransform.scaleX || 1,
-                scaleY: selectionOverlay.itemTransform.scaleY || 1,
-                rotation: selectionOverlay.itemTransform.rotate || 0,
-                // Handle sizing
+            // Overlay geometry for manual handle hit testing
+            overlayGeometry: root._selectionGeometryBounds ? {
+                bounds: root._selectionGeometryBounds,
+                transform: selectionOverlay.itemTransform || {},
                 armLength: 30 / root.zoomLevel,
                 handleSize: 8 / root.zoomLevel,
                 zoomLevel: root.zoomLevel

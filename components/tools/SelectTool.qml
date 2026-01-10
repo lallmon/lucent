@@ -20,30 +20,39 @@ Item {
 
     // Calculate overlay position and dimensions accounting for origin and scale
     function getOverlayBounds(geom) {
-        var displayedWidth = geom.geomWidth * geom.scaleX;
-        var displayedHeight = geom.geomHeight * geom.scaleY;
+        var b = geom.bounds;
+        var t = geom.transform;
+        var scaleX = t.scaleX || 1;
+        var scaleY = t.scaleY || 1;
+        var originX = t.originX || 0;
+        var originY = t.originY || 0;
+        var translateX = t.translateX || 0;
+        var translateY = t.translateY || 0;
 
-        var overlayX = geom.geomX + geom.translateX + (geom.geomWidth * geom.originX) - (displayedWidth * geom.originX);
-        var overlayY = geom.geomY + geom.translateY + (geom.geomHeight * geom.originY) - (displayedHeight * geom.originY);
+        var displayedWidth = b.width * scaleX;
+        var displayedHeight = b.height * scaleY;
 
-        var pivotX = overlayX + displayedWidth * geom.originX;
-        var pivotY = overlayY + displayedHeight * geom.originY;
+        var overlayX = b.x + translateX + (b.width * originX) - (displayedWidth * originX);
+        var overlayY = b.y + translateY + (b.height * originY) - (displayedHeight * originY);
 
         return {
             x: overlayX,
             y: overlayY,
             width: displayedWidth,
             height: displayedHeight,
-            pivotX: pivotX,
-            pivotY: pivotY
+            pivotX: overlayX + displayedWidth * originX,
+            pivotY: overlayY + displayedHeight * originY,
+            originX: originX,
+            originY: originY,
+            rotation: t.rotate || 0
         };
     }
 
     // Transform a point from overlay-local coords to canvas coords
-    function overlayToCanvas(localX, localY, bounds, geom) {
-        var dx = localX - bounds.width * geom.originX;
-        var dy = localY - bounds.height * geom.originY;
-        var angleRad = geom.rotation * Math.PI / 180;
+    function overlayToCanvas(localX, localY, bounds) {
+        var dx = localX - bounds.width * bounds.originX;
+        var dy = localY - bounds.height * bounds.originY;
+        var angleRad = bounds.rotation * Math.PI / 180;
         var rotatedX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
         var rotatedY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
         return {
@@ -61,19 +70,50 @@ Item {
         var bounds = getOverlayBounds(geom);
 
         // Rotation grip is at top-center of overlay, extending upward
-        var localX = bounds.width / 2;
-        var localY = -geom.armLength - geom.handleSize / 2;
-
-        var handleCanvas = overlayToCanvas(localX, localY, bounds, geom);
+        var handleCanvas = overlayToCanvas(bounds.width / 2, -geom.armLength - geom.handleSize / 2, bounds);
         var handleViewport = canvasToViewportCallback(handleCanvas.x, handleCanvas.y);
 
         var dx = viewportX - handleViewport.x;
         var dy = viewportY - handleViewport.y;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-
         var hitRadius = (geom.handleSize + geom.armLength) * geom.zoomLevel;
-        return dist < hitRadius;
+        return Math.sqrt(dx * dx + dy * dy) < hitRadius;
     }
+
+    // Resize handle positions as fractions of width/height
+    readonly property var resizeHandleFactors: [
+        {
+            x: 0,
+            y: 0
+        },
+        {
+            x: 0.5,
+            y: 0
+        },
+        {
+            x: 1,
+            y: 0
+        },
+        {
+            x: 1,
+            y: 0.5
+        },
+        {
+            x: 1,
+            y: 1
+        },
+        {
+            x: 0.5,
+            y: 1
+        },
+        {
+            x: 0,
+            y: 1
+        },
+        {
+            x: 0,
+            y: 0.5
+        }
+    ]
 
     // Check if viewport coordinates are near any resize handle
     function isNearResizeHandle(viewportX, viewportY) {
@@ -82,57 +122,16 @@ Item {
 
         var geom = overlayGeometry;
         var bounds = getOverlayBounds(geom);
-
-        var w = bounds.width;
-        var h = bounds.height;
-
-        var handlePositions = [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: w / 2,
-                y: 0
-            },
-            {
-                x: w,
-                y: 0
-            },
-            {
-                x: w,
-                y: h / 2
-            },
-            {
-                x: w,
-                y: h
-            },
-            {
-                x: w / 2,
-                y: h
-            },
-            {
-                x: 0,
-                y: h
-            },
-            {
-                x: 0,
-                y: h / 2
-            }
-        ];
-
         var hitRadius = geom.handleSize * geom.zoomLevel * 2;
 
-        for (var i = 0; i < handlePositions.length; i++) {
-            var pos = handlePositions[i];
-            var handleCanvas = overlayToCanvas(pos.x, pos.y, bounds, geom);
+        for (var i = 0; i < resizeHandleFactors.length; i++) {
+            var f = resizeHandleFactors[i];
+            var handleCanvas = overlayToCanvas(f.x * bounds.width, f.y * bounds.height, bounds);
             var handleViewport = canvasToViewportCallback(handleCanvas.x, handleCanvas.y);
 
             var dx = viewportX - handleViewport.x;
             var dy = viewportY - handleViewport.y;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < hitRadius)
+            if (Math.sqrt(dx * dx + dy * dy) < hitRadius)
                 return true;
         }
         return false;
