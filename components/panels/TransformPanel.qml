@@ -12,25 +12,26 @@ Item {
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
     readonly property var selectedItem: Lucent.SelectionManager.selectedItem
+    readonly property int selectedIndex: Lucent.SelectionManager.selectedItemIndex
+    readonly property bool hasValidSelection: selectedIndex >= 0 && canvasModel
 
-    readonly property bool hasEditableBounds: {
-        if (!selectedItem)
-            return false;
-        var t = selectedItem.type;
-        return t === "rectangle" || t === "ellipse" || t === "path" || t === "text";
-    }
+    readonly property bool hasEditableBounds: selectedItem && ["rectangle", "ellipse", "path", "text"].includes(selectedItem.type)
 
-    readonly property bool isLocked: (Lucent.SelectionManager.selectedItemIndex >= 0) && canvasModel && canvasModel.isEffectivelyLocked(Lucent.SelectionManager.selectedItemIndex)
+    readonly property bool isLocked: hasValidSelection && canvasModel.isEffectivelyLocked(selectedIndex)
 
     property var currentBounds: null
     property var geometryBounds: null
     property var currentTransform: null
 
+    // Helper to access transform properties with defaults
+    function tf(prop, fallback) {
+        return currentTransform ? (currentTransform[prop] ?? fallback) : fallback;
+    }
+
     function refreshBounds() {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx >= 0 && canvasModel) {
-            currentBounds = canvasModel.getBoundingBox(idx);
-            geometryBounds = canvasModel.getGeometryBounds(idx);
+        if (hasValidSelection) {
+            currentBounds = canvasModel.getBoundingBox(selectedIndex);
+            geometryBounds = canvasModel.getGeometryBounds(selectedIndex);
         } else {
             currentBounds = null;
             geometryBounds = null;
@@ -38,24 +39,19 @@ Item {
     }
 
     function refreshTransform() {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx >= 0 && canvasModel) {
-            currentTransform = canvasModel.getItemTransform(idx);
-        } else {
-            currentTransform = null;
-        }
+        currentTransform = hasValidSelection ? canvasModel.getItemTransform(selectedIndex) : null;
     }
 
     Connections {
         target: canvasModel
         function onItemTransformChanged(index) {
-            if (index === Lucent.SelectionManager.selectedItemIndex) {
+            if (index === root.selectedIndex) {
                 root.refreshTransform();
                 root.refreshBounds();
             }
         }
         function onItemModified(index) {
-            if (index === Lucent.SelectionManager.selectedItemIndex) {
+            if (index === root.selectedIndex) {
                 root.refreshTransform();
                 root.refreshBounds();
             }
@@ -85,85 +81,65 @@ Item {
     readonly property real displayedX: {
         if (!geometryBounds)
             return 0;
-        var t = currentTransform;
-        var originX = t ? (t.originX || 0) : 0;
-        var translateX = t ? (t.translateX || 0) : 0;
-        return geometryBounds.x + geometryBounds.width * originX + translateX;
+        return geometryBounds.x + geometryBounds.width * tf("originX", 0) + tf("translateX", 0);
     }
 
     readonly property real displayedY: {
         if (!geometryBounds)
             return 0;
-        var t = currentTransform;
-        var originY = t ? (t.originY || 0) : 0;
-        var translateY = t ? (t.translateY || 0) : 0;
-        return geometryBounds.y + geometryBounds.height * originY + translateY;
+        return geometryBounds.y + geometryBounds.height * tf("originY", 0) + tf("translateY", 0);
     }
 
     function updatePosition(axis, newValue) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel || !geometryBounds)
+        if (!hasValidSelection || !geometryBounds)
             return;
 
-        var t = currentTransform || {};
-        var originX = t.originX || 0;
-        var originY = t.originY || 0;
-
         var newTransform = {
-            translateX: t.translateX || 0,
-            translateY: t.translateY || 0,
-            rotate: t.rotate || 0,
-            scaleX: t.scaleX || 1,
-            scaleY: t.scaleY || 1,
-            originX: originX,
-            originY: originY
+            translateX: tf("translateX", 0),
+            translateY: tf("translateY", 0),
+            rotate: tf("rotate", 0),
+            scaleX: tf("scaleX", 1),
+            scaleY: tf("scaleY", 1),
+            originX: tf("originX", 0),
+            originY: tf("originY", 0)
         };
 
-        if (axis === "x") {
-            // newValue = geometry.x + geometry.width * originX + translateX
-            // So: translateX = newValue - geometry.x - geometry.width * originX
-            newTransform.translateX = newValue - geometryBounds.x - geometryBounds.width * originX;
-        } else if (axis === "y") {
-            newTransform.translateY = newValue - geometryBounds.y - geometryBounds.height * originY;
-        }
+        // translateX = newValue - geometry.x - geometry.width * originX
+        if (axis === "x")
+            newTransform.translateX = newValue - geometryBounds.x - geometryBounds.width * newTransform.originX;
+        else
+            newTransform.translateY = newValue - geometryBounds.y - geometryBounds.height * newTransform.originY;
 
-        canvasModel.setItemTransform(idx, newTransform);
+        canvasModel.setItemTransform(selectedIndex, newTransform);
     }
 
     function updateDisplayedSize(property, value) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel || !geometryBounds)
+        if (!hasValidSelection || !geometryBounds)
             return;
-
-        var t = currentTransform || {};
-        var currentScaleX = t.scaleX || 1;
-        var currentScaleY = t.scaleY || 1;
-
         if (geometryBounds.width <= 0 || geometryBounds.height <= 0)
             return;
 
-        var minDisplayed = 1;
-        value = Math.max(minDisplayed, value);
+        var currentScaleX = tf("scaleX", 1);
+        var currentScaleY = tf("scaleY", 1);
+        value = Math.max(1, value);  // Minimum 1px displayed
 
         if (property === "width") {
             var newScaleX = value / geometryBounds.width;
             if (proportionalScale) {
                 var ratio = newScaleX / currentScaleX;
-                var newScaleY = currentScaleY * ratio;
                 canvasModel.beginTransaction();
                 updateTransform("scaleX", newScaleX);
-                updateTransform("scaleY", newScaleY);
+                updateTransform("scaleY", currentScaleY * ratio);
                 canvasModel.endTransaction();
             } else {
                 updateTransform("scaleX", newScaleX);
             }
-        } else if (property === "height") {
+        } else {
             var newScaleY = value / geometryBounds.height;
             if (proportionalScale) {
                 var ratio = newScaleY / currentScaleY;
-                var newScaleX = currentScaleX * ratio;
                 canvasModel.beginTransaction();
-                updateTransform("scaleX", newScaleX);
+                updateTransform("scaleX", currentScaleX * ratio);
                 updateTransform("scaleY", newScaleY);
                 canvasModel.endTransaction();
             } else {
@@ -173,32 +149,28 @@ Item {
     }
 
     function updateTransform(property, value) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx >= 0 && canvasModel) {
-            canvasModel.updateTransformProperty(idx, property, value);
-        }
+        if (hasValidSelection)
+            canvasModel.updateTransformProperty(selectedIndex, property, value);
     }
 
     function setOrigin(newOx, newOy) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0 || !canvasModel)
+        if (!hasValidSelection)
             return;
 
-        var bounds = canvasModel.getGeometryBounds(idx);
+        var bounds = canvasModel.getGeometryBounds(selectedIndex);
         if (!bounds)
             return;
 
-        var oldOx = currentTransform ? (currentTransform.originX || 0) : 0;
-        var oldOy = currentTransform ? (currentTransform.originY || 0) : 0;
-        var rotation = currentTransform ? (currentTransform.rotate || 0) : 0;
-        var scaleX = currentTransform ? (currentTransform.scaleX || 1) : 1;
-        var scaleY = currentTransform ? (currentTransform.scaleY || 1) : 1;
-        var oldTx = currentTransform ? (currentTransform.translateX || 0) : 0;
-        var oldTy = currentTransform ? (currentTransform.translateY || 0) : 0;
+        var oldOx = tf("originX", 0);
+        var oldOy = tf("originY", 0);
+        var rotation = tf("rotate", 0);
+        var scaleX = tf("scaleX", 1);
+        var scaleY = tf("scaleY", 1);
+        var oldTx = tf("translateX", 0);
+        var oldTy = tf("translateY", 0);
 
         // Adjust translation to keep shape visually in place when origin changes
         // Formula: adjustment = delta - R(S(delta))
-        // Where delta is unscaled displacement, R is rotation, S is scale
         var dx = (oldOx - newOx) * bounds.width;
         var dy = (oldOy - newOy) * bounds.height;
 
@@ -211,20 +183,15 @@ Item {
         var rotatedScaledDx = scaledDx * cos - scaledDy * sin;
         var rotatedScaledDy = scaledDx * sin + scaledDy * cos;
 
-        var adjustX = dx - rotatedScaledDx;
-        var adjustY = dy - rotatedScaledDy;
-
-        var newTransform = {
-            translateX: oldTx + adjustX,
-            translateY: oldTy + adjustY,
+        canvasModel.setItemTransform(selectedIndex, {
+            translateX: oldTx + dx - rotatedScaledDx,
+            translateY: oldTy + dy - rotatedScaledDy,
             rotate: rotation,
             scaleX: scaleX,
-            scaleY: currentTransform ? (currentTransform.scaleY || 1) : 1,
+            scaleY: scaleY,
             originX: newOx,
             originY: newOy
-        };
-
-        canvasModel.setItemTransform(idx, newTransform);
+        });
         refreshTransform();
     }
 
@@ -364,12 +331,7 @@ Item {
                     labelColor: root.labelColor
                     from: 0
                     to: 100000
-                    value: {
-                        if (!root.geometryBounds)
-                            return 0;
-                        var scaleX = root.currentTransform ? (root.currentTransform.scaleX || 1) : 1;
-                        return Math.round(root.geometryBounds.width * scaleX);
-                    }
+                    value: root.geometryBounds ? Math.round(root.geometryBounds.width * root.tf("scaleX", 1)) : 0
                     Layout.fillWidth: true
                     onValueModified: newValue => {
                         root.updateDisplayedSize("width", newValue);
@@ -383,12 +345,7 @@ Item {
                     labelColor: root.labelColor
                     from: 0
                     to: 100000
-                    value: {
-                        if (!root.geometryBounds)
-                            return 0;
-                        var scaleY = root.currentTransform ? (root.currentTransform.scaleY || 1) : 1;
-                        return Math.round(root.geometryBounds.height * scaleY);
-                    }
+                    value: root.geometryBounds ? Math.round(root.geometryBounds.height * root.tf("scaleY", 1)) : 0
                     Layout.fillWidth: true
                     onValueModified: newValue => {
                         root.updateDisplayedSize("height", newValue);
@@ -469,7 +426,7 @@ Item {
                     top: 360
                 }
 
-                readonly property string expectedText: root.currentTransform ? Math.round(root.currentTransform.rotate).toString() : "0"
+                readonly property string expectedText: Math.round(root.tf("rotate", 0)).toString()
                 property bool isCommitting: false
 
                 Component.onCompleted: text = expectedText
@@ -503,7 +460,7 @@ Item {
                 id: rotationSlider
                 from: -180
                 to: 180
-                value: root.currentTransform ? root.currentTransform.rotate : 0
+                value: root.tf("rotate", 0)
                 Layout.fillWidth: true
 
                 onPressedChanged: {
@@ -536,14 +493,11 @@ Item {
                 enabled: {
                     if (!root.controlsEnabled || !root.currentTransform)
                         return false;
-                    var t = root.currentTransform;
-                    var isIdentity = (t.rotate === 0 || t.rotate === undefined) && (t.scaleX === 1 || t.scaleX === undefined) && (t.scaleY === 1 || t.scaleY === undefined) && (t.translateX === 0 || t.translateX === undefined) && (t.translateY === 0 || t.translateY === undefined);
-                    return !isIdentity;
+                    return root.tf("rotate", 0) !== 0 || root.tf("scaleX", 1) !== 1 || root.tf("scaleY", 1) !== 1 || root.tf("translateX", 0) !== 0 || root.tf("translateY", 0) !== 0;
                 }
                 onClicked: {
-                    var idx = Lucent.SelectionManager.selectedItemIndex;
-                    if (idx >= 0 && canvasModel) {
-                        canvasModel.bakeTransform(idx);
+                    if (root.hasValidSelection) {
+                        canvasModel.bakeTransform(root.selectedIndex);
                         appController.focusCanvas();
                     }
                 }
