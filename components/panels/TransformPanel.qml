@@ -13,7 +13,6 @@ Item {
 
     readonly property var selectedItem: Lucent.SelectionManager.selectedItem
 
-    // Check if the selected item supports bounding box editing
     readonly property bool hasEditableBounds: {
         if (!selectedItem)
             return false;
@@ -21,16 +20,10 @@ Item {
         return t === "rectangle" || t === "ellipse" || t === "path" || t === "text";
     }
 
-    // Check if selected item is effectively locked
     readonly property bool isLocked: (Lucent.SelectionManager.selectedItemIndex >= 0) && canvasModel && canvasModel.isEffectivelyLocked(Lucent.SelectionManager.selectedItemIndex)
 
-    // Current bounding box from the model (transformed) - updated reactively via signal
     property var currentBounds: null
-
-    // Current geometry bounds (untransformed) - for position calculations
     property var geometryBounds: null
-
-    // Current transform - updated reactively via signal
     property var currentTransform: null
 
     function refreshBounds() {
@@ -82,16 +75,13 @@ Item {
         refreshBounds();
     }
 
-    // Controls are enabled only when an editable item is selected and not locked
     readonly property bool controlsEnabled: hasEditableBounds && !isLocked
 
     readonly property int labelSize: 10
     readonly property color labelColor: themePalette.text
 
-    // Proportional scaling toggle (off by default for free resize)
     property bool proportionalScale: false
 
-    // Computed canvas position: geometry origin point + translation (using untransformed geometry)
     readonly property real displayedX: {
         if (!geometryBounds)
             return 0;
@@ -110,7 +100,6 @@ Item {
         return geometryBounds.y + geometryBounds.height * originY + translateY;
     }
 
-    // Update translation to achieve a desired canvas position for the origin point
     function updatePosition(axis, newValue) {
         var idx = Lucent.SelectionManager.selectedItemIndex;
         if (idx < 0 || !canvasModel || !geometryBounds)
@@ -142,7 +131,6 @@ Item {
     }
 
     function updateDisplayedSize(property, value) {
-        // Changes scale to achieve the desired displayed size (geometry × scale = value)
         var idx = Lucent.SelectionManager.selectedItemIndex;
         if (idx < 0 || !canvasModel || !geometryBounds)
             return;
@@ -151,18 +139,15 @@ Item {
         var currentScaleX = t.scaleX || 1;
         var currentScaleY = t.scaleY || 1;
 
-        // Prevent division by zero
         if (geometryBounds.width <= 0 || geometryBounds.height <= 0)
             return;
 
-        // Clamp to minimum displayed size
         var minDisplayed = 1;
         value = Math.max(minDisplayed, value);
 
         if (property === "width") {
             var newScaleX = value / geometryBounds.width;
             if (proportionalScale) {
-                // Apply same scale ratio to both axes
                 var ratio = newScaleX / currentScaleX;
                 var newScaleY = currentScaleY * ratio;
                 canvasModel.beginTransaction();
@@ -217,18 +202,15 @@ Item {
         var dx = (oldOx - newOx) * bounds.width;
         var dy = (oldOy - newOy) * bounds.height;
 
-        // Scale the displacement
         var scaledDx = dx * scaleX;
         var scaledDy = dy * scaleY;
 
-        // Rotate the scaled displacement
         var radians = rotation * Math.PI / 180;
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
         var rotatedScaledDx = scaledDx * cos - scaledDy * sin;
         var rotatedScaledDy = scaledDx * sin + scaledDy * cos;
 
-        // Adjustment = unscaled delta - rotated scaled delta
         var adjustX = dx - rotatedScaledDx;
         var adjustY = dy - rotatedScaledDy;
 
@@ -276,7 +258,6 @@ Item {
             }
         }
 
-        // Transform properties: Origin, X/Y, W/H
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4
@@ -287,7 +268,6 @@ Item {
             enabled: root.controlsEnabled
             opacity: root.controlsEnabled ? 1.0 : 0.5
 
-            // Column 1: Origin grid
             ButtonGroup {
                 id: originGroup
                 exclusive: true
@@ -298,44 +278,17 @@ Item {
                 spacing: 2
 
                 Repeater {
-                    model: [
-                        {
-                            ox: 0,
-                            oy: 0
-                        },
-                        {
-                            ox: 0.5,
-                            oy: 0
-                        },
-                        {
-                            ox: 1,
-                            oy: 0
-                        },
-                        {
-                            ox: 0,
-                            oy: 0.5
-                        },
-                        {
-                            ox: 0.5,
-                            oy: 0.5
-                        },
-                        {
-                            ox: 1,
-                            oy: 0.5
-                        },
-                        {
-                            ox: 0,
-                            oy: 1
-                        },
-                        {
-                            ox: 0.5,
-                            oy: 1
-                        },
-                        {
-                            ox: 1,
-                            oy: 1
-                        }
-                    ]
+                    // Generate 3x3 origin grid: (0, 0.5, 1) × (0, 0.5, 1)
+                    model: {
+                        var points = [];
+                        for (var row = 0; row <= 1; row += 0.5)
+                            for (var col = 0; col <= 1; col += 0.5)
+                                points.push({
+                                    ox: col,
+                                    oy: row
+                                });
+                        return points;
+                    }
 
                     delegate: Button {
                         required property var modelData
@@ -364,79 +317,51 @@ Item {
                 }
             }
 
-            // Vertical divider between origin and position
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.fillHeight: true
-                Layout.topMargin: 4
-                Layout.bottomMargin: 4
-                color: root.themePalette.mid
-            }
+            Lucent.VerticalDivider {}
 
-            // Column 2: Position (X, Y)
-            GridLayout {
-                columns: 2
-                rowSpacing: 4
-                columnSpacing: 4
+            ColumnLayout {
+                spacing: 4
                 Layout.fillWidth: true
 
-                Label {
-                    text: qsTr("X:")
-                    font.pixelSize: root.labelSize
-                    color: root.labelColor
-                }
-                SpinBox {
+                Lucent.SpinBoxLabeled {
+                    label: qsTr("X:")
+                    labelSize: root.labelSize
+                    labelColor: root.labelColor
                     from: -100000
                     to: 100000
                     value: Math.round(root.displayedX)
-                    editable: true
                     Layout.fillWidth: true
-                    onValueModified: {
-                        root.updatePosition("x", value);
+                    onValueModified: newValue => {
+                        root.updatePosition("x", newValue);
                         appController.focusCanvas();
                     }
                 }
 
-                Label {
-                    text: qsTr("Y:")
-                    font.pixelSize: root.labelSize
-                    color: root.labelColor
-                }
-                SpinBox {
+                Lucent.SpinBoxLabeled {
+                    label: qsTr("Y:")
+                    labelSize: root.labelSize
+                    labelColor: root.labelColor
                     from: -100000
                     to: 100000
                     value: Math.round(root.displayedY)
-                    editable: true
                     Layout.fillWidth: true
-                    onValueModified: {
-                        root.updatePosition("y", value);
+                    onValueModified: newValue => {
+                        root.updatePosition("y", newValue);
                         appController.focusCanvas();
                     }
                 }
             }
 
-            // Vertical divider between position and size
-            Rectangle {
-                Layout.preferredWidth: 1
-                Layout.fillHeight: true
-                Layout.topMargin: 4
-                Layout.bottomMargin: 4
-                color: root.themePalette.mid
-            }
+            Lucent.VerticalDivider {}
 
-            // Column 3: Size (W, H)
-            GridLayout {
-                columns: 2
-                rowSpacing: 4
-                columnSpacing: 4
+            ColumnLayout {
+                spacing: 4
                 Layout.fillWidth: true
 
-                Label {
-                    text: qsTr("W:")
-                    font.pixelSize: root.labelSize
-                    color: root.labelColor
-                }
-                SpinBox {
+                Lucent.SpinBoxLabeled {
+                    label: qsTr("W:")
+                    labelSize: root.labelSize
+                    labelColor: root.labelColor
                     from: 0
                     to: 100000
                     value: {
@@ -445,20 +370,17 @@ Item {
                         var scaleX = root.currentTransform ? (root.currentTransform.scaleX || 1) : 1;
                         return Math.round(root.geometryBounds.width * scaleX);
                     }
-                    editable: true
                     Layout.fillWidth: true
-                    onValueModified: {
-                        root.updateDisplayedSize("width", value);
+                    onValueModified: newValue => {
+                        root.updateDisplayedSize("width", newValue);
                         appController.focusCanvas();
                     }
                 }
 
-                Label {
-                    text: qsTr("H:")
-                    font.pixelSize: root.labelSize
-                    color: root.labelColor
-                }
-                SpinBox {
+                Lucent.SpinBoxLabeled {
+                    label: qsTr("H:")
+                    labelSize: root.labelSize
+                    labelColor: root.labelColor
                     from: 0
                     to: 100000
                     value: {
@@ -467,21 +389,18 @@ Item {
                         var scaleY = root.currentTransform ? (root.currentTransform.scaleY || 1) : 1;
                         return Math.round(root.geometryBounds.height * scaleY);
                     }
-                    editable: true
                     Layout.fillWidth: true
-                    onValueModified: {
-                        root.updateDisplayedSize("height", value);
+                    onValueModified: newValue => {
+                        root.updateDisplayedSize("height", newValue);
                         appController.focusCanvas();
                     }
                 }
             }
 
-            // Proportional size toggle with visual connectors
             ColumnLayout {
                 spacing: 0
                 Layout.alignment: Qt.AlignVCenter
 
-                // Top connector line (links to W field)
                 Rectangle {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: 8
@@ -517,7 +436,6 @@ Item {
                     }
                 }
 
-                // Bottom connector line (links to H field)
                 Rectangle {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: 8
@@ -527,7 +445,6 @@ Item {
             }
         }
 
-        // Rotation row
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: 4
@@ -552,17 +469,12 @@ Item {
                     top: 360
                 }
 
-                // Compute the expected text value from current transform
                 readonly property string expectedText: root.currentTransform ? Math.round(root.currentTransform.rotate).toString() : "0"
-
-                // Flag to prevent double-firing of editingFinished
                 property bool isCommitting: false
 
-                // Initialize text
                 Component.onCompleted: text = expectedText
 
-                // Update text when expectedText changes (handles undo/redo)
-                // Skip if we're in the middle of committing to prevent double onEditingFinished
+                // Sync with undo/redo; skip during commit to prevent double-fire
                 onExpectedTextChanged: {
                     if (!isCommitting) {
                         text = expectedText;
@@ -604,7 +516,6 @@ Item {
 
                 onMoved: root.updateTransform("rotate", value)
 
-                // Circular handle to match other sliders
                 handle: Rectangle {
                     x: rotationSlider.leftPadding + rotationSlider.visualPosition * (rotationSlider.availableWidth - width)
                     y: rotationSlider.topPadding + rotationSlider.availableHeight / 2 - height / 2
@@ -617,46 +528,24 @@ Item {
                 }
             }
 
-            // Flatten Transform button
-            Button {
-                id: flattenButton
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
-                enabled: root.controlsEnabled && root.currentTransform && !isIdentityTransform()
-
-                function isIdentityTransform() {
-                    if (!root.currentTransform)
-                        return true;
+            Lucent.IconButton {
+                iconName: "stack-simple-fill"
+                iconWeight: "fill"
+                iconSize: 14
+                tooltipText: qsTr("Flatten Transform")
+                enabled: {
+                    if (!root.controlsEnabled || !root.currentTransform)
+                        return false;
                     var t = root.currentTransform;
-                    return (t.rotate === 0 || t.rotate === undefined) && (t.scaleX === 1 || t.scaleX === undefined) && (t.scaleY === 1 || t.scaleY === undefined) && (t.translateX === 0 || t.translateX === undefined) && (t.translateY === 0 || t.translateY === undefined);
+                    var isIdentity = (t.rotate === 0 || t.rotate === undefined) && (t.scaleX === 1 || t.scaleX === undefined) && (t.scaleY === 1 || t.scaleY === undefined) && (t.translateX === 0 || t.translateX === undefined) && (t.translateY === 0 || t.translateY === undefined);
+                    return !isIdentity;
                 }
-
                 onClicked: {
                     var idx = Lucent.SelectionManager.selectedItemIndex;
                     if (idx >= 0 && canvasModel) {
                         canvasModel.bakeTransform(idx);
                         appController.focusCanvas();
                     }
-                }
-
-                background: Rectangle {
-                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlight : root.themePalette.button) : root.themePalette.window
-                    border.color: root.themePalette.mid
-                    border.width: 1
-                    radius: 2
-                }
-
-                contentItem: Lucent.PhIcon {
-                    name: "stack-simple-fill"
-                    weight: "fill"
-                    size: 14
-                    color: flattenButton.enabled ? (flattenButton.hovered ? root.themePalette.highlightedText : root.themePalette.buttonText) : root.themePalette.mid
-                    anchors.centerIn: parent
-                }
-
-                Lucent.ToolTipStyled {
-                    visible: flattenButton.hovered
-                    text: qsTr("Flatten Transform")
                 }
             }
         }

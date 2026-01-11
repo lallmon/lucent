@@ -14,20 +14,26 @@ Rectangle {
     property string tooltipText: ""
     property int size: 24
     property int iconSize: 20
+    property bool enabled: true
     // Base icon color when not hovered (e.g. based on selection state)
     property color iconBaseColor: themePalette.text
-    // Final icon color: highlight on hover, otherwise use base
-    readonly property color iconColor: hovered ? themePalette.highlight : iconBaseColor
+    // Final icon color: disabled uses mid, hover uses highlight, otherwise base
+    readonly property color iconColor: {
+        if (!enabled)
+            return themePalette.mid;
+        return hovered ? themePalette.highlight : iconBaseColor;
+    }
 
     signal clicked
 
     readonly property SystemPalette themePalette: Lucent.Themed.palette
-    readonly property bool hovered: hoverHandler.hovered
+    readonly property bool hovered: enabled && hoverHandler.hovered
 
     width: size
     height: size
     radius: Lucent.Styles.rad.sm
-    color: hovered ? themePalette.midlight : "transparent"
+    color: enabled && hovered ? themePalette.midlight : "transparent"
+    opacity: enabled ? 1.0 : 0.6
 
     Lucent.PhIcon {
         anchors.centerIn: parent
@@ -39,10 +45,11 @@ Rectangle {
 
     HoverHandler {
         id: hoverHandler
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 
     TapHandler {
+        enabled: root.enabled
         onTapped: root.clicked()
     }
 
