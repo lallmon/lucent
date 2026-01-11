@@ -11,6 +11,14 @@ Item {
     clip: true  // Constrain rendering to viewport boundaries
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
+    // Grid spacing in canvas units (physical-ready when unitSettings is present)
+    property real gridSpacingCanvas: {
+        if (typeof unitSettings !== "undefined" && unitSettings) {
+            return unitSettings.gridSpacingCanvas;
+        }
+        return 32.0;
+    }
+
     // Zoom/pan state (camera controls)
     property real zoomLevel: 0.7  // Start at 70%
     readonly property real minZoom: 0.1
@@ -49,6 +57,9 @@ Item {
 
         property real baseGridSize: 32.0
         property real majorMultiplier: 5.0
+        Binding on baseGridSize {
+            value: root.gridSpacingCanvas
+        }
         // Keep lines consistent across zoom by tying thickness to projected spacing.
         // Matches shader gridSize logic (base, zoomed-out major-only, zoomed-in half).
         // Keep lines very thin across zoom: small clamps plus modest scaling.

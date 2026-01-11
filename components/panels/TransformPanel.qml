@@ -20,6 +20,7 @@ Item {
     readonly property bool isLocked: hasValidSelection && canvasModel.isEffectivelyLocked(selectedIndex)
 
     property var currentTransform: null
+    readonly property bool hasUnitSettings: typeof unitSettings !== "undefined" && unitSettings !== null
 
     function refreshTransform() {
         currentTransform = hasValidSelection ? canvasModel.getItemTransform(selectedIndex) : null;
@@ -61,6 +62,11 @@ Item {
     readonly property var displayedSize: hasValidSelection ? canvasModel.getDisplayedSize(selectedIndex) : null
     readonly property real displayedWidth: displayedSize ? displayedSize.width : 0
     readonly property real displayedHeight: displayedSize ? displayedSize.height : 0
+
+    readonly property real unitX: hasUnitSettings ? unitSettings.canvasToDisplay(displayedX) : displayedX
+    readonly property real unitY: hasUnitSettings ? unitSettings.canvasToDisplay(displayedY) : displayedY
+    readonly property real unitWidth: hasUnitSettings ? unitSettings.canvasToDisplay(displayedWidth) : displayedWidth
+    readonly property real unitHeight: hasUnitSettings ? unitSettings.canvasToDisplay(displayedHeight) : displayedHeight
 
     // Transform state for rotation display and origin buttons
     readonly property real currentRotation: currentTransform ? (currentTransform.rotate ?? 0) : 0
@@ -163,10 +169,11 @@ Item {
                     labelColor: root.labelColor
                     from: -100000
                     to: 100000
-                    value: Math.round(root.displayedX)
+                    value: Math.round(root.unitX)
                     Layout.fillWidth: true
                     onValueModified: newValue => {
-                        canvasModel.setItemPosition(root.selectedIndex, "x", newValue);
+                        var target = root.hasUnitSettings ? unitSettings.displayToCanvas(newValue) : newValue;
+                        canvasModel.setItemPosition(root.selectedIndex, "x", target);
                         appController.focusCanvas();
                     }
                 }
@@ -177,10 +184,11 @@ Item {
                     labelColor: root.labelColor
                     from: -100000
                     to: 100000
-                    value: Math.round(root.displayedY)
+                    value: Math.round(root.unitY)
                     Layout.fillWidth: true
                     onValueModified: newValue => {
-                        canvasModel.setItemPosition(root.selectedIndex, "y", newValue);
+                        var target = root.hasUnitSettings ? unitSettings.displayToCanvas(newValue) : newValue;
+                        canvasModel.setItemPosition(root.selectedIndex, "y", target);
                         appController.focusCanvas();
                     }
                 }
@@ -198,10 +206,11 @@ Item {
                     labelColor: root.labelColor
                     from: 0
                     to: 100000
-                    value: Math.round(root.displayedWidth)
+                    value: Math.round(root.unitWidth)
                     Layout.fillWidth: true
                     onValueModified: newValue => {
-                        canvasModel.setDisplayedSize(root.selectedIndex, "width", newValue, root.proportionalScale);
+                        var target = root.hasUnitSettings ? unitSettings.displayToCanvas(newValue) : newValue;
+                        canvasModel.setDisplayedSize(root.selectedIndex, "width", target, root.proportionalScale);
                         appController.focusCanvas();
                     }
                 }
@@ -212,10 +221,11 @@ Item {
                     labelColor: root.labelColor
                     from: 0
                     to: 100000
-                    value: Math.round(root.displayedHeight)
+                    value: Math.round(root.unitHeight)
                     Layout.fillWidth: true
                     onValueModified: newValue => {
-                        canvasModel.setDisplayedSize(root.selectedIndex, "height", newValue, root.proportionalScale);
+                        var target = root.hasUnitSettings ? unitSettings.displayToCanvas(newValue) : newValue;
+                        canvasModel.setDisplayedSize(root.selectedIndex, "height", target, root.proportionalScale);
                         appController.focusCanvas();
                     }
                 }
