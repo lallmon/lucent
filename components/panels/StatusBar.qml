@@ -39,26 +39,26 @@ ToolBar {
                     visible: root.hasUnitSettings
                     model: [
                         {
-                            label: "PX",
+                            label: qsTr("Pixels"),
                             value: "px"
                         },
                         {
-                            label: "MM",
+                            label: qsTr("Millimeters"),
                             value: "mm"
                         },
                         {
-                            label: "IN",
+                            label: qsTr("Inches"),
                             value: "in"
                         },
                         {
-                            label: "PT",
+                            label: qsTr("Points"),
                             value: "pt"
                         }
                     ]
                     textRole: "label"
                     valueRole: "value"
                     implicitWidth: 72
-                    currentIndex: Math.max(0, model.findIndex(m => m.value === unitSettings.displayUnit))
+                    currentIndex: Math.max(0, model.findIndex(m => m.value === (root.hasUnitSettings ? unitSettings.displayUnit : "px")))
                     onActivated: index => {
                         if (index >= 0) {
                             unitSettings.displayUnit = model[index].value;
@@ -81,17 +81,15 @@ ToolBar {
                     model: [72, 96, 300]
                     implicitWidth: 72
                     currentIndex: {
-                        var i = model.indexOf(unitSettings.dpi);
+                        var dpiVal = root.hasUnitSettings ? unitSettings.previewDPI : 96;
+                        var i = model.indexOf(dpiVal);
                         return i >= 0 ? i : 1; // default to 96 if not matched
                     }
                     onActivated: index => {
                         if (!root.hasUnitSettings || index < 0)
                             return;
                         var val = model[index];
-                        unitSettings.dpi = val;
-                        if (typeof documentManager !== "undefined" && documentManager) {
-                            documentManager.setDocumentDPI(val);
-                        }
+                        unitSettings.previewDPI = val;
                     }
                 }
             }

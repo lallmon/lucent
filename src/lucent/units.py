@@ -1,45 +1,57 @@
 # Copyright (C) 2026 The Culture List, Inc.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Tests for unit conversion helpers."""
+"""Unit conversion helpers for canvas measurements."""
 
-import math
+from __future__ import annotations
 
-import pytest
+from typing import Literal
 
-from lucent.units import canvas_to_unit, unit_to_canvas, convert
+Unit = Literal["px", "mm", "in", "pt"]
+
+_MM_PER_INCH = 25.4
+_PT_PER_INCH = 72.0
 
 
-@pytest.mark.parametrize("dpi", [96, 300])
-@pytest.mark.parametrize(
-    "unit,expected_per_inch",
-    [
-        ("in", 1.0),
-        ("mm", 25.4),
-        ("pt", 72.0),
-        ("px", None),  # handled separately
-    ],
-)
-def test_convert_inch_basis(unit, expected_per_inch, dpi):
+def _to_inches(value: float, unit: Unit, dpi: float) -> float:
+    if dpi <= 0:
+        raise ValueError("dpi must be > 0")
+    if unit == "in":
+        return value
+    if unit == "mm":
+        return value / _MM_PER_INCH
+    if unit == "pt":
+        return value / _PT_PER_INCH
     if unit == "px":
-        assert math.isclose(convert(dpi, "px", "in", dpi), 1.0)
-        assert math.isclose(convert(1, "in", "px", dpi), dpi)
-        return
-    assert math.isclose(convert(1, "in", unit, dpi), expected_per_inch)
-    assert math.isclose(convert(expected_per_inch, unit, "in", dpi), 1.0)
+        return value / dpi
+    raise ValueError(f"Unknown unit '{unit}'")
 
 
-@pytest.mark.parametrize("dpi", [96, 300])
-@pytest.mark.parametrize("unit", ["px", "mm", "in", "pt"])
-def test_round_trip_canvas(unit, dpi):
-    original = 123.456
-    converted = canvas_to_unit(original, unit, dpi)
-    back = unit_to_canvas(converted, unit, dpi)
-    assert math.isclose(back, original, rel_tol=1e-9, abs_tol=1e-9)
+def _from_inches(value_in_inches: float, unit: Unit, dpi: float) -> float:
+    if dpi <= 0:
+        raise ValueError("dpi must be > 0")
+    if unit == "in":
+        return value_in_inches
+    if unit == "mm":
+        return value_in_inches * _MM_PER_INCH
+    if unit == "pt":
+        return value_in_inches * _PT_PER_INCH
+    if unit == "px":
+        return value_in_inches * dpi
+    raise ValueError(f"Unknown unit '{unit}'")
 
 
-def test_invalid_dpi_raises():
-    with pytest.raises(ValueError):
-        canvas_to_unit(10, "in", 0)
-    with pytest.raises(ValueError):
-        unit_to_canvas(10, "in", -1)
+def convert(value: float, from_unit: Unit, to_unit: Unit, dpi: float) -> float:
+    """Convert a value between units using the provided DPI."""
+    inches = _to_inches(value, from_unit, dpi)
+    return _from_inches(inches, to_unit, dpi)
+
+
+def canvas_to_unit(value: float, unit: Unit, dpi: float) -> float:
+    """Convert a canvas value (logical px) to the requested unit."""
+    return convert(value, "px", unit, dpi)
+
+
+def unit_to_canvas(value: float, unit: Unit, dpi: float) -> float:
+    """Convert a unit value to canvas units (logical px)."""
+    return convert(value, unit, "px", dpi)

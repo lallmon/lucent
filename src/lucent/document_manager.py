@@ -49,8 +49,8 @@ class DocumentManager(QObject):
         self._viewport_offset_x = 0.0
         self._viewport_offset_y = 0.0
 
-        # Document DPI defaults to 96; kept in sync with unit settings when provided.
-        self._document_dpi = unit_settings.dpi if unit_settings else 96
+        # Document DPI for export/metadata (decoupled from preview DPI)
+        self._document_dpi = 300
 
         # Don't track changes until app is fully initialized
         # Call startTracking() from QML after Component.onCompleted
@@ -145,9 +145,6 @@ class DocumentManager(QObject):
         if self._document_dpi != dpi:
             self._document_dpi = dpi
             self.documentDPIChanged.emit()
-            if self._unit_settings and abs(self._unit_settings.dpi - dpi) > 1e-9:
-                # Keep unit settings aligned with document DPI
-                self._unit_settings._set_dpi(float(dpi))
 
     @Slot(result=bool)
     def hasUnsavedChanges(self) -> bool:
@@ -181,8 +178,7 @@ class DocumentManager(QObject):
         self._connect_model_signals()
         self._set_file_path("")
         self._set_dirty(False)
-        default_dpi = self._unit_settings.dpi if self._unit_settings else 96
-        self.setDocumentDPI(default_dpi)
+        self.setDocumentDPI(300)
         if self._unit_settings:
             # Reset unit and grid spacing to defaults
             self._unit_settings._set_display_unit("px")

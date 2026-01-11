@@ -365,7 +365,7 @@ Item {
                 iconWeight: "fill"
                 iconSize: 14
                 tooltipText: qsTr("Flatten Transform")
-                enabled: root.controlsEnabled && canvasModel.hasNonIdentityTransform(root.selectedIndex)
+                enabled: root.controlsEnabled && canvasModel && canvasModel.hasNonIdentityTransform(root.selectedIndex)
                 onClicked: {
                     if (root.hasValidSelection) {
                         canvasModel.bakeTransform(root.selectedIndex);

@@ -14,7 +14,7 @@ from lucent.units import canvas_to_unit, unit_to_canvas, Unit
 
 class UnitSettings(QObject):
     displayUnitChanged = Signal()
-    dpiChanged = Signal()
+    previewDPIChanged = Signal()
     gridSpacingValueChanged = Signal()
     gridSpacingUnitChanged = Signal()
     gridSpacingCanvasChanged = Signal()
@@ -22,14 +22,14 @@ class UnitSettings(QObject):
     def __init__(
         self,
         display_unit: Unit = "px",
-        dpi: float = 96.0,
+        preview_dpi: float = 150.0,
         grid_spacing_value: float = 10.0,
         grid_spacing_unit: Unit = "mm",
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._display_unit: Unit = display_unit
-        self._dpi: float = dpi
+        self._preview_dpi: float = preview_dpi
         self._grid_spacing_value: float = grid_spacing_value
         self._grid_spacing_unit: Unit = grid_spacing_unit
 
@@ -48,20 +48,22 @@ class UnitSettings(QObject):
         str, _get_display_unit, _set_display_unit, notify=displayUnitChanged
     )
 
-    # DPI
-    def _get_dpi(self) -> float:
-        return self._dpi
+    # Preview DPI (used for on-canvas conversions and buffer sizing)
+    def _get_preview_dpi(self) -> float:
+        return self._preview_dpi
 
-    def _set_dpi(self, value: float) -> None:
+    def _set_preview_dpi(self, value: float) -> None:
         if value <= 0:
             return
-        if abs(value - self._dpi) < 1e-9:
+        if abs(value - self._preview_dpi) < 1e-9:
             return
-        self._dpi = value
-        self.dpiChanged.emit()
+        self._preview_dpi = value
+        self.previewDPIChanged.emit()
         self.gridSpacingCanvasChanged.emit()
 
-    dpi = Property(float, _get_dpi, _set_dpi, notify=dpiChanged)
+    previewDPI = Property(
+        float, _get_preview_dpi, _set_preview_dpi, notify=previewDPIChanged
+    )
 
     # Grid spacing value
     def _get_grid_spacing_value(self) -> float:
@@ -104,7 +106,7 @@ class UnitSettings(QObject):
     # Derived canvas spacing
     def _get_grid_spacing_canvas(self) -> float:
         return unit_to_canvas(
-            self._grid_spacing_value, self._grid_spacing_unit, self._dpi
+            self._grid_spacing_value, self._grid_spacing_unit, self._preview_dpi
         )
 
     gridSpacingCanvas = Property(
@@ -114,24 +116,24 @@ class UnitSettings(QObject):
     # Conversion helpers exposed to QML
     @Slot(float, result=float)
     def canvasToDisplay(self, value: float) -> float:
-        return canvas_to_unit(value, self._display_unit, self._dpi)
+        return canvas_to_unit(value, self._display_unit, self._preview_dpi)
 
     @Slot(float, result=float)
     def displayToCanvas(self, value: float) -> float:
-        return unit_to_canvas(value, self._display_unit, self._dpi)
+        return unit_to_canvas(value, self._display_unit, self._preview_dpi)
 
     # Helpers for syncing
     def load_from_meta(self, meta: dict[str, object]) -> None:
         """Load settings from document meta dict."""
         unit = meta.get("displayUnit", self._display_unit)
-        dpi = meta.get("documentDPI", self._dpi)
+        dpi = meta.get("previewDPI", meta.get("documentDPI", self._preview_dpi))
         grid_value = meta.get("gridSpacingValue", self._grid_spacing_value)
         grid_unit = meta.get("gridSpacingUnit", self._grid_spacing_unit)
 
         if isinstance(unit, str):
             self._set_display_unit(unit)  # type: ignore[arg-type]
         if isinstance(dpi, (int, float)):
-            self._set_dpi(float(dpi))
+            self._set_preview_dpi(float(dpi))
         if isinstance(grid_value, (int, float)):
             self._set_grid_spacing_value(float(grid_value))
         if isinstance(grid_unit, str):
@@ -141,7 +143,7 @@ class UnitSettings(QObject):
         """Serialize settings to document meta dict."""
         return {
             "displayUnit": self._display_unit,
-            "documentDPI": self._dpi,
+            "previewDPI": self._preview_dpi,
             "gridSpacingValue": self._grid_spacing_value,
             "gridSpacingUnit": self._grid_spacing_unit,
         }
