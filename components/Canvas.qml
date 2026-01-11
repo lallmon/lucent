@@ -194,9 +194,15 @@ Item {
                 if (root._selectionGeometryBounds) {
                     var scaleX = root._selectionTransform ? (root._selectionTransform.scaleX || 1) : 1;
                     var scaleY = root._selectionTransform ? (root._selectionTransform.scaleY || 1) : 1;
-                    var displayedWidth = Math.round(root._selectionGeometryBounds.width * scaleX);
-                    var displayedHeight = Math.round(root._selectionGeometryBounds.height * scaleY);
-                    return displayedWidth + " × " + displayedHeight;
+                    var w = root._selectionGeometryBounds.width * scaleX;
+                    var h = root._selectionGeometryBounds.height * scaleY;
+                    var label = "px";
+                    if (typeof unitSettings !== "undefined" && unitSettings) {
+                        w = unitSettings.canvasToDisplay(w);
+                        h = unitSettings.canvasToDisplay(h);
+                        label = unitSettings.displayUnit;
+                    }
+                    return Math.round(w) + " × " + Math.round(h) + " " + label;
                 }
                 return "";
             }

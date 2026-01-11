@@ -63,10 +63,39 @@ Item {
     readonly property real displayedWidth: displayedSize ? displayedSize.width : 0
     readonly property real displayedHeight: displayedSize ? displayedSize.height : 0
 
-    readonly property real unitX: hasUnitSettings ? unitSettings.canvasToDisplay(displayedX) : displayedX
-    readonly property real unitY: hasUnitSettings ? unitSettings.canvasToDisplay(displayedY) : displayedY
-    readonly property real unitWidth: hasUnitSettings ? unitSettings.canvasToDisplay(displayedWidth) : displayedWidth
-    readonly property real unitHeight: hasUnitSettings ? unitSettings.canvasToDisplay(displayedHeight) : displayedHeight
+    // Include displayUnit/previewDPI to ensure bindings update when units change.
+    readonly property real unitX: {
+        if (hasUnitSettings) {
+            var _unit = unitSettings.displayUnit;
+            var _dpi = unitSettings.previewDPI;
+            return unitSettings.canvasToDisplay(displayedX);
+        }
+        return displayedX;
+    }
+    readonly property real unitY: {
+        if (hasUnitSettings) {
+            var _unit = unitSettings.displayUnit;
+            var _dpi = unitSettings.previewDPI;
+            return unitSettings.canvasToDisplay(displayedY);
+        }
+        return displayedY;
+    }
+    readonly property real unitWidth: {
+        if (hasUnitSettings) {
+            var _unit = unitSettings.displayUnit;
+            var _dpi = unitSettings.previewDPI;
+            return unitSettings.canvasToDisplay(displayedWidth);
+        }
+        return displayedWidth;
+    }
+    readonly property real unitHeight: {
+        if (hasUnitSettings) {
+            var _unit = unitSettings.displayUnit;
+            var _dpi = unitSettings.previewDPI;
+            return unitSettings.canvasToDisplay(displayedHeight);
+        }
+        return displayedHeight;
+    }
 
     // Transform state for rotation display and origin buttons
     readonly property real currentRotation: currentTransform ? (currentTransform.rotate ?? 0) : 0
@@ -197,7 +226,7 @@ Item {
             Lucent.VerticalDivider {}
 
             ColumnLayout {
-                spacing: 4
+                spacing: 2
                 Layout.fillWidth: true
 
                 Lucent.SpinBoxLabeled {
@@ -228,6 +257,18 @@ Item {
                         canvasModel.setDisplayedSize(root.selectedIndex, "height", target, root.proportionalScale);
                         appController.focusCanvas();
                     }
+                }
+            }
+
+            // Unit label column for both W/H
+            ColumnLayout {
+                spacing: 0
+                Layout.alignment: Qt.AlignVCenter
+                Label {
+                    text: root.hasUnitSettings ? unitSettings.displayUnit : "px"
+                    font.pixelSize: 12
+                    color: root.labelColor
+                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                 }
             }
 

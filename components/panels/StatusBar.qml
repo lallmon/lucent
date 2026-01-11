@@ -10,6 +10,7 @@ ToolBar {
     id: root
     implicitHeight: 32
     property real zoomLevel: 1.0
+    signal zoomRequested(real value)
     property real cursorX: 0
     property real cursorY: 0
 
@@ -27,6 +28,7 @@ ToolBar {
         RowLayout {
             spacing: 8
             Layout.alignment: Qt.AlignVCenter
+            Layout.leftMargin: 10
 
             RowLayout {
                 spacing: 4
@@ -37,22 +39,28 @@ ToolBar {
                 ComboBox {
                     id: unitPicker
                     visible: root.hasUnitSettings
+                    implicitHeight: 24
+                    background: Rectangle {
+                        color: root.palette.window
+                        border.color: root.palette.mid
+                        radius: 2
+                    }
                     model: [
                         {
-                            label: qsTr("Pixels"),
-                            value: "px"
-                        },
-                        {
-                            label: qsTr("Millimeters"),
-                            value: "mm"
+                            label: qsTr("Points"),
+                            value: "pt"
                         },
                         {
                             label: qsTr("Inches"),
                             value: "in"
                         },
                         {
-                            label: qsTr("Points"),
-                            value: "pt"
+                            label: qsTr("Millimeters"),
+                            value: "mm"
+                        },
+                        {
+                            label: qsTr("Pixels"),
+                            value: "px"
                         }
                     ]
                     textRole: "label"
@@ -72,13 +80,19 @@ ToolBar {
             RowLayout {
                 spacing: 4
                 Label {
-                    text: qsTr("DPI")
+                    text: qsTr("Preview DPI")
                     color: "white"
                 }
                 ComboBox {
                     id: dpiPicker
                     visible: root.hasUnitSettings
-                    model: [72, 96, 300]
+                    implicitHeight: 24
+                    background: Rectangle {
+                        color: root.palette.window
+                        border.color: root.palette.mid
+                        radius: 2
+                    }
+                    model: [300, 96, 72]
                     implicitWidth: 72
                     currentIndex: {
                         var dpiVal = root.hasUnitSettings ? unitSettings.previewDPI : 96;
@@ -121,14 +135,54 @@ ToolBar {
         // Zoom readout
         RowLayout {
             spacing: 6
-            Layout.rightMargin: 10
             Lucent.PhIcon {
                 name: "magnifying-glass"
                 size: 16
                 color: "white"
             }
-            Label {
-                text: qsTr("Zoom: %1%").arg(Math.round(root.zoomLevel * 100))
+            ComboBox {
+                id: zoomPicker
+                implicitHeight: 24
+                implicitWidth: 60
+                background: Rectangle {
+                    color: root.palette.window
+                    border.color: root.palette.mid
+                    radius: 2
+                }
+                model: [25, 50, 75, 100, 125, 150, 175, 200]
+                textRole: ""
+                valueRole: ""
+                currentIndex: {
+                    // Snap to nearest option
+                    var z = Math.round(root.zoomLevel * 100);
+                    var best = 0;
+                    var bestDiff = 9999;
+                    for (var i = 0; i < model.length; i++) {
+                        var d = Math.abs(model[i] - z);
+                        if (d < bestDiff) {
+                            bestDiff = d;
+                            best = i;
+                        }
+                    }
+                    return best;
+                }
+                delegate: ItemDelegate {
+                    width: zoomPicker.width
+                    text: modelData + "%"
+                }
+                contentItem: Label {
+                    text: Math.round(root.zoomLevel * 100) + "%"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    color: "white"
+                    elide: Text.ElideRight
+                }
+                onActivated: index => {
+                    if (index >= 0) {
+                        var val = model[index] / 100.0;
+                        zoomRequested(val);
+                    }
+                }
             }
         }
     }
