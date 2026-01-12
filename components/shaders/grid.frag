@@ -44,16 +44,27 @@ void main() {
     highp float canvasX = (screenPos.x - centerX - offsetX) / zoomLevel;
     highp float canvasY = (screenPos.y - centerY - offsetY) / zoomLevel;
 
-    // Adaptive grid spacing based on zoom level
+    // Adaptive grid spacing based on on-screen pixel density
     highp float gridSize = baseGridSize;
     bool showMinor = true;
-    if (zoomLevel < 0.5) {
-        gridSize = baseGridSize * majorMultiplier;
+
+    // Hide minor lines if they would be thinner than ~6px spacing
+    highp float minorStepPx = gridSize * zoomLevel;
+    if (minorStepPx < 6.0) {
         showMinor = false;
-    } else if (zoomLevel > 2.0) {
+    } else if (minorStepPx > 24.0) {
+        // When minors get very chunky, subdivide once
         gridSize = baseGridSize * 0.5;
+        minorStepPx = gridSize * zoomLevel;
     }
+
+    // Major grid anchors to the base spacing; expand if majors get too tight
     highp float majorStep = baseGridSize * majorMultiplier;
+    highp float majorStepPx = majorStep * zoomLevel;
+    if (majorStepPx < 12.0) {
+        majorStep = baseGridSize * majorMultiplier * 2.0;
+        majorStepPx = majorStep * zoomLevel;
+    }
 
     // Distance to nearest minor grid in canvas units
     highp float gx = abs(mod(canvasX, gridSize));
