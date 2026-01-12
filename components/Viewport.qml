@@ -179,6 +179,9 @@ Item {
             var minorStepPx = params.gridSize * zoom;
             var majorStepPx = params.majorStep * zoom;
 
+            if (majorStepPx < 2)
+                return;
+
             // Minor grid
             if (params.showMinor) {
                 drawLines(minorStepPx, gridShader.minorColor, gridShader.minorThicknessPx);
