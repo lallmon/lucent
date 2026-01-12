@@ -40,10 +40,11 @@ Item {
     onViewStateChanged: updateAll()
     onWidthChanged: updateAll()
     onHeightChanged: updateAll()
+    onVisibleChanged: updateAll()
     Component.onCompleted: updateAll()
 
     function updateAll() {
-        if (!viewState)
+        if (!visible || !viewState)
             return;
         // Guard: only regenerate if relevant inputs changed (rounded to reduce churn)
         var z = Math.round(viewState.zoom * 1000) / 1000;
@@ -201,7 +202,7 @@ Item {
     // Cursor marker (full length)
     Rectangle {
         color: axisColor
-        visible: viewState && ((orientation === "horizontal" && isFinite(viewState.cursorViewportX)) || (orientation === "vertical" && isFinite(viewState.cursorViewportY)))
+        visible: visible && viewState && ((orientation === "horizontal" && isFinite(viewState.cursorViewportX)) || (orientation === "vertical" && isFinite(viewState.cursorViewportY)))
         width: orientation === "horizontal" ? 1 : parent.width
         height: orientation === "horizontal" ? parent.height : 1
         x: orientation === "horizontal" ? viewState.cursorViewportX : 0

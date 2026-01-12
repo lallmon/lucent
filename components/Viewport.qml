@@ -253,6 +253,8 @@ Item {
         }
 
         onPaint: {
+            if (!visible)
+                return;
             var ctx = getContext("2d");
             ctx.resetTransform();
             ctx.clearRect(0, 0, width, height);
