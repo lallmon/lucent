@@ -109,8 +109,49 @@ Item {
         width: 0
         height: 0
 
-        // Tiled renderers sized to viewport coverage; improves perf on large scenes.
-        property int tileSize: 1024
+        // Adaptive tile size based on zoom level to limit tile count
+        // At low zoom, use larger tiles to reduce overhead
+        readonly property int baseTileSize: 1024
+        readonly property int maxTileCount: 16  // Target max tiles for smooth panning
+
+        // Cached tile size to enable hysteresis (avoid binding loop)
+        property int _lastTileSize: baseTileSize
+
+        function getAdaptiveTileSize() {
+            var zs = Math.max(root.zoomLevel, 0.0001);
+            var viewCanvasW = root.width / zs;
+            var viewCanvasH = root.height / zs;
+
+            // Calculate how many base tiles would cover the viewport
+            var tilesX = Math.ceil(viewCanvasW / baseTileSize);
+            var tilesY = Math.ceil(viewCanvasH / baseTileSize);
+            var tileCount = tilesX * tilesY;
+
+            // If too many tiles, double tile size until acceptable
+            var ts = baseTileSize;
+            while (tileCount > maxTileCount && ts < 16384) {
+                ts *= 2;
+                tilesX = Math.ceil(viewCanvasW / ts);
+                tilesY = Math.ceil(viewCanvasH / ts);
+                tileCount = tilesX * tilesY;
+            }
+
+            // Hysteresis: prefer keeping current size unless forced to change
+            if (_lastTileSize > ts) {
+                var currentTilesX = Math.ceil(viewCanvasW / _lastTileSize);
+                var currentTilesY = Math.ceil(viewCanvasH / _lastTileSize);
+                var currentCount = currentTilesX * currentTilesY;
+                // Keep current larger size unless it would exceed max
+                if (currentCount <= maxTileCount) {
+                    return _lastTileSize;
+                }
+            }
+
+            _lastTileSize = ts;
+            return ts;
+        }
+
+        property int tileSize: baseTileSize
         property var _tiles: []
 
         function updateTiles() {
@@ -118,6 +159,10 @@ Item {
                 _tiles = [];
                 return;
             }
+
+            // Recalculate adaptive tile size
+            tileSize = getAdaptiveTileSize();
+
             var zs = Math.max(root.zoomLevel, 0.0001);
             var halfW = root.width / zs / 2;
             var halfH = root.height / zs / 2;
@@ -144,10 +189,19 @@ Item {
             _tiles = list;
         }
 
+        // Debounce timer for tile updates during zoom to prevent churn
+        Timer {
+            id: tileUpdateDebounce
+            interval: 50  // Wait 50ms after last zoom change
+            repeat: false
+            onTriggered: shapesLayer.updateTiles()
+        }
+
         Connections {
             target: root
             function onZoomLevelChanged() {
-                shapesLayer.updateTiles();
+                // Debounce zoom changes to prevent tile churn during animation
+                tileUpdateDebounce.restart();
             }
             function onOffsetXChanged() {
                 shapesLayer.updateTiles();

@@ -40,16 +40,6 @@ Item {
         gridShader.majorMultiplier = gridConfig.majorMultiplier;
     }
 
-    Component.onCompleted: {
-        console.log("[viewport] completed size:", width, height);
-    }
-    onWidthChanged: {
-        console.log("[viewport] width changed:", width, "height:", height);
-    }
-    onHeightChanged: {
-        console.log("[viewport] height changed:", height, "width:", width);
-    }
-
     // Zoom/pan state (camera controls)
     property real zoomLevel: 0.7  // Start at 70%
     readonly property real minZoom: 0.05
@@ -252,10 +242,6 @@ Item {
 
         vertexShader: Qt.resolvedUrl("shaders/grid.vert.qsb")
         fragmentShader: Qt.resolvedUrl("shaders/grid.frag.qsb")
-
-        onStatusChanged: {
-            console.log("[gridShader] status:", status, "baseGridSize:", baseGridSize, "majorMultiplier:", majorMultiplier, "zoomLevel:", root.zoomLevel, "offsetX:", root.offsetX, "offsetY:", root.offsetY, "viewport:", width, height);
-        }
 
         onWidthChanged: {
             if (width > 0 && height > 0 && gridVisible) {

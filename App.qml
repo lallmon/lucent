@@ -98,6 +98,13 @@ ApplicationWindow {
         }
     }
 
+    // Toggle debug panel (FPS counter, etc.)
+    Shortcut {
+        sequence: "F12"
+        context: Qt.ApplicationShortcut
+        onActivated: debugPanel.visible = !debugPanel.visible
+    }
+
     Platform.FileDialog {
         id: openDialog
         title: qsTr("Open Document")
@@ -237,22 +244,35 @@ ApplicationWindow {
                     color: SplitHandle.hovered ? palette.highlight : palette.mid
                 }
 
-                Viewport {
-                    id: viewport
+                Item {
                     SplitView.fillWidth: true
                     SplitView.fillHeight: true
 
-                    Canvas {
-                        id: canvas
+                    Viewport {
+                        id: viewport
                         anchors.fill: parent
-                        zoomLevel: viewport.zoomLevel
-                        offsetX: viewport.offsetX
-                        offsetY: viewport.offsetY
-                        toolSettings: toolSettings.toolSettings
 
-                        onPanRequested: (dx, dy) => {
-                            viewport.pan(dx, dy);
+                        Canvas {
+                            id: canvas
+                            anchors.fill: parent
+                            zoomLevel: viewport.zoomLevel
+                            offsetX: viewport.offsetX
+                            offsetY: viewport.offsetY
+                            toolSettings: toolSettings.toolSettings
+
+                            onPanRequested: (dx, dy) => {
+                                viewport.pan(dx, dy);
+                            }
                         }
+                    }
+
+                    // Debug panel overlay (toggle with F12) - outside Viewport to stay fixed
+                    DebugPanel {
+                        id: debugPanel
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        z: 1000
                     }
                 }
 

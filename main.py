@@ -17,7 +17,7 @@ from typing import Optional, cast
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QOpenGLContext, QFont
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
-from PySide6.QtCore import Qt, QObject, Property, Signal
+from PySide6.QtCore import QObject, Property, Signal
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 from lucent.canvas_renderer import CanvasRenderer
 from lucent.canvas_model import CanvasModel
@@ -45,11 +45,10 @@ def _set_default_rhi_backend() -> None:
 
 
 if __name__ == "__main__":
-    # Enable VSync and optimize rendering
-    os.environ["QSG_RENDER_LOOP"] = "basic"  # Use basic render loop for better sync
     _set_default_rhi_backend()
-    # Enable desktop OpenGL for better performance
-    QApplication.setAttribute(Qt.AA_UseDesktopOpenGL)  # type: ignore[attr-defined]
+
+    # Use threaded render loop for proper VSync at display refresh rate
+    os.environ.setdefault("QSG_RENDER_LOOP", "threaded")
 
     # Use QApplication (not QGuiApplication) to support Qt.labs.platform native dialogs
     app = QApplication(sys.argv)
@@ -59,8 +58,6 @@ if __name__ == "__main__":
         from PySide6.QtQuickControls2 import QQuickStyle
 
         QQuickStyle.setStyle("Fusion")
-
-    # Set global font with fallbacks to stay close to platform defaults
     app_font = QFont()
     app_font.setFamilies(
         ["Cantarell", "Segoe UI", "Tahoma", "Ubuntu", "Roboto", "sans-serif"]
