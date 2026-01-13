@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 # Minimum drag distance (in canvas units) to create handles instead of corner
-DRAG_THRESHOLD = 3.0
+DRAG_THRESHOLD = 6.0
 
 
 @dataclass

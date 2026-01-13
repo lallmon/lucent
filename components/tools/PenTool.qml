@@ -22,7 +22,7 @@ Item {
     property bool isDragging: false
     property bool isClosed: false
 
-    readonly property real dragThreshold: 3 / Math.max(zoomLevel, 0.0001)
+    readonly property real dragThreshold: 6 / Math.max(zoomLevel, 0.0001)
     readonly property real closeThreshold: 10 / Math.max(zoomLevel, 0.0001)
 
     signal itemCompleted(var itemData)
@@ -278,26 +278,29 @@ Item {
 
     // Undo last action - called by Escape key
     function undoLastAction() {
+        console.log("undoLastAction: isDragging=" + tool.isDragging + ", points=" + tool.points.length + ", pendingAnchor=" + (tool.pendingAnchor !== null));
+
         if (tool.isDragging) {
             // Cancel current drag without placing point
             tool.isDragging = false;
             tool.pendingAnchor = null;
             tool.pendingHandle = null;
+            tool.previewPoint = null;
             previewCanvas.requestPaint();
             return true;
         }
 
-        if (tool.points.length > 1) {
-            // Remove last point
-            var nextPoints = tool.points.slice(0, -1);
-            tool.points = nextPoints;
-            previewCanvas.requestPaint();
-            return true;
-        }
-
-        if (tool.points.length === 1) {
-            // Cancel entirely
-            reset();
+        if (tool.points.length > 0) {
+            if (tool.points.length === 1) {
+                // Last point - cancel entirely
+                reset();
+            } else {
+                // Remove last point
+                var nextPoints = tool.points.slice(0, -1);
+                tool.points = nextPoints;
+                tool.previewPoint = null;
+                previewCanvas.requestPaint();
+            }
             return true;
         }
 

@@ -183,7 +183,12 @@ RowLayout {
         color: root.fillColor
         colorOpacity: root.fillOpacity
         dialogTitle: qsTr("Choose Fill Color")
-        onDialogOpened: canvasModel.beginTransaction()
+        onDialogOpened: {
+            // Auto-enable fill when user opens the fill picker (implies intent to fill)
+            if (root._defaultFillOpacity === 0.0)
+                root._defaultFillOpacity = 1.0;
+            canvasModel.beginTransaction();
+        }
         onDialogClosed: canvasModel.endTransaction()
         onColorPreview: previewColor => root.updateProperty("fillColor", previewColor.toString())
         onOpacityPreview: previewOpacity => root.updateProperty("fillOpacity", previewOpacity)

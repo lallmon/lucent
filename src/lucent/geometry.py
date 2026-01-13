@@ -230,23 +230,13 @@ class PathGeometry(Geometry):
         return path
 
     def get_bounds(self) -> QRectF:
-        """Return bounding rectangle of all anchor points.
-
-        Note: This is an approximation that doesn't account for control points
-        extending beyond anchors. For precise bounds, use QPainterPath.boundingRect().
-        """
+        """Return bounding rectangle using QPainterPath for accurate bezier bounds."""
         if not self.points:
             return QRectF()
 
-        xs = [p["x"] for p in self.points]
-        ys = [p["y"] for p in self.points]
-
-        min_x = min(xs)
-        min_y = min(ys)
-        max_x = max(xs)
-        max_y = max(ys)
-
-        return QRectF(min_x, min_y, max_x - min_x, max_y - min_y)
+        # Use QPainterPath.boundingRect() for accurate bounds including curves
+        path = self.to_painter_path()
+        return path.boundingRect()
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary, including handle data."""
