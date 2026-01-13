@@ -271,12 +271,7 @@ Item {
         }
     }
 
-    // Note: No handleClick - we use handleMousePress/Release for bezier drag detection
-
-    // Undo last action - called by Escape key
     function undoLastAction() {
-        console.log("undoLastAction: isDragging=" + tool.isDragging + ", points=" + tool.points.length + ", pendingAnchor=" + (tool.pendingAnchor !== null));
-
         if (tool.isDragging) {
             // Cancel current drag without placing point
             tool.isDragging = false;
