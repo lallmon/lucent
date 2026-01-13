@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import pytest
+from PySide6.QtTest import QSignalSpy
 
 from lucent.unit_settings import UnitSettings
-from lucent.units import DISPLAY_PRECISION
+from lucent.units import DISPLAY_PRECISION, unit_to_canvas
 
 
 def test_defaults_and_meta_roundtrip():
@@ -68,3 +69,104 @@ def test_display_precision_mapping():
     assert DISPLAY_PRECISION["mm"] == 2
     assert DISPLAY_PRECISION["in"] == 3
     assert DISPLAY_PRECISION["pt"] == 2
+
+
+def test_display_unit_no_change_is_noop(qtbot):
+    us = UnitSettings(display_unit="mm")
+    display_spy = QSignalSpy(us.displayUnitChanged)
+    canvas_spy = QSignalSpy(us.gridSpacingCanvasChanged)
+
+    us.displayUnit = "mm"
+
+    assert us.displayUnit == "mm"
+    assert display_spy.count() == 0
+    assert canvas_spy.count() == 0
+
+
+def test_preview_dpi_tiny_delta_skips_update(qtbot):
+    us = UnitSettings(preview_dpi=200.0)
+    dpi_spy = QSignalSpy(us.previewDPIChanged)
+    canvas_spy = QSignalSpy(us.gridSpacingCanvasChanged)
+
+    us.previewDPI = 200.0 + 5e-10
+
+    assert us.previewDPI == 200.0
+    assert dpi_spy.count() == 0
+    assert canvas_spy.count() == 0
+
+
+def test_grid_spacing_value_guards(qtbot):
+    us = UnitSettings(grid_spacing_value=8.0)
+    value_spy = QSignalSpy(us.gridSpacingValueChanged)
+    canvas_spy = QSignalSpy(us.gridSpacingCanvasChanged)
+
+    us.gridSpacingValue = 0  # non-positive rejected
+    us.gridSpacingValue = 8.0 + 1e-10  # delta below epsilon rejected
+
+    assert us.gridSpacingValue == 8.0
+    assert value_spy.count() == 0
+    assert canvas_spy.count() == 0
+
+
+def test_grid_spacing_unit_no_change_is_noop(qtbot):
+    us = UnitSettings(grid_spacing_unit="in")
+    unit_spy = QSignalSpy(us.gridSpacingUnitChanged)
+    canvas_spy = QSignalSpy(us.gridSpacingCanvasChanged)
+
+    us.gridSpacingUnit = "in"
+
+    assert us.gridSpacingUnit == "in"
+    assert unit_spy.count() == 0
+    assert canvas_spy.count() == 0
+
+
+@pytest.mark.parametrize(
+    "unit,dpi,expected_minor,expected_major_mult,expected_label,expected_target,expected_allowed",
+    [
+        (
+            "in",
+            96.0,
+            unit_to_canvas(0.5, "in", 96.0),
+            4,
+            "fraction",
+            100.0,
+            [2.0, 4.0, 8.0],
+        ),
+        (
+            "mm",
+            150.0,
+            unit_to_canvas(20.0, "mm", 150.0),
+            5,
+            "decimal",
+            120.0,
+            [100.0, 200.0, 500.0],
+        ),
+        (
+            "px",
+            110.0,
+            10.0,
+            10,
+            "decimal",
+            100.0,
+            [100.0, 200.0, 400.0],
+        ),
+    ],
+)
+def test_grid_config_per_unit(
+    unit,
+    dpi,
+    expected_minor,
+    expected_major_mult,
+    expected_label,
+    expected_target,
+    expected_allowed,
+):
+    us = UnitSettings(display_unit=unit, preview_dpi=dpi)
+
+    config = us.gridConfig()
+
+    assert config["minorCanvas"] == pytest.approx(expected_minor)
+    assert config["majorMultiplier"] == expected_major_mult
+    assert config["labelStyle"] == expected_label
+    assert config["targetMajorPx"] == expected_target
+    assert config["allowedMajorUnits"] == expected_allowed
