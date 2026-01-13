@@ -6,22 +6,17 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "." as Lucent
 
-// Unified header bar combining menu and document info
 ToolBar {
     id: root
     implicitHeight: 32
 
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
-    // External references
     property var viewport: null
     property var canvas: null
-
-    // Document info
     property string documentTitle: "Untitled"
     property bool documentDirty: false
 
-    // Signals for file operations
     signal aboutRequested
     signal newRequested
     signal openRequested
@@ -44,12 +39,10 @@ ToolBar {
         anchors.fill: parent
         spacing: 0
 
-        // Menu bar on the left
         MenuBar {
             id: menuBar
             Layout.alignment: Qt.AlignVCenter
-
-            background: Item {} // Transparent, inherits from ToolBar
+            background: Item {} // Transparent - inherits from ToolBar
 
             Menu {
                 title: qsTr("&File")
@@ -287,18 +280,15 @@ ToolBar {
             }
         }
 
-        // Spacer
         Item {
             Layout.fillWidth: true
         }
 
-        // Document title and status (center-right)
         RowLayout {
             Layout.alignment: Qt.AlignVCenter
             Layout.rightMargin: 12
             spacing: 6
 
-            // Zoom level
             Label {
                 text: "(" + Math.round((root.viewport ? root.viewport.zoomLevel : 1) * 100) + "%)"
                 color: themePalette.text

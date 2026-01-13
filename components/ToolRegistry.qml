@@ -4,9 +4,7 @@
 pragma Singleton
 import QtQuick
 
-// Central registry of all tools - add new tools here
 QtObject {
-    // Tool definitions with all metadata
     readonly property var tools: ({
             "select": {
                 name: "Move Tool",
@@ -45,22 +43,18 @@ QtObject {
             }
         })
 
-    // Ordered list for rendering in palette
     readonly property var toolOrder: ["select", "rectangle", "ellipse", "pen", "text"]
 
-    // Get formatted tooltip string
     function getTooltip(toolName) {
         var t = tools[toolName];
         return t ? (t.name + " (" + t.shortcut + ")") : "";
     }
 
-    // Get instruction text for status bar
     function getInstruction(toolName) {
         var t = tools[toolName];
         return t ? t.instruction : "";
     }
 
-    // Get full tool info object
     function getTool(toolName) {
         return tools[toolName] || null;
     }
