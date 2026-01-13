@@ -40,16 +40,6 @@ Item {
         gridShader.majorMultiplier = gridConfig.majorMultiplier;
     }
 
-    Component.onCompleted: {
-        console.log("[viewport] completed size:", width, height);
-    }
-    onWidthChanged: {
-        console.log("[viewport] width changed:", width, "height:", height);
-    }
-    onHeightChanged: {
-        console.log("[viewport] height changed:", height, "width:", width);
-    }
-
     // Zoom/pan state (camera controls)
     property real zoomLevel: 0.7  // Start at 70%
     readonly property real minZoom: 0.05
@@ -59,6 +49,44 @@ Item {
     // Camera offset for panning
     property real offsetX: 0
     property real offsetY: 0
+
+    // Animation control - disabled during wheel zoom for precise cursor tracking
+    property bool animationsEnabled: true
+
+    // Smooth zoom animation for menu-driven zoom (not wheel)
+    Behavior on zoomLevel {
+        enabled: root.animationsEnabled
+        NumberAnimation {
+            duration: 150
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    // Inertial panning state
+    property real panVelocityX: 0
+    property real panVelocityY: 0
+    readonly property real panFriction: 0.92  // Velocity multiplier per frame
+    readonly property real panMinVelocity: 0.5  // Stop threshold
+
+    // Inertia timer for smooth pan deceleration
+    Timer {
+        id: inertiaTimer
+        interval: 16  // ~60fps
+        repeat: true
+        running: Math.abs(root.panVelocityX) > root.panMinVelocity || Math.abs(root.panVelocityY) > root.panMinVelocity
+        onTriggered: {
+            root.offsetX += root.panVelocityX;
+            root.offsetY += root.panVelocityY;
+            root.panVelocityX *= root.panFriction;
+            root.panVelocityY *= root.panFriction;
+
+            // Stop when velocity is negligible
+            if (Math.abs(root.panVelocityX) <= root.panMinVelocity && Math.abs(root.panVelocityY) <= root.panMinVelocity) {
+                root.panVelocityX = 0;
+                root.panVelocityY = 0;
+            }
+        }
+    }
 
     // Canvas bounds (matches the viewport-sized renderer surface)
     readonly property real canvasWidth: width
@@ -78,6 +106,20 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Lucent.Themed.gridBackground
+    }
+
+    // Shared transforms for zoom and pan - used by viewportContent and overlayContainer
+    Scale {
+        id: viewportScale
+        origin.x: viewportContent.width / 2
+        origin.y: viewportContent.height / 2
+        xScale: root.zoomLevel
+        yScale: root.zoomLevel
+    }
+    Translate {
+        id: viewportTranslate
+        x: root.offsetX
+        y: root.offsetY
     }
 
     Connections {
@@ -201,10 +243,6 @@ Item {
         vertexShader: Qt.resolvedUrl("shaders/grid.vert.qsb")
         fragmentShader: Qt.resolvedUrl("shaders/grid.frag.qsb")
 
-        onStatusChanged: {
-            console.log("[gridShader] status:", status, "baseGridSize:", baseGridSize, "majorMultiplier:", majorMultiplier, "zoomLevel:", root.zoomLevel, "offsetX:", root.offsetX, "offsetY:", root.offsetY, "viewport:", width, height);
-        }
-
         onWidthChanged: {
             if (width > 0 && height > 0 && gridVisible) {
                 gridShader.baseGridSize = root.gridSpacingCanvas;
@@ -227,25 +265,112 @@ Item {
         width: parent.width
         height: parent.height
 
-        // Apply transformations for zoom and pan
-        transform: [
-            Scale {
-                origin.x: viewportContent.width / 2
-                origin.y: viewportContent.height / 2
-                xScale: root.zoomLevel
-                yScale: root.zoomLevel
-            },
-            Translate {
-                x: root.offsetX
-                y: root.offsetY
-            }
-        ]
+        // Apply shared transformations for zoom and pan
+        transform: [viewportScale, viewportTranslate]
 
         // Container for content (Canvas will be placed here)
         // Fill the entire transformed viewport area so Canvas MouseArea receives events
         Item {
             id: contentContainer
             anchors.fill: parent
+        }
+    }
+
+    // Overlay container for selection UI elements that render above the grid
+    Item {
+        id: overlayContainer
+        anchors.centerIn: parent
+        width: parent.width
+        height: parent.height
+        z: 10  // Above grid (z: 5), below mouse areas
+
+        // Apply same shared transformations as viewportContent
+        transform: [viewportScale, viewportTranslate]
+
+        // Reference to Canvas component for overlay bindings
+        property var canvasRef: contentContainer.children.length > 0 ? contentContainer.children[0] : null
+
+        // Anchor point at center with 0x0 size, matching shapesLayer in Canvas
+        Item {
+            id: overlayAnchor
+            anchors.centerIn: parent
+            width: 0
+            height: 0
+
+            SelectionOverlay {
+                id: selectionOverlay
+                z: 20
+                geometryBounds: overlayContainer.canvasRef ? overlayContainer.canvasRef.selectionGeometryBounds : null
+                itemTransform: overlayContainer.canvasRef ? overlayContainer.canvasRef.selectionTransform : null
+                zoomLevel: root.zoomLevel
+                cursorX: overlayContainer.canvasRef ? overlayContainer.canvasRef.cursorX : 0
+                cursorY: overlayContainer.canvasRef ? overlayContainer.canvasRef.cursorY : 0
+                shiftPressed: overlayContainer.canvasRef ? !!(overlayContainer.canvasRef.currentModifiers & Qt.ShiftModifier) : false
+
+                onIsResizingChanged: {
+                    if (overlayContainer.canvasRef) {
+                        overlayContainer.canvasRef.overlayIsResizing = isResizing;
+                        overlayContainer.canvasRef.overlayResizingChanged(isResizing);
+                    }
+                }
+
+                onIsRotatingChanged: {
+                    if (overlayContainer.canvasRef) {
+                        overlayContainer.canvasRef.overlayIsRotating = isRotating;
+                        overlayContainer.canvasRef.overlayRotatingChanged(isRotating);
+                    }
+                }
+
+                onResizeRequested: function (newBounds) {
+                    if (overlayContainer.canvasRef) {
+                        overlayContainer.canvasRef.overlayResizeRequested(newBounds);
+                    }
+                }
+
+                onRotateRequested: function (angle) {
+                    if (overlayContainer.canvasRef) {
+                        overlayContainer.canvasRef.overlayRotateRequested(angle);
+                    }
+                }
+
+                onScaleResizeRequested: function (scaleX, scaleY, anchorX, anchorY) {
+                    if (overlayContainer.canvasRef) {
+                        overlayContainer.canvasRef.overlayScaleResizeRequested(scaleX, scaleY, anchorX, anchorY);
+                    }
+                }
+            }
+
+            Lucent.ToolTipCanvas {
+                z: 30
+                visible: (selectionOverlay.isResizing || selectionOverlay.isRotating) && overlayContainer.canvasRef && overlayContainer.canvasRef.selectionGeometryBounds
+                zoomLevel: root.zoomLevel
+                cursorX: overlayContainer.canvasRef ? overlayContainer.canvasRef.cursorX : 0
+                cursorY: overlayContainer.canvasRef ? overlayContainer.canvasRef.cursorY : 0
+                text: {
+                    if (selectionOverlay.isRotating) {
+                        var transform = overlayContainer.canvasRef ? overlayContainer.canvasRef.selectionTransform : null;
+                        var angle = transform ? Math.round(transform.rotate || 0) : 0;
+                        return angle + "°";
+                    }
+                    // Show displayed size (geometry × scale) during resize
+                    var bounds = overlayContainer.canvasRef ? overlayContainer.canvasRef.selectionGeometryBounds : null;
+                    if (bounds) {
+                        var transform = overlayContainer.canvasRef ? overlayContainer.canvasRef.selectionTransform : null;
+                        var scaleX = transform ? (transform.scaleX || 1) : 1;
+                        var scaleY = transform ? (transform.scaleY || 1) : 1;
+                        var w = bounds.width * scaleX;
+                        var h = bounds.height * scaleY;
+                        var label = "px";
+                        if (typeof unitSettings !== "undefined" && unitSettings) {
+                            w = unitSettings.canvasToDisplay(w);
+                            h = unitSettings.canvasToDisplay(h);
+                            label = unitSettings.displayUnit;
+                        }
+                        return Math.round(w) + " × " + Math.round(h) + " " + label;
+                    }
+                    return "";
+                }
+            }
         }
     }
 
@@ -294,6 +419,8 @@ Item {
 
         onPressed: mouse => {
             forceActiveFocus();
+            // Stop any ongoing inertia when user starts a new interaction
+            root.stopInertia();
             if (canvasComponent) {
                 canvasComponent.handleMousePress(mouse.x, mouse.y, mouse.button, mouse.modifiers);
             }
@@ -327,7 +454,8 @@ Item {
         acceptedButtons: Qt.NoButton  // Only handle wheel, not clicks
         propagateComposedEvents: true  // Allow toolMouseArea to receive events too
 
-        // Zoom with mouse wheel: proportional, cursor-centered (no zoom animation)
+        // Zoom with mouse wheel: proportional, cursor-centered
+        // Animations disabled for precise cursor tracking during wheel zoom
         onWheel: wheel => {
             var step = root.zoomStep;
             var deltaSteps = (wheel.angleDelta.y / 120.0) * 2.0; // 120 per wheel notch
@@ -335,6 +463,9 @@ Item {
             var newZoom = root.zoomLevel * factor;
             if (newZoom < root.minZoom || newZoom > root.maxZoom)
                 return;
+
+            // Disable animations for precise cursor-centered zoom
+            root.animationsEnabled = false;
 
             // Compute scene point under cursor before zoom
             var cx = wheel.x - root.width / 2 - root.offsetX;
@@ -349,7 +480,18 @@ Item {
             var newCy = sceneY * newZoom;
             root.offsetX = -(newCx - (wheel.x - root.width / 2));
             root.offsetY = -(newCy - (wheel.y - root.height / 2));
+
+            // Re-enable animations after wheel zoom completes
+            wheelAnimationReenableTimer.restart();
         }
+    }
+
+    // Timer to re-enable animations after wheel zoom settles
+    Timer {
+        id: wheelAnimationReenableTimer
+        interval: 100  // Re-enable after 100ms of no wheel events
+        repeat: false
+        onTriggered: root.animationsEnabled = true
     }
 
     // Public functions for zoom control
@@ -434,6 +576,10 @@ Item {
             return;  // Abort pan operation
         }
 
+        // Track velocity for inertia (smoothed with previous velocity)
+        panVelocityX = dx * 0.7 + panVelocityX * 0.3;
+        panVelocityY = dy * 0.7 + panVelocityY * 0.3;
+
         // Apply pan delta
         var newOffsetX = offsetX + dx;
         var newOffsetY = offsetY + dy;
@@ -448,5 +594,11 @@ Item {
             offsetX = 0;
             offsetY = 0;
         }
+    }
+
+    // Stop inertia when user starts a new interaction
+    function stopInertia() {
+        panVelocityX = 0;
+        panVelocityY = 0;
     }
 }
