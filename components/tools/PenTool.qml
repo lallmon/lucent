@@ -52,34 +52,48 @@ Item {
             var handleLineColor = Lucent.Themed.palette.highlight.toString();
             var handleGripColor = Lucent.Themed.palette.highlight.toString();
 
-            if (tool.points.length > 0) {
+            if (tool.points.length > 0 || (tool.isDragging && tool.pendingAnchor)) {
                 ctx.save();
-                ctx.lineWidth = strokeWidth / Math.max(tool.zoomLevel, 0.0001);
+                ctx.lineWidth = Math.max(1, strokeWidth);
                 ctx.lineJoin = "round";
                 ctx.lineCap = "round";
                 ctx.globalAlpha = strokeOpacity;
                 ctx.strokeStyle = strokeColor;
 
                 ctx.beginPath();
-                var first = tool.points[0];
-                ctx.moveTo(originX + first.x, originY + first.y);
 
-                for (var i = 1; i < tool.points.length; i++) {
-                    var prev = tool.points[i - 1];
-                    var curr = tool.points[i];
-                    tool._drawSegment(ctx, originX, originY, prev, curr);
+                if (tool.points.length > 0) {
+                    var first = tool.points[0];
+                    ctx.moveTo(originX + first.x, originY + first.y);
+
+                    for (var i = 1; i < tool.points.length; i++) {
+                        var prev = tool.points[i - 1];
+                        var curr = tool.points[i];
+                        tool._drawSegment(ctx, originX, originY, prev, curr);
+                    }
                 }
 
-                if (!tool.isClosed) {
+                if (!tool.isClosed && tool.points.length > 0) {
                     var lastPoint = tool.points[tool.points.length - 1];
+
                     if (tool.isDragging && tool.pendingAnchor) {
-                        tool._drawSegmentToPoint(ctx, originX, originY, lastPoint, tool.pendingAnchor);
+                        // Show curve to pending anchor with proper handles
+                        var pendingHandleIn = null;
+                        if (tool.pendingHandle) {
+                            var dx = tool.pendingHandle.x - tool.pendingAnchor.x;
+                            var dy = tool.pendingHandle.y - tool.pendingAnchor.y;
+                            pendingHandleIn = {
+                                x: tool.pendingAnchor.x - dx,
+                                y: tool.pendingAnchor.y - dy
+                            };
+                        }
+                        tool._drawSegmentWithHandles(ctx, originX, originY, lastPoint, tool.pendingAnchor, pendingHandleIn);
                     } else if (tool.previewPoint) {
                         tool._drawSegmentToPoint(ctx, originX, originY, lastPoint, tool.previewPoint);
                     }
                 }
 
-                if (tool.isClosed) {
+                if (tool.isClosed && tool.points.length > 0) {
                     ctx.closePath();
                 }
 
@@ -95,7 +109,7 @@ Item {
             }
 
             ctx.save();
-            ctx.lineWidth = 1 / Math.max(tool.zoomLevel, 0.0001);
+            ctx.lineWidth = 1;
             ctx.strokeStyle = handleLineColor;
             ctx.fillStyle = handleGripColor;
 
@@ -247,9 +261,34 @@ Item {
         previewCanvas.requestPaint();
     }
 
+    // Double-click finishes open path
+    function handleDoubleClick(canvasX, canvasY) {
+        if (!tool.active)
+            return;
+
+        if (tool.points.length >= 2) {
+            tool._finalize();
+        }
+    }
+
     function handleClick(canvasX, canvasY) {
         handleMousePress(canvasX, canvasY, Qt.LeftButton, 0);
         handleMouseRelease(canvasX, canvasY);
+    }
+
+    // Enter/Escape key handling
+    function handleKeyPress(key) {
+        if (key === Qt.Key_Return || key === Qt.Key_Enter) {
+            if (tool.points.length >= 2) {
+                tool._finalize();
+            }
+            return true;
+        }
+        if (key === Qt.Key_Escape) {
+            reset();
+            return true;
+        }
+        return false;
     }
 
     function reset() {
@@ -311,6 +350,20 @@ Item {
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, originX + curr.x, originY + curr.y);
         } else {
             ctx.lineTo(originX + curr.x, originY + curr.y);
+        }
+    }
+
+    // Draw segment with explicit handleIn for the target point (used during drag preview)
+    function _drawSegmentWithHandles(ctx, originX, originY, prev, target, targetHandleIn) {
+        var cp1x = prev.handleOut ? originX + prev.handleOut.x : originX + prev.x;
+        var cp1y = prev.handleOut ? originY + prev.handleOut.y : originY + prev.y;
+        var cp2x = targetHandleIn ? originX + targetHandleIn.x : originX + target.x;
+        var cp2y = targetHandleIn ? originY + targetHandleIn.y : originY + target.y;
+
+        if (prev.handleOut || targetHandleIn) {
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, originX + target.x, originY + target.y);
+        } else {
+            ctx.lineTo(originX + target.x, originY + target.y);
         }
     }
 

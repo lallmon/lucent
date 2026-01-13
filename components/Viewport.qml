@@ -405,6 +405,18 @@ Item {
             }
         }
 
+        Keys.onReturnPressed: {
+            if (canvasComponent) {
+                canvasComponent.finishCurrentTool();
+            }
+        }
+
+        Keys.onEnterPressed: {
+            if (canvasComponent) {
+                canvasComponent.finishCurrentTool();
+            }
+        }
+
         Keys.onPressed: event => {
             if ((event.key === Qt.Key_Shift || event.key === Qt.Key_Alt) && canvasComponent) {
                 canvasComponent.handleMouseMove(lastMouseX, lastMouseY, event.modifiers);
@@ -435,6 +447,12 @@ Item {
         onClicked: mouse => {
             if (canvasComponent) {
                 canvasComponent.handleMouseClick(mouse.x, mouse.y, mouse.button);
+            }
+        }
+
+        onDoubleClicked: mouse => {
+            if (canvasComponent) {
+                canvasComponent.handleMouseDoubleClick(mouse.x, mouse.y, mouse.button);
             }
         }
 

@@ -390,6 +390,13 @@ Item {
         }
     }
 
+    function handleMouseDoubleClick(viewportX, viewportY, button) {
+        if (currentToolLoader.item && currentToolLoader.item.handleDoubleClick && button === Qt.LeftButton) {
+            var canvasCoords = viewportToCanvas(viewportX, viewportY);
+            currentToolLoader.item.handleDoubleClick(canvasCoords.x, canvasCoords.y);
+        }
+    }
+
     function handleMouseMove(viewportX, viewportY, modifiers) {
         // Update cursor position and modifiers
         var canvasCoords = viewportToCanvas(viewportX, viewportY);
@@ -671,6 +678,13 @@ Item {
     function cancelCurrentTool() {
         if (currentToolLoader.item) {
             currentToolLoader.item.reset();
+        }
+    }
+
+    // Finish the current drawing tool operation (for open paths)
+    function finishCurrentTool() {
+        if (currentToolLoader.item && currentToolLoader.item._finalize) {
+            currentToolLoader.item._finalize();
         }
     }
 }
