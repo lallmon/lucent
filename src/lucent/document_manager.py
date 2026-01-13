@@ -97,7 +97,7 @@ class DocumentManager(QObject):
     def _update_title(self) -> None:
         """Update document title based on current file path."""
         if self._file_path:
-            new_title = Path(self._file_path).stem
+            new_title = Path(self._file_path).name
         else:
             new_title = "Untitled"
 

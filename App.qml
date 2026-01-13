@@ -13,7 +13,7 @@ ApplicationWindow {
     width: 1920
     height: 1080
     visible: true
-    title: (documentManager && documentManager.dirty ? "• " : "") + (documentManager ? documentManager.documentTitle : "Untitled") + " — Lucent"
+    title: "Lucent Designer"
     font: Qt.application.font
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
@@ -41,9 +41,11 @@ ApplicationWindow {
         }
     }
 
-    menuBar: MenuBar {
+    header: HeaderBar {
         viewport: viewport
         canvas: canvas
+        documentTitle: documentManager ? documentManager.documentTitle : "Untitled"
+        documentDirty: documentManager ? documentManager.dirty : false
         onAboutRequested: aboutDialog.open()
         onNewRequested: root.handleNew()
         onOpenRequested: openDialog.open()

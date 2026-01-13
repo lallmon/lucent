@@ -149,6 +149,78 @@ MenuBar {
     }
 
     Menu {
+        title: qsTr("&Document")
+
+        Menu {
+            title: qsTr("&Units")
+
+            ActionGroup {
+                id: unitsGroup
+                exclusive: true
+            }
+
+            Action {
+                text: qsTr("&Inches")
+                checkable: true
+                checked: unitSettings && unitSettings.displayUnit === "in"
+                ActionGroup.group: unitsGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.displayUnit = "in"
+            }
+            Action {
+                text: qsTr("&Millimeters")
+                checkable: true
+                checked: unitSettings && unitSettings.displayUnit === "mm"
+                ActionGroup.group: unitsGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.displayUnit = "mm"
+            }
+            Action {
+                text: qsTr("&Pixels")
+                checkable: true
+                checked: unitSettings && unitSettings.displayUnit === "px"
+                ActionGroup.group: unitsGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.displayUnit = "px"
+            }
+        }
+
+        Menu {
+            title: qsTr("Preview &DPI")
+
+            ActionGroup {
+                id: dpiGroup
+                exclusive: true
+            }
+
+            Action {
+                text: "72"
+                checkable: true
+                checked: unitSettings && unitSettings.previewDPI === 72
+                ActionGroup.group: dpiGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.previewDPI = 72
+            }
+            Action {
+                text: "96"
+                checkable: true
+                checked: unitSettings && unitSettings.previewDPI === 96
+                ActionGroup.group: dpiGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.previewDPI = 96
+            }
+            Action {
+                text: "300"
+                checkable: true
+                checked: unitSettings && unitSettings.previewDPI === 300
+                ActionGroup.group: dpiGroup
+                onTriggered: if (unitSettings)
+                    unitSettings.previewDPI = 300
+            }
+        }
+    }
+
+    Menu {
         title: qsTr("&View")
         Action {
             text: qsTr("Show &Grid")
