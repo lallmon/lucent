@@ -271,10 +271,7 @@ Item {
         }
     }
 
-    function handleClick(canvasX, canvasY) {
-        handleMousePress(canvasX, canvasY, Qt.LeftButton, 0);
-        handleMouseRelease(canvasX, canvasY);
-    }
+    // Note: No handleClick - we use handleMousePress/Release for bezier drag detection
 
     // Undo last action - called by Escape key
     function undoLastAction() {
