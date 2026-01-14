@@ -13,12 +13,12 @@ import sys
 import os
 from pathlib import Path
 
-from typing import Optional, cast
+from typing import cast
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QOpenGLContext, QFont, QFontDatabase, QIcon
+from PySide6.QtGui import QFont, QFontDatabase, QIcon
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import QObject, Property, Signal
-from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+from PySide6.QtQuick import QQuickWindow
 from lucent.canvas_renderer import CanvasRenderer
 from lucent.scene_graph_renderer import SceneGraphRenderer
 from lucent.canvas_model import CanvasModel
@@ -61,23 +61,31 @@ def _check_vulkan_available() -> bool:
 
 def _set_default_rhi_backend() -> None:
     """Configure Qt's RHI backend with automatic fallback."""
-    # Respect user override
     if os.environ.get("QSG_RHI_BACKEND"):
-        print(f"RHI backend: {os.environ['QSG_RHI_BACKEND']} (user override)")
         return
 
     backends = _get_preferred_backends()
-    preferred = backends[0]
-    fallback = backends[1] if len(backends) > 1 else "opengl"
+    preferred, fallback = backends[0], backends[-1]
 
-    # On Linux, check Vulkan availability before trying it
     if sys.platform not in ("darwin", "win32") and preferred == "vulkan":
-        if _check_vulkan_available():
-            _set_rhi_backend("vulkan")
-        else:
-            _set_rhi_backend(fallback)
+        _set_rhi_backend("vulkan" if _check_vulkan_available() else fallback)
     else:
         _set_rhi_backend(preferred)
+
+
+def _get_renderer_info(window: QQuickWindow) -> tuple[str, str, str]:
+    """Get renderer backend and type (hardware/software) from window."""
+    try:
+        ri = window.rendererInterface()
+        api = ri.graphicsApi() if ri else QQuickWindow.graphicsApi()
+        name = getattr(api, "name", "").lower() if hasattr(api, "name") else ""
+        backend = name if name in ("opengl", "vulkan", "metal", "d3d11") else "unknown"
+        renderer_type = (
+            "software" if backend in ("software", "unknown", "") else "hardware"
+        )
+        return backend or "unknown", "", renderer_type
+    except Exception:
+        return "unknown", "", "unknown"
 
 
 if __name__ == "__main__":
@@ -186,114 +194,13 @@ if __name__ == "__main__":
     app_controller = AppController()
     engine.rootContext().setContextProperty("appController", app_controller)
 
-    # Expose renderer backend info helper
-    def _renderer_backend(api: QSGRendererInterface.GraphicsApi) -> str:
-        name = getattr(api, "name", None)
-        if isinstance(name, str):
-            n = name.lower()
-            if n == "unknown":
-                return "unknown"
-            if n == "software":
-                return "software"
-            if n == "opengl":
-                return "opengl"
-            if n == "direct3d11":
-                return "direct3d11"
-            if n == "vulkan":
-                return "vulkan"
-            if n == "metal":
-                return "metal"
-            if n == "null":
-                return "null"
-
-        # Fallback by numeric value
-        value_obj = getattr(api, "value", None)
-        value = value_obj if isinstance(value_obj, int) else -1
-        mapping_int = {
-            0: "unknown",
-            1: "software",
-            2: "opengl",
-            3: "direct3d11",
-            4: "vulkan",
-            5: "metal",
-            6: "null",
-        }
-        return mapping_int.get(value, "unknown")
-
     qml_file = Path(__file__).resolve().parent / "App.qml"
     engine.load(qml_file)
     if not engine.rootObjects():
         sys.exit(-1)
 
-    # Collect renderer info now that a window exists
-    backend = "unknown"
-    vendor = "unknown"
-    resolved_type = "unknown"
-
-    try:
-        window = engine.rootObjects()[0]
-        ri = window.rendererInterface()  # type: ignore[attr-defined]
-        api = ri.graphicsApi() if ri is not None else QQuickWindow.graphicsApi()
-        backend = _renderer_backend(api)
-
-        if backend in ("software", "unknown", "null"):
-            resolved_type = "software"
-            vendor = "n/a"
-        elif backend != "opengl":
-            resolved_type = "hardware"
-            vendor = f"n/a ({backend})"
-        else:
-            # Try to collect GL vendor/renderer and classify hardware vs software
-            ctx_candidates = []
-            if ri is not None:
-                ctx_candidates.append(
-                    ri.getResource(window, QSGRendererInterface.OpenGLContextResource)  # type: ignore[attr-defined]
-                )
-            ctx_candidates.append(QOpenGLContext.currentContext())
-            ctx_candidates.append(QOpenGLContext.globalShareContext())
-
-            for ctx in ctx_candidates:
-                if not isinstance(ctx, QOpenGLContext):
-                    continue
-                funcs = ctx.functions()
-                if not funcs:
-                    continue
-                try:
-                    vendor_bytes = cast(
-                        Optional[bytes], funcs.glGetString(0x1F00)
-                    )  # GL_VENDOR
-                    renderer_bytes = cast(
-                        Optional[bytes], funcs.glGetString(0x1F01)
-                    )  # GL_RENDERER
-                    vendor = (
-                        vendor_bytes.decode(errors="ignore")
-                        if vendor_bytes
-                        else "unknown"
-                    )
-                    renderer_str = (
-                        renderer_bytes.decode(errors="ignore") if renderer_bytes else ""
-                    )
-                    rend_lower = (renderer_str or vendor).lower()
-                    if (
-                        "llvmpipe" in rend_lower
-                        or "softpipe" in rend_lower
-                        or "software" in rend_lower
-                    ):
-                        resolved_type = "software"
-                    else:
-                        resolved_type = "hardware"
-                    break
-                except Exception:
-                    continue
-
-            # Default to hardware for GL if we couldn't determine from strings
-            if resolved_type == "unknown":
-                resolved_type = "hardware"
-                if vendor == "unknown":
-                    vendor = "unknown (OpenGL)"
-    except Exception:
-        pass
-
-    app_info.setRendererInfo(backend, vendor, resolved_type)
+    # Collect and set renderer info for About dialog
+    root_window = cast(QQuickWindow, engine.rootObjects()[0])
+    app_info.setRendererInfo(*_get_renderer_info(root_window))
 
     sys.exit(app.exec())
