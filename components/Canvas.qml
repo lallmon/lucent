@@ -390,6 +390,13 @@ Item {
         }
     }
 
+    function handleMouseDoubleClick(viewportX, viewportY, button) {
+        if (currentToolLoader.item && currentToolLoader.item.handleDoubleClick && button === Qt.LeftButton) {
+            var canvasCoords = viewportToCanvas(viewportX, viewportY);
+            currentToolLoader.item.handleDoubleClick(canvasCoords.x, canvasCoords.y);
+        }
+    }
+
     function handleMouseMove(viewportX, viewportY, modifiers) {
         // Update cursor position and modifiers
         var canvasCoords = viewportToCanvas(viewportX, viewportY);
@@ -667,10 +674,22 @@ Item {
         refreshSelectionGeometryBounds();
     }
 
-    // Cancel the current drawing tool operation
+    // Undo last action in current drawing tool (Escape key)
     function cancelCurrentTool() {
         if (currentToolLoader.item) {
-            currentToolLoader.item.reset();
+            // Use undoLastAction if available (progressive undo), otherwise reset
+            if (currentToolLoader.item.undoLastAction) {
+                currentToolLoader.item.undoLastAction();
+            } else if (currentToolLoader.item.reset) {
+                currentToolLoader.item.reset();
+            }
+        }
+    }
+
+    // Finish the current drawing tool operation (for open paths)
+    function finishCurrentTool() {
+        if (currentToolLoader.item && currentToolLoader.item._finalize) {
+            currentToolLoader.item._finalize();
         }
     }
 }

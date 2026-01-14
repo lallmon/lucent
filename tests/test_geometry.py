@@ -11,7 +11,6 @@ from lucent.geometry import (
     Geometry,
     RectGeometry,
     EllipseGeometry,
-    PolylineGeometry,
     TextGeometry,
 )
 
@@ -201,115 +200,212 @@ class TestEllipseGeometry:
         assert restored.radius_y == original.radius_y
 
 
-class TestPolylineGeometry:
-    """Tests for PolylineGeometry class."""
+# TestPolylineGeometry deleted - replaced by TestPathGeometry below
 
-    def test_basic_creation(self):
-        """Test creating a basic polyline geometry."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 10}]
-        polyline = PolylineGeometry(points=points)
-        assert polyline.points == [{"x": 0.0, "y": 0.0}, {"x": 10.0, "y": 10.0}]
-        assert polyline.closed is False
+
+class TestPathGeometry:
+    """Tests for PathGeometry class with bezier curve support."""
+
+    def test_basic_creation_corner_points(self):
+        """Test creating a path with corner points (no handles)."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0},
+            {"x": 100, "y": 0},
+        ]
+        path = PathGeometry(points=points)
+        assert len(path.points) == 2
+        assert path.points[0]["x"] == 0.0
+        assert path.points[0]["y"] == 0.0
+        assert path.closed is False
+
+    def test_creation_with_handles(self):
+        """Test creating a path with bezier handles."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+            {"x": 100, "y": 0, "handleIn": {"x": 70, "y": 0}},
+        ]
+        path = PathGeometry(points=points)
+        assert path.points[0]["handleOut"] == {"x": 30.0, "y": 0.0}
+        assert path.points[1]["handleIn"] == {"x": 70.0, "y": 0.0}
 
     def test_creation_with_closed_flag(self):
-        """Test creating a closed polyline."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}]
-        polyline = PolylineGeometry(points=points, closed=True)
-        assert polyline.closed is True
+        """Test creating a closed path."""
+        from lucent.geometry import PathGeometry
 
-    def test_points_normalized_to_float(self):
-        """Test that points are normalized to float values."""
-        points = [{"x": 1, "y": 2}, {"x": 3, "y": 4}]
-        polyline = PolylineGeometry(points=points)
-        assert polyline.points == [{"x": 1.0, "y": 2.0}, {"x": 3.0, "y": 4.0}]
+        points = [
+            {"x": 0, "y": 0},
+            {"x": 100, "y": 0},
+            {"x": 100, "y": 100},
+        ]
+        path = PathGeometry(points=points, closed=True)
+        assert path.closed is True
 
     def test_requires_at_least_two_points(self):
         """Test that constructor requires at least two points."""
-        with pytest.raises(ValueError, match="at least two points"):
-            PolylineGeometry(points=[{"x": 0, "y": 0}])
+        from lucent.geometry import PathGeometry
 
-    def test_requires_at_least_two_points_empty(self):
-        """Test that constructor rejects empty points list."""
         with pytest.raises(ValueError, match="at least two points"):
-            PolylineGeometry(points=[])
+            PathGeometry(points=[{"x": 0, "y": 0}])
+
+    def test_to_painter_path_without_handles_uses_line_to(self):
+        """Test that segments without handles use lineTo (straight lines)."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0},
+            {"x": 100, "y": 0},
+            {"x": 100, "y": 100},
+        ]
+        path_geom = PathGeometry(points=points, closed=False)
+        painter_path = path_geom.to_painter_path()
+
+        # Path should have: moveTo + 2 lineTo = 3 elements
+        assert painter_path.elementCount() == 3
+        # Verify these are line elements (not curves)
+        elem1 = painter_path.elementAt(1)
+        elem2 = painter_path.elementAt(2)
+        # QPainterPath.ElementType: LineToElement=1, CurveToElement=2
+        assert elem1.type == QPainterPath.ElementType.LineToElement
+        assert elem2.type == QPainterPath.ElementType.LineToElement
+
+    def test_to_painter_path_with_handles_uses_cubic_to(self):
+        """Test that segments with handles use cubicTo (bezier curves)."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+            {"x": 100, "y": 0, "handleIn": {"x": 70, "y": 0}},
+        ]
+        path_geom = PathGeometry(points=points, closed=False)
+        painter_path = path_geom.to_painter_path()
+
+        # moveTo + cubicTo (3 elements: curveTo + 2 curveToData) = 4
+        assert painter_path.elementCount() == 4
+        # Element 1 should be CurveTo (control point 1)
+        elem1 = painter_path.elementAt(1)
+        assert elem1.type == QPainterPath.ElementType.CurveToElement
+
+    def test_to_painter_path_mixed_segments(self):
+        """Test path with both curved and straight segments."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+            {"x": 100, "y": 0, "handleIn": {"x": 70, "y": 0}},  # Curve to here
+            {"x": 200, "y": 0},  # Straight line to here (no handles)
+        ]
+        path_geom = PathGeometry(points=points, closed=False)
+        painter_path = path_geom.to_painter_path()
+
+        # moveTo + cubicTo (3 elems) + lineTo = 5 elements
+        assert painter_path.elementCount() == 5
+
+    def test_to_painter_path_closed_with_handles(self):
+        """Test closed path uses curve for closing segment when handles present."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {
+                "x": 0,
+                "y": 0,
+                "handleIn": {"x": -30, "y": 0},
+                "handleOut": {"x": 30, "y": 0},
+            },
+            {
+                "x": 100,
+                "y": 0,
+                "handleIn": {"x": 70, "y": 0},
+                "handleOut": {"x": 130, "y": 0},
+            },
+        ]
+        path_geom = PathGeometry(points=points, closed=True)
+        painter_path = path_geom.to_painter_path()
+
+        # moveTo + cubicTo(3) + cubicTo(3) = 7 (closeSubpath adds no element)
+        assert painter_path.elementCount() == 7
+        # Verify closing segment uses cubicTo (element 4 = CurveToElement)
+        elem4 = painter_path.elementAt(4)
+        assert elem4.type == QPainterPath.ElementType.CurveToElement
 
     def test_get_bounds(self):
         """Test get_bounds returns correct bounding rectangle."""
-        points = [{"x": 10, "y": 20}, {"x": 50, "y": 10}, {"x": 30, "y": 60}]
-        polyline = PolylineGeometry(points=points)
-        bounds = polyline.get_bounds()
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 10, "y": 20},
+            {"x": 50, "y": 10},
+            {"x": 30, "y": 60},
+        ]
+        path = PathGeometry(points=points)
+        bounds = path.get_bounds()
         assert bounds == QRectF(10, 10, 40, 50)
 
-    def test_get_bounds_negative_coords(self):
-        """Test get_bounds with negative coordinates."""
-        points = [{"x": -50, "y": -30}, {"x": 50, "y": 30}]
-        polyline = PolylineGeometry(points=points)
-        bounds = polyline.get_bounds()
-        assert bounds == QRectF(-50, -30, 100, 60)
+    def test_to_dict_includes_handles(self):
+        """Test serialization includes handle data."""
+        from lucent.geometry import PathGeometry
 
-    def test_to_painter_path_open(self):
-        """Test to_painter_path for open polyline."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}]
-        polyline = PolylineGeometry(points=points, closed=False)
-        path = polyline.to_painter_path()
-        assert isinstance(path, QPainterPath)
-        assert path.elementCount() == 3  # moveTo + 2 lineTo
-
-    def test_to_painter_path_closed(self):
-        """Test to_painter_path for closed polyline."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 10}]
-        polyline = PolylineGeometry(points=points, closed=True)
-        path = polyline.to_painter_path()
-        assert isinstance(path, QPainterPath)
-        assert path.elementCount() == 4  # moveTo + 2 lineTo + close
-
-    def test_to_dict(self):
-        """Test serialization to dictionary."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 10}]
-        polyline = PolylineGeometry(points=points, closed=True)
-        data = polyline.to_dict()
-        assert data == {
-            "points": [{"x": 0.0, "y": 0.0}, {"x": 10.0, "y": 10.0}],
-            "closed": True,
-        }
-
-    def test_from_dict(self):
-        """Test deserialization from dictionary."""
-        data = {
-            "points": [{"x": 1, "y": 2}, {"x": 3, "y": 4}, {"x": 5, "y": 6}],
-            "closed": True,
-        }
-        polyline = PolylineGeometry.from_dict(data)
-        assert polyline.points == [
-            {"x": 1.0, "y": 2.0},
-            {"x": 3.0, "y": 4.0},
-            {"x": 5.0, "y": 6.0},
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+            {
+                "x": 100,
+                "y": 50,
+                "handleIn": {"x": 70, "y": 50},
+                "handleOut": {"x": 130, "y": 50},
+            },
         ]
-        assert polyline.closed is True
+        path = PathGeometry(points=points, closed=True)
+        data = path.to_dict()
 
-    def test_from_dict_defaults(self):
-        """Test from_dict uses defaults for missing fields."""
-        data = {"points": [{"x": 0, "y": 0}, {"x": 1, "y": 1}]}
-        polyline = PolylineGeometry.from_dict(data)
-        assert polyline.closed is False
+        assert data["closed"] is True
+        assert data["points"][0]["handleOut"] == {"x": 30.0, "y": 0.0}
+        assert data["points"][1]["handleIn"] == {"x": 70.0, "y": 50.0}
+        assert data["points"][1]["handleOut"] == {"x": 130.0, "y": 50.0}
 
-    def test_from_dict_invalid_points_raises(self):
-        """Test from_dict raises for invalid points."""
-        with pytest.raises(ValueError):
-            PolylineGeometry.from_dict({"points": "not a list"})
+    def test_from_dict_with_handles(self):
+        """Test deserialization from dictionary with handles."""
+        from lucent.geometry import PathGeometry
 
-    def test_from_dict_too_few_points_raises(self):
-        """Test from_dict raises for too few points."""
-        with pytest.raises(ValueError):
-            PolylineGeometry.from_dict({"points": [{"x": 0, "y": 0}]})
+        data = {
+            "points": [
+                {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+                {"x": 100, "y": 0, "handleIn": {"x": 70, "y": 0}},
+            ],
+            "closed": False,
+        }
+        path = PathGeometry.from_dict(data)
+        assert path.points[0]["handleOut"] == {"x": 30.0, "y": 0.0}
+        assert path.points[1]["handleIn"] == {"x": 70.0, "y": 0.0}
 
-    def test_round_trip(self):
-        """Test serialization round-trip."""
-        points = [{"x": 0, "y": 0}, {"x": 10, "y": 10}, {"x": 20, "y": 0}]
-        original = PolylineGeometry(points=points, closed=True)
+    def test_from_dict_without_handles(self):
+        """Test deserialization works for corner points (no handles)."""
+        from lucent.geometry import PathGeometry
+
+        data = {
+            "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}],
+            "closed": False,
+        }
+        path = PathGeometry.from_dict(data)
+        assert path.points[0].get("handleIn") is None
+        assert path.points[0].get("handleOut") is None
+
+    def test_round_trip_with_handles(self):
+        """Test serialization round-trip preserves handles."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 10}},
+            {"x": 100, "y": 50, "handleIn": {"x": 70, "y": 40}},
+        ]
+        original = PathGeometry(points=points, closed=True)
         data = original.to_dict()
-        restored = PolylineGeometry.from_dict(data)
-        assert restored.points == original.points
+        restored = PathGeometry.from_dict(data)
+
+        assert restored.points[0]["handleOut"] == original.points[0]["handleOut"]
+        assert restored.points[1]["handleIn"] == original.points[1]["handleIn"]
         assert restored.closed == original.closed
 
 

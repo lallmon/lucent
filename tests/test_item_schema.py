@@ -103,6 +103,86 @@ def test_validate_path_requires_two_points():
         )
 
 
+def test_validate_path_with_handles():
+    """validate_path should preserve bezier handle data."""
+    data = {
+        "type": "path",
+        "geometry": {
+            "points": [
+                {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+                {
+                    "x": 100,
+                    "y": 50,
+                    "handleIn": {"x": 70, "y": 50},
+                    "handleOut": {"x": 130, "y": 50},
+                },
+            ],
+            "closed": False,
+        },
+        "appearances": [
+            {"type": "fill", "color": "#ffffff", "opacity": 0.0, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#000000",
+                "width": 1.0,
+                "opacity": 1.0,
+                "visible": True,
+            },
+        ],
+    }
+    out = validate_path(data)
+    # Handles should be preserved
+    assert out["geometry"]["points"][0]["handleOut"] == {"x": 30.0, "y": 0.0}
+    assert out["geometry"]["points"][1]["handleIn"] == {"x": 70.0, "y": 50.0}
+    assert out["geometry"]["points"][1]["handleOut"] == {"x": 130.0, "y": 50.0}
+
+
+def test_validate_path_without_handles():
+    """validate_path should work for corner points with no handles."""
+    data = {
+        "type": "path",
+        "geometry": {
+            "points": [{"x": 0, "y": 0}, {"x": 100, "y": 100}],
+            "closed": False,
+        },
+    }
+    out = validate_path(data)
+    # Points should not have handles
+    assert out["geometry"]["points"][0].get("handleIn") is None
+    assert out["geometry"]["points"][0].get("handleOut") is None
+
+
+def test_parse_path_item_with_handles():
+    """parse_item should create PathItem correctly with handles."""
+    from lucent.canvas_items import PathItem
+
+    data = {
+        "type": "path",
+        "geometry": {
+            "points": [
+                {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 0}},
+                {"x": 100, "y": 0, "handleIn": {"x": 70, "y": 0}},
+            ],
+            "closed": True,
+        },
+        "appearances": [
+            {"type": "fill", "color": "#ffffff", "opacity": 0.5, "visible": True},
+            {
+                "type": "stroke",
+                "color": "#000000",
+                "width": 2.0,
+                "opacity": 1.0,
+                "visible": True,
+            },
+        ],
+    }
+    item = parse_item(data)
+    assert isinstance(item, PathItem)
+    # Check geometry has handles
+    assert item.geometry.points[0]["handleOut"] == {"x": 30.0, "y": 0.0}
+    assert item.geometry.points[1]["handleIn"] == {"x": 70.0, "y": 0.0}
+
+
 def test_validate_rectangle_new_format():
     """validate_rectangle should handle new format with geometry and appearances."""
     data = {

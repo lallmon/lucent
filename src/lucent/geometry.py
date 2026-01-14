@@ -133,70 +133,135 @@ class EllipseGeometry(Geometry):
         )
 
 
-class PolylineGeometry(Geometry):
-    """Polyline/path geometry defined by a list of points."""
+class PathGeometry(Geometry):
+    """Path geometry with bezier curve support.
 
-    def __init__(self, points: List[Dict[str, float]], closed: bool = False) -> None:
+    Each point can optionally have handleIn and handleOut control points
+    for cubic bezier curves. Points without handles render as straight lines.
+    """
+
+    def __init__(self, points: List[Dict[str, Any]], closed: bool = False) -> None:
         if len(points) < 2:
-            raise ValueError("PolylineGeometry requires at least two points")
+            raise ValueError("PathGeometry requires at least two points")
 
-        # Normalize points to float values
-        self.points: List[Dict[str, float]] = [
-            {"x": float(p.get("x", 0)), "y": float(p.get("y", 0))} for p in points
-        ]
+        self.points: List[Dict[str, Any]] = []
+        for p in points:
+            normalized: Dict[str, Any] = {
+                "x": float(p.get("x", 0)),
+                "y": float(p.get("y", 0)),
+            }
+            if p.get("handleIn") is not None:
+                h = p["handleIn"]
+                normalized["handleIn"] = {
+                    "x": float(h.get("x", 0)),
+                    "y": float(h.get("y", 0)),
+                }
+            if p.get("handleOut") is not None:
+                h = p["handleOut"]
+                normalized["handleOut"] = {
+                    "x": float(h.get("x", 0)),
+                    "y": float(h.get("y", 0)),
+                }
+            self.points.append(normalized)
+
         self.closed = bool(closed)
 
+    def _has_handles(
+        self, prev_point: Dict[str, Any], curr_point: Dict[str, Any]
+    ) -> bool:
+        """Check if a segment between two points should use bezier curve."""
+        return (
+            prev_point.get("handleOut") is not None
+            or curr_point.get("handleIn") is not None
+        )
+
+    def _get_control_points(
+        self, prev_point: Dict[str, Any], curr_point: Dict[str, Any]
+    ) -> tuple[float, float, float, float]:
+        """Get control points for cubic bezier between two points.
+
+        Returns (cp1_x, cp1_y, cp2_x, cp2_y) where:
+        - cp1 is the outgoing handle from prev_point (or prev anchor if none)
+        - cp2 is the incoming handle to curr_point (or curr anchor if none)
+        """
+        if prev_point.get("handleOut"):
+            cp1_x = prev_point["handleOut"]["x"]
+            cp1_y = prev_point["handleOut"]["y"]
+        else:
+            cp1_x = prev_point["x"]
+            cp1_y = prev_point["y"]
+
+        if curr_point.get("handleIn"):
+            cp2_x = curr_point["handleIn"]["x"]
+            cp2_y = curr_point["handleIn"]["y"]
+        else:
+            cp2_x = curr_point["x"]
+            cp2_y = curr_point["y"]
+
+        return (cp1_x, cp1_y, cp2_x, cp2_y)
+
     def to_painter_path(self) -> QPainterPath:
-        """Convert to QPainterPath."""
+        """Convert to QPainterPath using cubicTo for segments with handles."""
         if not self.points:
             return QPainterPath()
 
         first = self.points[0]
         path = QPainterPath(QPointF(first["x"], first["y"]))
 
-        for p in self.points[1:]:
-            path.lineTo(p["x"], p["y"])
+        for i in range(1, len(self.points)):
+            prev = self.points[i - 1]
+            curr = self.points[i]
 
-        if self.closed:
+            if self._has_handles(prev, curr):
+                cp1_x, cp1_y, cp2_x, cp2_y = self._get_control_points(prev, curr)
+                path.cubicTo(cp1_x, cp1_y, cp2_x, cp2_y, curr["x"], curr["y"])
+            else:
+                path.lineTo(curr["x"], curr["y"])
+
+        if self.closed and len(self.points) >= 2:
+            last = self.points[-1]
+            first = self.points[0]
+
+            if self._has_handles(last, first):
+                cp1_x, cp1_y, cp2_x, cp2_y = self._get_control_points(last, first)
+                path.cubicTo(cp1_x, cp1_y, cp2_x, cp2_y, first["x"], first["y"])
             path.closeSubpath()
 
         return path
 
     def get_bounds(self) -> QRectF:
-        """Return bounding rectangle of all points."""
+        """Return bounding rectangle using QPainterPath for accurate bezier bounds."""
         if not self.points:
             return QRectF()
 
-        xs = [p["x"] for p in self.points]
-        ys = [p["y"] for p in self.points]
-
-        min_x = min(xs)
-        min_y = min(ys)
-        max_x = max(xs)
-        max_y = max(ys)
-
-        return QRectF(min_x, min_y, max_x - min_x, max_y - min_y)
+        # Use QPainterPath.boundingRect() for accurate bounds including curves
+        path = self.to_painter_path()
+        return path.boundingRect()
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dictionary."""
+        """Serialize to dictionary, including handle data."""
         return {
             "points": self.points,
             "closed": self.closed,
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "PolylineGeometry":
+    def from_dict(data: Dict[str, Any]) -> "PathGeometry":
         """Deserialize from dictionary."""
         points = data.get("points")
         if not isinstance(points, list):
-            raise ValueError("PolylineGeometry points must be a list")
+            raise ValueError("PathGeometry points must be a list")
         if len(points) < 2:
-            raise ValueError("PolylineGeometry requires at least two points")
+            raise ValueError("PathGeometry requires at least two points")
 
-        return PolylineGeometry(
+        return PathGeometry(
             points=points,
             closed=bool(data.get("closed", False)),
         )
+
+
+# Alias for backward compatibility during transition
+PolylineGeometry = PathGeometry
 
 
 class TextGeometry(Geometry):

@@ -33,7 +33,7 @@ from lucent.geometry import (
     Geometry,
     RectGeometry,
     EllipseGeometry,
-    PolylineGeometry,
+    PathGeometry,
     TextGeometry,
 )
 from lucent.appearances import Appearance, Fill, Stroke
@@ -246,7 +246,7 @@ class PathItem(ShapeItem):
 
     def __init__(
         self,
-        geometry: PolylineGeometry,
+        geometry: PathGeometry,
         appearances: List[Appearance],
         transform: Optional[Transform] = None,
         name: str = "",
@@ -268,7 +268,7 @@ class PathItem(ShapeItem):
     def from_dict(data: Dict[str, Any]) -> "PathItem":
         """Create PathItem from dictionary."""
         geom = data["geometry"]
-        geometry = PolylineGeometry(
+        geometry = PathGeometry(
             points=geom.get("points", []),
             closed=bool(geom.get("closed", False)),
         )

@@ -1,78 +1,169 @@
 # Copyright (C) 2026 The Culture List, Inc.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""State container for the Pen tool interactions."""
+"""State container for the Pen tool with bezier curve support.
+
+This module provides a state machine for the pen tool that supports:
+- Click to place corner points (no handles)
+- Click+drag to place smooth points with symmetric handles
+- Path closing when clicking near first point
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-
-def _to_point(x: float, y: float) -> Tuple[float, float]:
-    return float(x), float(y)
+# Minimum drag distance (in canvas units) to create handles instead of corner
+DRAG_THRESHOLD = 6.0
 
 
 @dataclass
 class PenToolState:
-    """Lightweight state machine used by the pen tool.
+    """State machine for bezier pen tool.
 
-    Keeps track of placed points, preview point, and closed state so it can be
-    unit tested without QML.
+    Tracks placed points with their handles, current drag state,
+    and preview position for rendering.
     """
 
-    points: List[Tuple[float, float]] = field(default_factory=list)
+    # Committed points with optional handles
+    points: List[Dict[str, Any]] = field(default_factory=list)
+
+    # Drag state
+    is_dragging: bool = False
+    drag_start: Optional[Tuple[float, float]] = None
+
+    # Preview position (cursor when not dragging)
     preview_point: Optional[Tuple[float, float]] = None
+
+    # Path state
     closed: bool = False
 
-    def add_point(self, x: float, y: float) -> None:
+    def begin_point(self, x: float, y: float) -> None:
+        """Start placing a new anchor point (mouse press).
+
+        The point is not committed until end_point() is called,
+        allowing the user to drag out handles.
+        """
         if self.closed:
             return
-        self.points.append(_to_point(x, y))
+
+        self.is_dragging = True
+        self.drag_start = (float(x), float(y))
         self.preview_point = None
 
-    def preview_to(
-        self, x: float, y: float
-    ) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
-        if self.closed or not self.points:
-            return None
-        self.preview_point = _to_point(x, y)
-        return self.points[-1], self.preview_point
+    def update_drag(self, x: float, y: float) -> Optional[Tuple[float, float]]:
+        """Update during drag to show handle preview (mouse move while pressed).
 
-    def try_close_on(self, x: float, y: float, tolerance: float = 0.001) -> bool:
+        Returns the current handle position for preview rendering,
+        or None if not currently dragging.
+        """
+        if not self.is_dragging or self.drag_start is None:
+            return None
+
+        return (float(x), float(y))
+
+    def end_point(self, x: float, y: float) -> None:
+        """Finalize point placement (mouse release).
+
+        If the drag distance is small, creates a corner point.
+        If dragged, creates a smooth point with symmetric handles.
+        """
+        if not self.is_dragging or self.drag_start is None:
+            return
+
+        anchor_x, anchor_y = self.drag_start
+        end_x, end_y = float(x), float(y)
+
+        dx = end_x - anchor_x
+        dy = end_y - anchor_y
+        drag_distance = (dx**2 + dy**2) ** 0.5
+
+        is_first_point = len(self.points) == 0
+
+        if drag_distance < DRAG_THRESHOLD:
+            point: Dict[str, Any] = {"x": anchor_x, "y": anchor_y}
+        else:
+            handle_out = {"x": end_x, "y": end_y}
+
+            point = {
+                "x": anchor_x,
+                "y": anchor_y,
+                "handleOut": handle_out,
+            }
+
+            if not is_first_point:
+                handle_in = {"x": anchor_x - dx, "y": anchor_y - dy}
+                point["handleIn"] = handle_in
+
+        self.points.append(point)
+        self.is_dragging = False
+        self.drag_start = None
+
+    def preview_to(self, x: float, y: float) -> None:
+        """Set preview point for rendering preview line (mouse move, not dragging).
+
+        This is ignored during drag operations.
+        """
+        if self.is_dragging:
+            return
+
+        self.preview_point = (float(x), float(y))
+
+    def try_close(self, x: float, y: float, tolerance: float = 10.0) -> bool:
+        """Check if position is near first point to close the path.
+
+        Returns True if path was closed, False otherwise.
+        """
         if self.closed or len(self.points) < 2:
             return False
-        first_x, first_y = self.points[0]
-        dx = abs(first_x - float(x))
-        dy = abs(first_y - float(y))
+
+        first = self.points[0]
+        dx = abs(first["x"] - float(x))
+        dy = abs(first["y"] - float(y))
+
         if dx <= tolerance and dy <= tolerance:
             self.closed = True
             self.preview_point = None
             return True
+
         return False
 
     def reset(self) -> None:
+        """Clear all state to start a new path."""
         self.points.clear()
+        self.is_dragging = False
+        self.drag_start = None
         self.preview_point = None
         self.closed = False
 
-    def to_item_data(
-        self, settings: Optional[Dict[str, float]] = None
-    ) -> Dict[str, object]:
-        """Convert state to item data in new geometry/appearances format."""
+    def to_item_data(self, settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convert current state to item data for canvas model.
+
+        Args:
+            settings: Optional appearance settings (strokeWidth, strokeColor, etc.)
+
+        Returns:
+            Dictionary with type, geometry, and appearances for path item.
+
+        Raises:
+            ValueError: If fewer than 2 points are placed.
+        """
         if len(self.points) < 2:
             raise ValueError("Path must have at least two points")
+
         style = settings or {}
         stroke_width = float(style.get("strokeWidth", 1))
         stroke_color = style.get("strokeColor", "#ffffff")
         stroke_opacity = float(style.get("strokeOpacity", 1.0))
         fill_color = style.get("fillColor", "#ffffff")
         fill_opacity = float(style.get("fillOpacity", 0.0))
+
         return {
             "type": "path",
             "geometry": {
-                "points": [{"x": x, "y": y} for (x, y) in self.points],
-                "closed": bool(self.closed),
+                "points": self.points,
+                "closed": self.closed,
             },
             "appearances": [
                 {

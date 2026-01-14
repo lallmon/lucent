@@ -21,7 +21,7 @@ from lucent.canvas_items import (
 from lucent.geometry import (
     RectGeometry,
     EllipseGeometry,
-    PolylineGeometry,
+    PathGeometry,
     TextGeometry,
 )
 from lucent.appearances import Fill, Stroke
@@ -217,8 +217,17 @@ def validate_ellipse(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _parse_handle(handle_data: Any) -> Dict[str, float] | None:
+    """Parse a bezier handle from point data."""
+    if handle_data is None:
+        return None
+    if not isinstance(handle_data, dict):
+        return None
+    return {"x": float(handle_data.get("x", 0)), "y": float(handle_data.get("y", 0))}
+
+
 def validate_path(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate path data."""
+    """Validate path data, preserving bezier handles."""
     try:
         geom = data.get("geometry", {})
         points_raw = geom.get("points") or []
@@ -229,9 +238,20 @@ def validate_path(data: Dict[str, Any]) -> Dict[str, Any]:
         if len(points_raw) < 2:
             raise ItemSchemaError("Path requires at least two points")
 
-        points = []
+        points: List[Dict[str, Any]] = []
         for p in points_raw:
-            points.append({"x": float(p.get("x", 0)), "y": float(p.get("y", 0))})
+            point: Dict[str, Any] = {
+                "x": float(p.get("x", 0)),
+                "y": float(p.get("y", 0)),
+            }
+            # Preserve bezier handles if present
+            handle_in = _parse_handle(p.get("handleIn"))
+            if handle_in is not None:
+                point["handleIn"] = handle_in
+            handle_out = _parse_handle(p.get("handleOut"))
+            if handle_out is not None:
+                point["handleOut"] = handle_out
+            points.append(point)
     except (TypeError, ValueError, AttributeError) as exc:
         raise ItemSchemaError(f"Invalid path field: {exc}") from exc
 
@@ -409,7 +429,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
     if t is ItemType.PATH:
         geom = d["geometry"]
         return PathItem(
-            geometry=PolylineGeometry(points=geom["points"], closed=geom["closed"]),
+            geometry=PathGeometry(points=geom["points"], closed=geom["closed"]),
             appearances=[
                 Fill(a["color"], a["opacity"], a["visible"])
                 if a["type"] == "fill"
