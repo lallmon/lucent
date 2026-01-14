@@ -248,6 +248,110 @@ class CanvasModel(QAbstractListModel):
         """Return indices of all descendants (any depth) of a container."""
         return get_descendant_indices(self._items, container_id, self._is_container)
 
+    def _move_single_item(self, idx: int, dx: float, dy: float) -> Optional[Command]:
+        """Move a single item by dx, dy. Returns UpdateItemCommand or None."""
+        if not (0 <= idx < len(self._items)):
+            return None
+
+        item = self._items[idx]
+        old_data = self._itemToDict(item)
+        new_data = dict(old_data)
+
+        if isinstance(item, RectangleItem):
+            new_data["geometry"] = dict(old_data["geometry"])
+            new_data["geometry"]["x"] = item.geometry.x + dx
+            new_data["geometry"]["y"] = item.geometry.y + dy
+        elif isinstance(item, EllipseItem):
+            new_data["geometry"] = dict(old_data["geometry"])
+            new_data["geometry"]["centerX"] = item.geometry.center_x + dx
+            new_data["geometry"]["centerY"] = item.geometry.center_y + dy
+        elif isinstance(item, TextItem):
+            new_data["geometry"] = dict(old_data["geometry"])
+            new_data["geometry"]["x"] = item.geometry.x + dx
+            new_data["geometry"]["y"] = item.geometry.y + dy
+        elif isinstance(item, PathItem):
+            new_points = [
+                {"x": p["x"] + dx, "y": p["y"] + dy} for p in item.geometry.points
+            ]
+            new_data["geometry"] = dict(old_data["geometry"])
+            new_data["geometry"]["points"] = new_points
+        else:
+            # Container or unknown type - no direct geometry to move
+            return None
+
+        return UpdateItemCommand(self, idx, old_data, new_data)
+
+    @Slot(list, float, float)
+    def moveItems(self, indices: List[int], dx: float, dy: float) -> None:
+        """Move multiple items by dx, dy, handling groups and avoiding double-moves.
+
+        This method:
+        - Moves all selected items by the given delta
+        - When a group/layer is selected, moves all its descendants
+        - Avoids moving items twice when both container and child are selected
+        - Skips locked or effectively locked items
+        - Bundles all moves into a single undoable transaction
+        """
+        if not indices or (dx == 0 and dy == 0):
+            return
+
+        # Normalize indices
+        valid_indices = sorted(
+            {int(i) for i in indices if 0 <= int(i) < len(self._items)}
+        )
+        if not valid_indices:
+            return
+
+        # Identify selected containers to avoid double-moving their children
+        selected_container_ids: set[str] = set()
+        for idx in valid_indices:
+            item = self._items[idx]
+            if isinstance(item, (GroupItem, LayerItem)):
+                selected_container_ids.add(item.id)
+
+        # Track which items we've already processed
+        already_moved: set[int] = set()
+        commands: List[Command] = []
+
+        for idx in valid_indices:
+            if idx in already_moved:
+                continue
+            if self._is_effectively_locked(idx):
+                continue
+
+            item = self._items[idx]
+
+            if isinstance(item, (GroupItem, LayerItem)):
+                # Move all descendants of this container
+                descendant_indices = self._get_descendant_indices(item.id)
+                for desc_idx in descendant_indices:
+                    if desc_idx in already_moved:
+                        continue
+                    cmd = self._move_single_item(desc_idx, dx, dy)
+                    if cmd:
+                        commands.append(cmd)
+                    already_moved.add(desc_idx)
+            else:
+                # Regular shape - skip if parent container is in selection
+                parent_id = getattr(item, "parent_id", None)
+                if parent_id and parent_id in selected_container_ids:
+                    continue
+
+                cmd = self._move_single_item(idx, dx, dy)
+                if cmd:
+                    commands.append(cmd)
+                already_moved.add(idx)
+
+        if not commands:
+            return
+
+        # Execute as single transaction for undo/redo
+        if len(commands) == 1:
+            self._execute_command(commands[0])
+        else:
+            transaction = TransactionCommand(commands, "Move Items")
+            self._execute_command(transaction)
+
     @Slot(int, float, float)
     def moveGroup(self, group_index: int, dx: float, dy: float) -> None:
         """Translate all descendant shapes of a group/layer by dx, dy."""
@@ -413,6 +517,64 @@ class CanvasModel(QAbstractListModel):
 
         command = RemoveItemCommand(self, index)
         self._execute_command(command)
+
+    @Slot(list, result=int)
+    def deleteItems(self, indices: List[int]) -> int:
+        """Delete multiple items, skipping locked items and removing container children.
+
+        Items are deleted in reverse index order to maintain valid indices.
+        Containers (groups/layers) have their descendants deleted automatically.
+        All deletions are bundled into a single undoable transaction.
+
+        Args:
+            indices: List of item indices to delete.
+
+        Returns:
+            Number of items actually deleted.
+        """
+        if not indices:
+            return 0
+
+        # Normalize and deduplicate indices
+        valid_indices = sorted(
+            {int(i) for i in indices if 0 <= int(i) < len(self._items)},
+            reverse=True,  # Delete from highest index first
+        )
+        if not valid_indices:
+            return 0
+
+        # Expand containers to include their descendants
+        indices_to_delete: set[int] = set()
+        for idx in valid_indices:
+            if self._is_effectively_locked(idx):
+                continue
+
+            item = self._items[idx]
+            indices_to_delete.add(idx)
+
+            # If it's a container, include all descendants
+            if isinstance(item, (GroupItem, LayerItem)):
+                descendant_indices = self._get_descendant_indices(item.id)
+                for desc_idx in descendant_indices:
+                    if not self._is_effectively_locked(desc_idx):
+                        indices_to_delete.add(desc_idx)
+
+        if not indices_to_delete:
+            return 0
+
+        # Create removal commands in reverse order (highest index first)
+        commands: List[Command] = []
+        for idx in sorted(indices_to_delete, reverse=True):
+            commands.append(RemoveItemCommand(self, idx))
+
+        # Execute as single transaction for undo/redo
+        if len(commands) == 1:
+            self._execute_command(commands[0])
+        else:
+            transaction = TransactionCommand(commands, "Delete Items")
+            self._execute_command(transaction)
+
+        return len(indices_to_delete)
 
     @Slot()
     def clear(self) -> None:
@@ -695,6 +857,26 @@ class CanvasModel(QAbstractListModel):
     @Slot(result=int)
     def count(self) -> int:
         return len(self._items)
+
+    @property
+    def canUndo(self) -> bool:
+        """Check if undo is available."""
+        return self._history.can_undo
+
+    @property
+    def canRedo(self) -> bool:
+        """Check if redo is available."""
+        return self._history.can_redo
+
+    @Slot(result=bool)
+    def undo(self) -> bool:
+        """Undo the last command."""
+        return self._history.undo()
+
+    @Slot(result=bool)
+    def redo(self) -> bool:
+        """Redo the last undone command."""
+        return self._history.redo()
 
     def getItems(self) -> List[CanvasItem]:
         return self._items
