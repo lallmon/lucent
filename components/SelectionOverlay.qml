@@ -57,7 +57,7 @@ Shape {
         angle: selectionOverlay._rotation
     }
 
-    readonly property real handleSize: 8 / zoomLevel
+    readonly property real handleSize: 10 / zoomLevel
     readonly property real rotationArmLength: 30 / zoomLevel
     property bool isResizing: false
 

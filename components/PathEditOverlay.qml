@@ -34,7 +34,7 @@ Item {
     readonly property real _scaleY: itemTransform ? (itemTransform.scaleY || 1) : 1
     readonly property real _rotation: itemTransform ? (itemTransform.rotate || 0) : 0
 
-    readonly property real handleSize: 8 / zoomLevel
+    readonly property real handleSize: 10 / zoomLevel
     readonly property real handleLineWidth: 1 / zoomLevel
 
     visible: pathGeometry !== null
