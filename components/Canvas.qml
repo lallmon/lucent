@@ -3,7 +3,6 @@
 
 import QtQuick
 import QtQuick.Controls
-import CanvasRendering 1.0
 import "." as Lucent
 import "tools" as Tools
 
@@ -47,25 +46,16 @@ Item {
     property bool overlayIsResizing: false
     property bool overlayIsRotating: false
 
-    // Path edit mode
-    readonly property bool pathEditModeActive: Lucent.SelectionManager.editModeActive
-    readonly property var pathEditGeometry: {
-        if (!pathEditModeActive)
-            return null;
-        var item = Lucent.SelectionManager.selectedItem;
-        if (item && item.type === "path" && item.geometry)
-            return item.geometry;
-        return null;
+    // Path edit mode - delegate to PathEditController
+    readonly property bool pathEditModeActive: pathEditController.editModeActive
+    readonly property var pathEditGeometry: pathEditController.geometry
+    readonly property var pathEditTransform: pathEditController.transform
+    readonly property var pathSelectedPointIndices: pathEditController.selectedPointIndices
+
+    // Path edit controller handles all path point/handle operations
+    PathEditController {
+        id: pathEditController
     }
-    readonly property var pathEditTransform: {
-        if (!pathEditModeActive)
-            return null;
-        var item = Lucent.SelectionManager.selectedItem;
-        if (item && item.transform)
-            return item.transform;
-        return {};
-    }
-    readonly property var pathSelectedPointIndices: Lucent.SelectionManager.selectedPointIndices
 
     // Signals emitted by SelectionOverlay in Viewport, handled here
     signal overlayResizeRequested(var newBounds)
@@ -117,398 +107,95 @@ Item {
         }
     }
 
+    // Path edit delegations to controller
     function handlePathPointClicked(index, modifiers) {
-        var multi = modifiers & Qt.ShiftModifier;
-        Lucent.SelectionManager.selectPoint(index, multi);
+        pathEditController.handlePointClicked(index, modifiers);
     }
 
     function handlePathPointMoved(index, x, y) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0)
-            return;
-
-        var item = Lucent.SelectionManager.selectedItem;
-        if (!item || item.type !== "path")
-            return;
-
-        var draggedPt = item.geometry.points[index];
-        var dx = x - draggedPt.x;
-        var dy = y - draggedPt.y;
-
-        var selectedIndices = Lucent.SelectionManager.selectedPointIndices || [];
-        var isDraggedSelected = selectedIndices.indexOf(index) >= 0;
-
-        var newPoints = [];
-        for (var i = 0; i < item.geometry.points.length; i++) {
-            var pt = item.geometry.points[i];
-            var shouldMove = (i === index) || (isDraggedSelected && selectedIndices.indexOf(i) >= 0);
-
-            if (shouldMove) {
-                var newPt = {
-                    x: pt.x + dx,
-                    y: pt.y + dy
-                };
-                if (pt.handleIn)
-                    newPt.handleIn = {
-                        x: pt.handleIn.x + dx,
-                        y: pt.handleIn.y + dy
-                    };
-                if (pt.handleOut)
-                    newPt.handleOut = {
-                        x: pt.handleOut.x + dx,
-                        y: pt.handleOut.y + dy
-                    };
-                newPoints.push(newPt);
-            } else {
-                newPoints.push(pt);
-            }
-        }
-
-        canvasModel.updateItem(idx, {
-            geometry: {
-                points: newPoints,
-                closed: item.geometry.closed
-            }
-        });
+        pathEditController.handlePointMoved(index, x, y);
     }
 
     function handlePathHandleMoved(index, handleType, x, y, modifiers) {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0)
-            return;
-
-        var item = Lucent.SelectionManager.selectedItem;
-        if (!item || item.type !== "path")
-            return;
-
-        var breakSymmetry = !!(modifiers & Qt.AltModifier);
-
-        var newPoints = [];
-        for (var i = 0; i < item.geometry.points.length; i++) {
-            var pt = item.geometry.points[i];
-            if (i === index) {
-                var newPt = {
-                    x: pt.x,
-                    y: pt.y
-                };
-
-                if (handleType === "handleIn") {
-                    newPt.handleIn = {
-                        x: x,
-                        y: y
-                    };
-                    if (pt.handleOut) {
-                        if (breakSymmetry) {
-                            newPt.handleOut = {
-                                x: pt.handleOut.x,
-                                y: pt.handleOut.y
-                            };
-                        } else {
-                            // Mirror angle, preserve opposite handle length
-                            var dx = x - pt.x;
-                            var dy = y - pt.y;
-                            var outDx = pt.handleOut.x - pt.x;
-                            var outDy = pt.handleOut.y - pt.y;
-                            var outLen = Math.sqrt(outDx * outDx + outDy * outDy);
-                            var inLen = Math.sqrt(dx * dx + dy * dy);
-                            if (inLen > 0.001) {
-                                newPt.handleOut = {
-                                    x: pt.x - (dx / inLen) * outLen,
-                                    y: pt.y - (dy / inLen) * outLen
-                                };
-                            } else {
-                                newPt.handleOut = {
-                                    x: pt.handleOut.x,
-                                    y: pt.handleOut.y
-                                };
-                            }
-                        }
-                    }
-                } else if (handleType === "handleOut") {
-                    newPt.handleOut = {
-                        x: x,
-                        y: y
-                    };
-                    if (pt.handleIn) {
-                        if (breakSymmetry) {
-                            newPt.handleIn = {
-                                x: pt.handleIn.x,
-                                y: pt.handleIn.y
-                            };
-                        } else {
-                            // Mirror angle, preserve opposite handle length
-                            var dx = x - pt.x;
-                            var dy = y - pt.y;
-                            var inDx = pt.handleIn.x - pt.x;
-                            var inDy = pt.handleIn.y - pt.y;
-                            var inLen = Math.sqrt(inDx * inDx + inDy * inDy);
-                            var outLen = Math.sqrt(dx * dx + dy * dy);
-                            if (outLen > 0.001) {
-                                newPt.handleIn = {
-                                    x: pt.x - (dx / outLen) * inLen,
-                                    y: pt.y - (dy / outLen) * inLen
-                                };
-                            } else {
-                                newPt.handleIn = {
-                                    x: pt.handleIn.x,
-                                    y: pt.handleIn.y
-                                };
-                            }
-                        }
-                    }
-                }
-
-                newPoints.push(newPt);
-            } else {
-                newPoints.push(pt);
-            }
-        }
-
-        canvasModel.updateItem(idx, {
-            geometry: {
-                points: newPoints,
-                closed: item.geometry.closed
-            }
-        });
+        pathEditController.handleHandleMoved(index, handleType, x, y, modifiers);
     }
 
     function deleteSelectedPoints() {
-        var idx = Lucent.SelectionManager.selectedItemIndex;
-        if (idx < 0)
-            return;
-
-        var item = Lucent.SelectionManager.selectedItem;
-        if (!item || item.type !== "path")
-            return;
-
-        var selectedIndices = Lucent.SelectionManager.selectedPointIndices;
-        if (!selectedIndices || selectedIndices.length === 0)
-            return;
-
-        var newPoints = [];
-        for (var i = 0; i < item.geometry.points.length; i++) {
-            if (selectedIndices.indexOf(i) < 0) {
-                newPoints.push(item.geometry.points[i]);
-            }
-        }
-
-        if (newPoints.length < 2) {
-            canvasModel.removeItem(idx);
-            Lucent.SelectionManager.exitEditMode();
-        } else {
-            canvasModel.updateItem(idx, {
-                geometry: {
-                    points: newPoints,
-                    closed: item.geometry.closed && newPoints.length >= 3
-                }
-            });
-            Lucent.SelectionManager.clearPointSelection();
-        }
+        pathEditController.deleteSelectedPoints();
     }
 
-    // Canvas content (no transforms - handled by parent Viewport)
-    Item {
+    // Tiled rendering layer
+    TiledShapesLayer {
         id: shapesLayer
-        anchors.centerIn: parent
-        width: 0
-        height: 0
+        zoomLevel: root.zoomLevel
+        offsetX: root.offsetX
+        offsetY: root.offsetY
+        viewportWidth: root.width
+        viewportHeight: root.height
+    }
 
-        // Adaptive tile size based on zoom level to limit tile count
-        // At low zoom, use larger tiles to reduce overhead
-        readonly property int baseTileSize: 1024
-        readonly property int maxTileCount: 16  // Target max tiles for smooth panning
+    // Select tool for object selection (panning handled by Viewport)
+    SelectTool {
+        id: selectTool
+        active: root.drawingMode === ""
+        hitTestCallback: root.hitTest
+        viewportToCanvasCallback: root.viewportToCanvas
+        canvasToViewportCallback: root.canvasToViewport
+        getBoundsCallback: function (idx) {
+            return canvasModel.getBoundingBox(idx);
+        }
+        // Overlay geometry for manual handle hit testing
+        overlayGeometry: root.selectionGeometryBounds ? {
+            bounds: root.selectionGeometryBounds,
+            transform: root.selectionTransform || {},
+            armLength: 30 / root.zoomLevel,
+            handleSize: 8 / root.zoomLevel,
+            zoomLevel: root.zoomLevel
+        } : null
+        // Don't drag object when overlay resize/rotate handles are being used
+        overlayActive: root.overlayIsResizing || root.overlayIsRotating
 
-        // Cached tile size to enable hysteresis (avoid binding loop)
-        property int _lastTileSize: baseTileSize
-
-        function getAdaptiveTileSize() {
-            var zs = Math.max(root.zoomLevel, 0.0001);
-            var viewCanvasW = root.width / zs;
-            var viewCanvasH = root.height / zs;
-
-            // Calculate how many base tiles would cover the viewport
-            var tilesX = Math.ceil(viewCanvasW / baseTileSize);
-            var tilesY = Math.ceil(viewCanvasH / baseTileSize);
-            var tileCount = tilesX * tilesY;
-
-            // If too many tiles, double tile size until acceptable
-            var ts = baseTileSize;
-            while (tileCount > maxTileCount && ts < 16384) {
-                ts *= 2;
-                tilesX = Math.ceil(viewCanvasW / ts);
-                tilesY = Math.ceil(viewCanvasH / ts);
-                tileCount = tilesX * tilesY;
-            }
-
-            // Hysteresis: prefer keeping current size unless forced to change
-            if (_lastTileSize > ts) {
-                var currentTilesX = Math.ceil(viewCanvasW / _lastTileSize);
-                var currentTilesY = Math.ceil(viewCanvasH / _lastTileSize);
-                var currentCount = currentTilesX * currentTilesY;
-                // Keep current larger size unless it would exceed max
-                if (currentCount <= maxTileCount) {
-                    return _lastTileSize;
-                }
-            }
-
-            _lastTileSize = ts;
-            return ts;
+        onPanDelta: (dx, dy) => {
+            root.panRequested(dx, dy);
         }
 
-        property int tileSize: baseTileSize
-        property var _tiles: []
+        onCursorShapeChanged: shape => {
+            root.currentCursorShape = shape;
+        }
 
-        function updateTiles() {
-            if (!isFinite(root.width) || !isFinite(root.height) || root.width <= 0 || root.height <= 0) {
-                _tiles = [];
+        onObjectClicked: (viewportX, viewportY, modifiers) => {
+            if (Lucent.SelectionManager.shouldSkipClick())
+                return;
+
+            if (Lucent.SelectionManager.editModeActive) {
+                Lucent.SelectionManager.exitEditMode();
                 return;
             }
 
-            // Recalculate adaptive tile size
-            tileSize = getAdaptiveTileSize();
-
-            var zs = Math.max(root.zoomLevel, 0.0001);
-            var halfW = root.width / zs / 2;
-            var halfH = root.height / zs / 2;
-            var minX = (-root.offsetX - halfW);
-            var maxX = (-root.offsetX + halfW);
-            var minY = (-root.offsetY - halfH);
-            var maxY = (-root.offsetY + halfH);
-
-            var ts = tileSize;
-            var startX = Math.floor(minX / ts);
-            var endX = Math.floor(maxX / ts);
-            var startY = Math.floor(minY / ts);
-            var endY = Math.floor(maxY / ts);
-
-            var list = [];
-            for (var ix = startX; ix <= endX; ix++) {
-                for (var iy = startY; iy <= endY; iy++) {
-                    list.push({
-                        cx: (ix + 0.5) * ts,
-                        cy: (iy + 0.5) * ts
-                    });
-                }
-            }
-            _tiles = list;
+            var canvasCoords = root.viewportToCanvas(viewportX, viewportY);
+            root.selectItemAt(canvasCoords.x, canvasCoords.y, !!(modifiers & Qt.ControlModifier));
         }
 
-        // Debounce timer for tile updates during zoom to prevent churn
-        Timer {
-            id: tileUpdateDebounce
-            interval: 50  // Wait 50ms after last zoom change
-            repeat: false
-            onTriggered: shapesLayer.updateTiles()
+        onObjectDragged: (viewportDx, viewportDy) => {
+            root.updateSelectedItemPosition(viewportDx / root.zoomLevel, viewportDy / root.zoomLevel);
         }
+    }
 
-        Connections {
-            target: root
-            function onZoomLevelChanged() {
-                // Debounce zoom changes to prevent tile churn during animation
-                tileUpdateDebounce.restart();
-            }
-            function onOffsetXChanged() {
-                shapesLayer.updateTiles();
-            }
-            function onOffsetYChanged() {
-                shapesLayer.updateTiles();
-            }
-            function onWidthChanged() {
-                shapesLayer.updateTiles();
-            }
-            function onHeightChanged() {
-                shapesLayer.updateTiles();
-            }
-        }
+    // Dynamic tool loader for drawing tools
+    Tools.ToolLoader {
+        id: toolLoader
+        drawingMode: root.drawingMode
+        zoomLevel: root.zoomLevel
+        toolSettings: root.toolSettings
+        viewportWidth: root.width
+        viewportHeight: root.height
 
-        Component.onCompleted: updateTiles()
-
-        Repeater {
-            model: shapesLayer._tiles
-            delegate: CanvasRenderer {
-                required property var modelData
-                readonly property real _dpiScale: 1.0
-                readonly property real _maxPxBase: shapesLayer.tileSize
-                readonly property real _padBase: 0
-
-                width: shapesLayer.tileSize
-                height: shapesLayer.tileSize
-                x: modelData.cx - width / 2
-                y: modelData.cy - height / 2
-                zoomLevel: root.zoomLevel
-                tileOriginX: modelData.cx
-                tileOriginY: modelData.cy
-
-                Component.onCompleted: setModel(canvasModel)
-            }
-        }
-
-        // SelectionOverlay and ToolTipCanvas have been moved to Viewport.qml overlayContainer
-
-        // Select tool for object selection (panning handled by Viewport)
-        SelectTool {
-            id: selectTool
-            active: root.drawingMode === ""
-            hitTestCallback: root.hitTest
-            viewportToCanvasCallback: root.viewportToCanvas
-            canvasToViewportCallback: root.canvasToViewport
-            getBoundsCallback: function (idx) {
-                return canvasModel.getBoundingBox(idx);
-            }
-            // Overlay geometry for manual handle hit testing
-            overlayGeometry: root.selectionGeometryBounds ? {
-                bounds: root.selectionGeometryBounds,
-                transform: root.selectionTransform || {},
-                armLength: 30 / root.zoomLevel,
-                handleSize: 8 / root.zoomLevel,
-                zoomLevel: root.zoomLevel
-            } : null
-            // Don't drag object when overlay resize/rotate handles are being used
-            overlayActive: root.overlayIsResizing || root.overlayIsRotating
-
-            onPanDelta: (dx, dy) => {
-                root.panRequested(dx, dy);
-            }
-
-            onCursorShapeChanged: shape => {
-                root.currentCursorShape = shape;
-            }
-
-            onObjectClicked: (viewportX, viewportY, modifiers) => {
-                if (Lucent.SelectionManager.shouldSkipClick())
-                    return;
-
-                if (Lucent.SelectionManager.editModeActive) {
-                    Lucent.SelectionManager.exitEditMode();
-                    return;
-                }
-
-                var canvasCoords = root.viewportToCanvas(viewportX, viewportY);
-                root.selectItemAt(canvasCoords.x, canvasCoords.y, !!(modifiers & Qt.ControlModifier));
-            }
-
-            onObjectDragged: (viewportDx, viewportDy) => {
-                root.updateSelectedItemPosition(viewportDx / root.zoomLevel, viewportDy / root.zoomLevel);
-            }
-        }
-
-        // Dynamic tool loader for drawing tools
-        Tools.ToolLoader {
-            id: toolLoader
-            drawingMode: root.drawingMode
-            zoomLevel: root.zoomLevel
-            toolSettings: root.toolSettings
-            viewportWidth: root.width
-            viewportHeight: root.height
-
-            onItemCompleted: function (itemData) {
-                root.handleItemCompleted(itemData);
-            }
+        onItemCompleted: function (itemData) {
+            root.handleItemCompleted(itemData);
         }
     }
 
     // Convert viewport coordinates to canvas coordinates
-    // Called from Viewport MouseArea (outside transforms)
     function viewportToCanvas(viewportX, viewportY) {
         var centerX = root.width / 2;
         var centerY = root.height / 2;
@@ -544,7 +231,6 @@ Item {
             selectTool.handlePress(viewportX, viewportY, button, modifiers);
         } else if (toolLoader.currentTool && toolLoader.currentTool.handleMousePress) {
             // When using a drawing tool, don't start drawing if clicking on selection handles
-            // This allows manipulating selected shapes without switching to select tool
             if (Lucent.SelectionManager.selectedItemIndex >= 0) {
                 var nearHandle = selectTool.isNearRotationHandle(viewportX, viewportY) || selectTool.isNearResizeHandle(viewportX, viewportY);
                 if (nearHandle) {
@@ -620,10 +306,7 @@ Item {
 
     // Generic item completion handler
     function handleItemCompleted(itemData) {
-        // Add item to the model
         canvasModel.addItem(itemData);
-
-        // Select the newly created item (it's at the end of the list)
         var newIndex = canvasModel.count() - 1;
         Lucent.SelectionManager.setSelection([newIndex]);
     }
@@ -670,8 +353,6 @@ Item {
         var indices = Lucent.SelectionManager.selectedIndices || [];
         if (indices.length === 0)
             return;
-
-        // Delegate all move logic to Python model
         canvasModel.moveItems(indices, canvasDx, canvasDy);
     }
 
@@ -679,8 +360,6 @@ Item {
         var indices = Lucent.SelectionManager.currentSelectionIndices();
         if (indices.length === 0)
             return;
-
-        // Delegate deletion logic to Python model
         canvasModel.deleteItems(indices);
         Lucent.SelectionManager.setSelection([]);
     }
@@ -698,7 +377,6 @@ Item {
     // Undo last action in current drawing tool (Escape key)
     function cancelCurrentTool() {
         if (toolLoader.currentTool) {
-            // Use undoLastAction if available (progressive undo), otherwise reset
             if (toolLoader.currentTool.undoLastAction) {
                 toolLoader.currentTool.undoLastAction();
             } else {
