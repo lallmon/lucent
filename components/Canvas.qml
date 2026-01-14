@@ -28,6 +28,9 @@ Item {
     // Drawing mode
     property string drawingMode: ""  // "" for pan, "rectangle" for drawing rectangles, "ellipse" for drawing ellipses
 
+    // GPU rendering feature flag - experimental scene graph rendering
+    property bool useGpuRendering: false
+
     HitTestHelper {
         id: hitTestHelper
     }
@@ -132,6 +135,7 @@ Item {
         offsetY: root.offsetY
         viewportWidth: root.width
         viewportHeight: root.height
+        useGpuRendering: root.useGpuRendering
     }
 
     // Select tool for object selection (panning handled by Viewport)
@@ -182,8 +186,13 @@ Item {
     }
 
     // Dynamic tool loader for drawing tools
+    // Centered at (0,0) to match TiledShapesLayer coordinate system
     Tools.ToolLoader {
         id: toolLoader
+        anchors.centerIn: parent
+        width: 0
+        height: 0
+
         drawingMode: root.drawingMode
         zoomLevel: root.zoomLevel
         toolSettings: root.toolSettings

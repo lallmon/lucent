@@ -919,6 +919,25 @@ class CanvasModel(QAbstractListModel):
             return self._itemToDict(self._items[index])
         return None
 
+    def getItem(self, index: int) -> Optional[CanvasItem]:
+        """Get the CanvasItem object at the given index.
+
+        Used by SceneGraphRenderer for incremental updates.
+        """
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def getItemIndex(self, item: CanvasItem) -> int:
+        """Get the index of a CanvasItem in the model.
+
+        Returns -1 if not found.
+        """
+        try:
+            return self._items.index(item)
+        except ValueError:
+            return -1
+
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getItemTransform(self, index: int) -> Optional[Dict[str, Any]]:
         """Get transform properties for an item.

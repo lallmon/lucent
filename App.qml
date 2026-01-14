@@ -285,8 +285,25 @@ ApplicationWindow {
                 }
 
                 Item {
+                    id: canvasContainer
                     SplitView.fillWidth: true
                     SplitView.fillHeight: true
+
+                    // GPU rendering flag - controlled by debug panel
+                    property bool gpuRenderingEnabled: false
+
+                    // Debug panel overlay (toggle with F12) - declared first for property access
+                    DebugPanel {
+                        id: debugPanel
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        z: 1000
+
+                        onGpuRenderingToggled: function (enabled) {
+                            canvasContainer.gpuRenderingEnabled = enabled;
+                        }
+                    }
 
                     Viewport {
                         id: viewport
@@ -299,20 +316,12 @@ ApplicationWindow {
                             offsetX: viewport.offsetX
                             offsetY: viewport.offsetY
                             toolSettings: toolSettings.toolSettings
+                            useGpuRendering: canvasContainer.gpuRenderingEnabled
 
                             onPanRequested: (dx, dy) => {
                                 viewport.pan(dx, dy);
                             }
                         }
-                    }
-
-                    // Debug panel overlay (toggle with F12) - outside Viewport to stay fixed
-                    DebugPanel {
-                        id: debugPanel
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.margins: 10
-                        z: 1000
                     }
                 }
 

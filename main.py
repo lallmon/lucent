@@ -20,6 +20,7 @@ from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtCore import QObject, Property, Signal
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 from lucent.canvas_renderer import CanvasRenderer
+from lucent.scene_graph_renderer import SceneGraphRenderer
 from lucent.canvas_model import CanvasModel
 from lucent.history_manager import HistoryManager
 from lucent.document_manager import DocumentManager
@@ -118,6 +119,9 @@ if __name__ == "__main__":
 
     qmlRegisterType(
         cast(type, CanvasRenderer), "CanvasRendering", 1, 0, "CanvasRenderer"
+    )  # type: ignore[call-overload]
+    qmlRegisterType(
+        cast(type, SceneGraphRenderer), "CanvasRendering", 1, 0, "SceneGraphRenderer"
     )  # type: ignore[call-overload]
 
     engine = QQmlApplicationEngine()

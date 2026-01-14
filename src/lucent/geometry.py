@@ -9,10 +9,15 @@ of their visual appearance (fill, stroke, etc.).
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
+import math
 
 from PySide6.QtCore import QRectF, QPointF
 from PySide6.QtGui import QPainterPath
+
+
+# Type alias for vertex data: list of (x, y) tuples
+VertexList = List[Tuple[float, float]]
 
 
 class Geometry(ABC):
@@ -37,6 +42,24 @@ class Geometry(ABC):
     @abstractmethod
     def from_dict(data: Dict[str, Any]) -> "Geometry":
         """Deserialize geometry from dictionary."""
+        pass
+
+    @abstractmethod
+    def to_fill_vertices(self) -> VertexList:
+        """Return vertices for GPU fill rendering (triangle strip).
+
+        Returns a list of (x, y) tuples suitable for QSGGeometry with
+        DrawTriangleStrip mode.
+        """
+        pass
+
+    @abstractmethod
+    def to_stroke_vertices(self, stroke_width: float = 1.0) -> VertexList:
+        """Return vertices for GPU stroke rendering.
+
+        Returns a list of (x, y) tuples forming a triangle strip that
+        represents the stroked outline of the geometry.
+        """
         pass
 
 
@@ -77,6 +100,44 @@ class RectGeometry(Geometry):
             width=float(data.get("width", 0)),
             height=float(data.get("height", 0)),
         )
+
+    def to_fill_vertices(self) -> VertexList:
+        """Return vertices for filled rectangle (triangle strip: TL, BL, TR, BR)."""
+        return [
+            (self.x, self.y),  # Top-left
+            (self.x, self.y + self.height),  # Bottom-left
+            (self.x + self.width, self.y),  # Top-right
+            (self.x + self.width, self.y + self.height),  # Bottom-right
+        ]
+
+    def to_stroke_vertices(self, stroke_width: float = 1.0) -> VertexList:
+        """Return vertices for stroked rectangle outline.
+
+        Creates a triangle strip forming the outline with the given stroke width.
+        """
+        hw = stroke_width / 2.0  # Half width
+
+        # Outer corners
+        ox1, oy1 = self.x - hw, self.y - hw
+        ox2, oy2 = self.x + self.width + hw, self.y + self.height + hw
+
+        # Inner corners
+        ix1, iy1 = self.x + hw, self.y + hw
+        ix2, iy2 = self.x + self.width - hw, self.y + self.height - hw
+
+        # Triangle strip forming the outline (outer/inner pairs around rectangle)
+        return [
+            (ox1, oy1),
+            (ix1, iy1),  # Top-left
+            (ox2, oy1),
+            (ix2, iy1),  # Top-right
+            (ox2, oy2),
+            (ix2, iy2),  # Bottom-right
+            (ox1, oy2),
+            (ix1, iy2),  # Bottom-left
+            (ox1, oy1),
+            (ix1, iy1),  # Close loop back to top-left
+        ]
 
 
 class EllipseGeometry(Geometry):
@@ -131,6 +192,57 @@ class EllipseGeometry(Geometry):
             radius_x=float(data.get("radiusX", 0)),
             radius_y=float(data.get("radiusY", 0)),
         )
+
+    def _get_segment_count(self) -> int:
+        """Calculate number of segments for smooth ellipse based on size."""
+        # More segments for larger ellipses
+        max_radius = max(self.radius_x, self.radius_y)
+        # Between 16 and 64 segments depending on size
+        return max(16, min(64, int(max_radius / 4) + 16))
+
+    def to_fill_vertices(self) -> VertexList:
+        """Return vertices for filled ellipse (triangle fan from center)."""
+        segments = self._get_segment_count()
+        vertices: VertexList = []
+
+        # Center point first for triangle fan
+        vertices.append((self.center_x, self.center_y))
+
+        # Points around the ellipse
+        for i in range(segments + 1):  # +1 to close the loop
+            angle = 2.0 * math.pi * i / segments
+            x = self.center_x + self.radius_x * math.cos(angle)
+            y = self.center_y + self.radius_y * math.sin(angle)
+            vertices.append((x, y))
+
+        return vertices
+
+    def to_stroke_vertices(self, stroke_width: float = 1.0) -> VertexList:
+        """Return vertices for stroked ellipse outline.
+
+        Creates a triangle strip with inner and outer edge pairs.
+        """
+        segments = self._get_segment_count()
+        hw = stroke_width / 2.0
+        vertices: VertexList = []
+
+        for i in range(segments + 1):  # +1 to close the loop
+            angle = 2.0 * math.pi * i / segments
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+
+            # Outer point
+            ox = self.center_x + (self.radius_x + hw) * cos_a
+            oy = self.center_y + (self.radius_y + hw) * sin_a
+
+            # Inner point
+            ix = self.center_x + (self.radius_x - hw) * cos_a
+            iy = self.center_y + (self.radius_y - hw) * sin_a
+
+            vertices.append((ox, oy))
+            vertices.append((ix, iy))
+
+        return vertices
 
 
 class PathGeometry(Geometry):
@@ -259,6 +371,170 @@ class PathGeometry(Geometry):
             closed=bool(data.get("closed", False)),
         )
 
+    def _flatten_bezier(
+        self,
+        p0: Tuple[float, float],
+        p1: Tuple[float, float],
+        p2: Tuple[float, float],
+        p3: Tuple[float, float],
+        tolerance: float = 1.0,
+    ) -> List[Tuple[float, float]]:
+        """Flatten a cubic bezier curve into line segments.
+
+        Uses recursive subdivision until segments are within tolerance.
+        """
+
+        def subdivide(
+            a: Tuple[float, float],
+            b: Tuple[float, float],
+            c: Tuple[float, float],
+            d: Tuple[float, float],
+            depth: int,
+        ) -> List[Tuple[float, float]]:
+            # Check if curve is flat enough
+            ax, ay = a
+            dx, dy = d
+            bx, by = b
+            cx, cy = c
+
+            # Distance from control points to line a-d
+            line_len = math.sqrt((dx - ax) ** 2 + (dy - ay) ** 2)
+            if line_len < 0.001:
+                return [d]
+
+            # Perpendicular distances of b and c from line a-d
+            def point_line_dist(px: float, py: float) -> float:
+                return (
+                    abs((dy - ay) * px - (dx - ax) * py + dx * ay - dy * ax) / line_len
+                )
+
+            dist_b = point_line_dist(bx, by)
+            dist_c = point_line_dist(cx, cy)
+
+            if max(dist_b, dist_c) < tolerance or depth > 10:
+                return [d]
+
+            # Subdivide at midpoint
+            ab = ((ax + bx) / 2, (ay + by) / 2)
+            bc = ((bx + cx) / 2, (by + cy) / 2)
+            cd = ((cx + dx) / 2, (cy + dy) / 2)
+            abc = ((ab[0] + bc[0]) / 2, (ab[1] + bc[1]) / 2)
+            bcd = ((bc[0] + cd[0]) / 2, (bc[1] + cd[1]) / 2)
+            abcd = ((abc[0] + bcd[0]) / 2, (abc[1] + bcd[1]) / 2)
+
+            return subdivide(a, ab, abc, abcd, depth + 1) + subdivide(
+                abcd, bcd, cd, d, depth + 1
+            )
+
+        return subdivide(p0, p1, p2, p3, 0)
+
+    def _get_flattened_points(self) -> VertexList:
+        """Get all points with bezier curves flattened to line segments."""
+        if not self.points:
+            return []
+
+        result: VertexList = [(self.points[0]["x"], self.points[0]["y"])]
+
+        for i in range(1, len(self.points)):
+            prev = self.points[i - 1]
+            curr = self.points[i]
+
+            if self._has_handles(prev, curr):
+                p0 = (prev["x"], prev["y"])
+                cp1_x, cp1_y, cp2_x, cp2_y = self._get_control_points(prev, curr)
+                p1 = (cp1_x, cp1_y)
+                p2 = (cp2_x, cp2_y)
+                p3 = (curr["x"], curr["y"])
+                result.extend(self._flatten_bezier(p0, p1, p2, p3))
+            else:
+                result.append((curr["x"], curr["y"]))
+
+        if self.closed and len(self.points) >= 2:
+            last = self.points[-1]
+            first = self.points[0]
+            if self._has_handles(last, first):
+                p0 = (last["x"], last["y"])
+                cp1_x, cp1_y, cp2_x, cp2_y = self._get_control_points(last, first)
+                p1 = (cp1_x, cp1_y)
+                p2 = (cp2_x, cp2_y)
+                p3 = (first["x"], first["y"])
+                result.extend(self._flatten_bezier(p0, p1, p2, p3))
+
+        return result
+
+    def to_fill_vertices(self) -> VertexList:
+        """Return vertices for filled path.
+
+        For closed paths, uses ear clipping triangulation.
+        For open paths, returns empty (paths need closing to fill).
+        """
+        if not self.closed:
+            return []
+
+        # Simple approach: use triangle fan from centroid
+        # A proper implementation would use ear clipping
+        flat = self._get_flattened_points()
+        if len(flat) < 3:
+            return []
+
+        # Calculate centroid
+        cx = sum(p[0] for p in flat) / len(flat)
+        cy = sum(p[1] for p in flat) / len(flat)
+
+        # Triangle fan from centroid
+        vertices: VertexList = [(cx, cy)]
+        for p in flat:
+            vertices.append(p)
+        # Close the fan
+        if flat:
+            vertices.append(flat[0])
+
+        return vertices
+
+    def to_stroke_vertices(self, stroke_width: float = 1.0) -> VertexList:
+        """Return vertices for stroked path outline.
+
+        Creates a triangle strip with offset pairs along the path.
+        """
+        flat = self._get_flattened_points()
+        if len(flat) < 2:
+            return []
+
+        hw = stroke_width / 2.0
+        vertices: VertexList = []
+
+        for i, pt in enumerate(flat):
+            # Calculate normal direction
+            if i == 0:
+                # First point: use direction to next
+                dx = flat[1][0] - pt[0]
+                dy = flat[1][1] - pt[1]
+            elif i == len(flat) - 1:
+                # Last point: use direction from previous
+                dx = pt[0] - flat[i - 1][0]
+                dy = pt[1] - flat[i - 1][1]
+            else:
+                # Middle: average of incoming and outgoing
+                dx1 = pt[0] - flat[i - 1][0]
+                dy1 = pt[1] - flat[i - 1][1]
+                dx2 = flat[i + 1][0] - pt[0]
+                dy2 = flat[i + 1][1] - pt[1]
+                dx = dx1 + dx2
+                dy = dy1 + dy2
+
+            # Normalize and get perpendicular
+            length = math.sqrt(dx * dx + dy * dy)
+            if length < 0.001:
+                nx, ny = 0.0, 1.0
+            else:
+                nx, ny = -dy / length, dx / length
+
+            # Add offset points
+            vertices.append((pt[0] + nx * hw, pt[1] + ny * hw))
+            vertices.append((pt[0] - nx * hw, pt[1] - ny * hw))
+
+        return vertices
+
 
 # Alias for backward compatibility during transition
 PolylineGeometry = PathGeometry
@@ -301,3 +577,38 @@ class TextGeometry(Geometry):
             width=float(data.get("width", 1)),  # Default minimum width
             height=float(data.get("height", 0)),
         )
+
+    def to_fill_vertices(self) -> VertexList:
+        """Return vertices for text background (if needed).
+
+        Text rendering uses textures (Phase 6), but this provides
+        a bounding box for background fills.
+        """
+        return [
+            (self.x, self.y),  # Top-left
+            (self.x, self.y + self.height),  # Bottom-left
+            (self.x + self.width, self.y),  # Top-right
+            (self.x + self.width, self.y + self.height),  # Bottom-right
+        ]
+
+    def to_stroke_vertices(self, stroke_width: float = 1.0) -> VertexList:
+        """Return vertices for text box outline (not typically used)."""
+        hw = stroke_width / 2.0
+
+        ox1, oy1 = self.x - hw, self.y - hw
+        ox2, oy2 = self.x + self.width + hw, self.y + self.height + hw
+        ix1, iy1 = self.x + hw, self.y + hw
+        ix2, iy2 = self.x + self.width - hw, self.y + self.height - hw
+
+        return [
+            (ox1, oy1),
+            (ix1, iy1),
+            (ox2, oy1),
+            (ix2, iy1),
+            (ox2, oy2),
+            (ix2, iy2),
+            (ox1, oy2),
+            (ix1, iy2),
+            (ox1, oy1),
+            (ix1, iy1),
+        ]

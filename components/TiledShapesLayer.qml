@@ -4,7 +4,7 @@
 import QtQuick
 import CanvasRendering 1.0
 
-// Manages tiled rendering of canvas items for efficient viewport updates
+// Manages rendering of canvas items with CPU tiled or GPU full-viewport modes
 Item {
     id: tiledLayer
 
@@ -19,27 +19,27 @@ Item {
     required property real viewportWidth
     required property real viewportHeight
 
+    // GPU rendering feature flag - uses single viewport renderer (Option C)
+    property bool useGpuRendering: false
+
+    // ========== CPU TILED RENDERING (default) ==========
     // Adaptive tile size based on zoom level to limit tile count
     readonly property int baseTileSize: 1024
-    readonly property int maxTileCount: 16  // Target max tiles for smooth panning
+    readonly property int maxTileCount: 16
 
-    // Expose current tile size for debugging/monitoring
-    readonly property int currentTileSize: tileSize
-
-    // Cached tile size to enable hysteresis (avoid binding loop)
     property int _lastTileSize: baseTileSize
+    property int tileSize: baseTileSize
+    property var _tiles: []
 
     function _getAdaptiveTileSize() {
         var zs = Math.max(zoomLevel, 0.0001);
         var viewCanvasW = viewportWidth / zs;
         var viewCanvasH = viewportHeight / zs;
 
-        // Calculate how many base tiles would cover the viewport
         var tilesX = Math.ceil(viewCanvasW / baseTileSize);
         var tilesY = Math.ceil(viewCanvasH / baseTileSize);
         var tileCount = tilesX * tilesY;
 
-        // If too many tiles, double tile size until acceptable
         var ts = baseTileSize;
         while (tileCount > maxTileCount && ts < 16384) {
             ts *= 2;
@@ -48,12 +48,10 @@ Item {
             tileCount = tilesX * tilesY;
         }
 
-        // Hysteresis: prefer keeping current size unless forced to change
         if (_lastTileSize > ts) {
             var currentTilesX = Math.ceil(viewCanvasW / _lastTileSize);
             var currentTilesY = Math.ceil(viewCanvasH / _lastTileSize);
             var currentCount = currentTilesX * currentTilesY;
-            // Keep current larger size unless it would exceed max
             if (currentCount <= maxTileCount) {
                 return _lastTileSize;
             }
@@ -63,16 +61,17 @@ Item {
         return ts;
     }
 
-    property int tileSize: baseTileSize
-    property var _tiles: []
-
     function _updateTiles() {
+        if (useGpuRendering) {
+            _tiles = [];  // GPU mode doesn't use tiles
+            return;
+        }
+
         if (!isFinite(viewportWidth) || !isFinite(viewportHeight) || viewportWidth <= 0 || viewportHeight <= 0) {
             _tiles = [];
             return;
         }
 
-        // Recalculate adaptive tile size
         tileSize = _getAdaptiveTileSize();
 
         var zs = Math.max(zoomLevel, 0.0001);
@@ -101,10 +100,9 @@ Item {
         _tiles = list;
     }
 
-    // Debounce timer for tile updates during zoom to prevent churn
     Timer {
         id: tileUpdateDebounce
-        interval: 50  // Wait 50ms after last zoom change
+        interval: 50
         repeat: false
         onTriggered: tiledLayer._updateTiles()
     }
@@ -114,9 +112,11 @@ Item {
     onOffsetYChanged: _updateTiles()
     onViewportWidthChanged: _updateTiles()
     onViewportHeightChanged: _updateTiles()
+    onUseGpuRenderingChanged: _updateTiles()
 
     Component.onCompleted: _updateTiles()
 
+    // CPU renderer tiles (default mode - multiple tiles for viewport culling)
     Repeater {
         model: tiledLayer._tiles
         delegate: CanvasRenderer {
@@ -132,5 +132,26 @@ Item {
 
             Component.onCompleted: setModel(canvasModel)
         }
+    }
+
+    // ========== GPU SINGLE RENDERER (Option C) ==========
+    // Single persistent SceneGraphRenderer covering entire viewport.
+    // This avoids the tile creation/destruction that causes PySide6 QSGNode crashes.
+    SceneGraphRenderer {
+        id: gpuRenderer
+        visible: tiledLayer.useGpuRendering
+
+        // Cover a large canvas area (we render all items, no culling in Option C)
+        width: 16384
+        height: 16384
+        x: -width / 2
+        y: -height / 2
+
+        zoomLevel: tiledLayer.zoomLevel
+        // Origin at center of our large canvas
+        tileOriginX: 0
+        tileOriginY: 0
+
+        Component.onCompleted: setModel(canvasModel)
     }
 }
