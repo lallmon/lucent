@@ -255,8 +255,14 @@ Item {
                 property real startPointX: 0
                 property real startPointY: 0
 
-                TapHandler {
-                    onTapped: {
+                MouseArea {
+                    anchors.fill: parent
+                    onPressed: mouse => {
+                        // Set skip flag immediately to prevent objectClicked from exiting edit mode
+                        Lucent.SelectionManager._skipNextClick = true;
+                        mouse.accepted = true;
+                    }
+                    onClicked: mouse => {
                         overlay.pointClicked(pointItem.index, overlay.currentModifiers);
                     }
                 }

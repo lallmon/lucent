@@ -84,7 +84,11 @@ ApplicationWindow {
         context: Qt.ApplicationShortcut
         onActivated: {
             if (!root.isTextInputActive()) {
-                canvas.deleteSelectedItem();
+                if (Lucent.SelectionManager.editModeActive) {
+                    canvas.deleteSelectedPoints();
+                } else {
+                    canvas.deleteSelectedItem();
+                }
             }
         }
     }
@@ -93,7 +97,11 @@ ApplicationWindow {
         context: Qt.ApplicationShortcut
         onActivated: {
             if (!root.isTextInputActive()) {
-                canvas.deleteSelectedItem();
+                if (Lucent.SelectionManager.editModeActive) {
+                    canvas.deleteSelectedPoints();
+                } else {
+                    canvas.deleteSelectedItem();
+                }
             }
         }
     }
