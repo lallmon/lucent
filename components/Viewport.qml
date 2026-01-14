@@ -42,7 +42,7 @@ Item {
 
     // Zoom/pan state (camera controls)
     property real zoomLevel: 0.7  // Start at 70%
-    readonly property real minZoom: 0.05
+    readonly property real minZoom: 0.01
     readonly property real maxZoom: 10.0
     readonly property real zoomStep: 1.08  // ~8% base zoom increments for faster wheel zoom
 
