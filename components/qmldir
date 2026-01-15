@@ -39,5 +39,7 @@ SpinBoxLabeled 1.0 controls/SpinBoxLabeled.qml
 VerticalDivider 1.0 controls/VerticalDivider.qml
 StrokeEditorButton 1.0 controls/StrokeEditorButton.qml
 StrokeControls 1.0 controls/StrokeControls.qml
+SegmentedButtonGroup 1.0 controls/SegmentedButtonGroup.qml
+SegmentedButton 1.0 controls/SegmentedButton.qml
 AboutDialog 1.0 dialogs/AboutDialog.qml
 ExportDialog 1.0 dialogs/ExportDialog.qml

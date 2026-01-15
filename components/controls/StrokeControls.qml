@@ -29,82 +29,34 @@ ColumnLayout {
             text: qsTr("Style:")
             font.pixelSize: 12
             color: root.themePalette.text
+            Layout.preferredWidth: 36
         }
 
-        ButtonGroup {
-            id: styleGroup
-            exclusive: true
-        }
-
-        Button {
-            id: noneButton
-            checkable: true
-            checked: root.strokeStyle === "none"
-            ButtonGroup.group: styleGroup
-            Layout.preferredWidth: Lucent.Styles.height.lg
-            Layout.preferredHeight: Lucent.Styles.height.lg
-
-            onClicked: {
-                if (root.strokeStyle !== "none") {
-                    root.styleChanged("none");
-                }
-            }
-
-            background: Rectangle {
-                color: noneButton.checked ? root.themePalette.highlight : root.themePalette.button
-                border.color: root.themePalette.mid
-                border.width: 1
-                radius: Lucent.Styles.rad.sm
-            }
-
-            contentItem: Lucent.PhIcon {
-                name: "x-circle"
-                weight: "regular"
-                size: 22
-                color: noneButton.checked ? root.themePalette.highlightedText : root.themePalette.buttonText
-            }
-
-            Lucent.ToolTipStyled {
-                visible: noneButton.hovered
-                text: qsTr("None")
-            }
-        }
-
-        Button {
-            id: solidButton
-            checkable: true
-            checked: root.strokeStyle === "solid"
-            ButtonGroup.group: styleGroup
-            Layout.preferredWidth: Lucent.Styles.height.lg
-            Layout.preferredHeight: Lucent.Styles.height.lg
-
-            onClicked: {
-                if (root.strokeStyle !== "solid") {
-                    root.styleChanged("solid");
-                    if (root.strokeWidth <= 0) {
-                        root.widthEdited(1.0);
-                        root.widthCommitted(1.0);
+        Lucent.SegmentedButtonGroup {
+            Lucent.SegmentedButton {
+                checked: root.strokeStyle === "none"
+                iconName: "x-circle"
+                toolTipText: qsTr("None")
+                onClicked: {
+                    if (root.strokeStyle !== "none") {
+                        root.styleChanged("none");
                     }
                 }
             }
 
-            background: Rectangle {
-                color: solidButton.checked ? root.themePalette.highlight : root.themePalette.button
-                border.color: root.themePalette.mid
-                border.width: 1
-                radius: Lucent.Styles.rad.sm
-            }
-
-            contentItem: Lucent.PhIcon {
-                name: "minus"
-                weight: "regular"
-                size: 22
-                color: solidButton.checked ? root.themePalette.highlightedText : root.themePalette.buttonText
-            }
-
-            Lucent.ToolTipStyled {
-                visible: solidButton.hovered
-                text: qsTr("Solid")
+            Lucent.SegmentedButton {
+                checked: root.strokeStyle === "solid"
+                iconName: "minus"
+                toolTipText: qsTr("Solid")
+                onClicked: {
+                    if (root.strokeStyle !== "solid") {
+                        root.styleChanged("solid");
+                        if (root.strokeWidth <= 0) {
+                            root.widthEdited(1.0);
+                            root.widthCommitted(1.0);
+                        }
+                    }
+                }
             }
         }
     }
@@ -118,6 +70,7 @@ ColumnLayout {
             text: qsTr("Width:")
             font.pixelSize: 12
             color: root.themePalette.text
+            Layout.preferredWidth: 36
         }
 
         Slider {
@@ -208,97 +161,38 @@ ColumnLayout {
             text: qsTr("Align:")
             font.pixelSize: 12
             color: root.themePalette.text
+            Layout.preferredWidth: 36
         }
 
-        ButtonGroup {
-            id: alignGroup
-            exclusive: true
-        }
-
-        Button {
-            id: centerButton
-            checkable: true
-            checked: root.strokeAlign === "center"
-            ButtonGroup.group: alignGroup
-            Layout.preferredWidth: Lucent.Styles.height.lg
-            Layout.preferredHeight: Lucent.Styles.height.lg
-
-            onClicked: {
-                if (root.strokeAlign !== "center") {
-                    root.alignChanged("center");
+        Lucent.SegmentedButtonGroup {
+            Lucent.SegmentedButton {
+                checked: root.strokeAlign === "center"
+                toolTipText: qsTr("Center")
+                onClicked: {
+                    if (root.strokeAlign !== "center") {
+                        root.alignChanged("center");
+                    }
                 }
             }
 
-            background: Rectangle {
-                color: centerButton.checked ? root.themePalette.highlight : root.themePalette.button
-                border.color: root.themePalette.mid
-                border.width: 1
-                radius: Lucent.Styles.rad.sm
-            }
-
-            contentItem: Item {}
-
-            Lucent.ToolTipStyled {
-                visible: centerButton.hovered
-                text: qsTr("Center")
-            }
-        }
-
-        Button {
-            id: innerButton
-            checkable: true
-            checked: root.strokeAlign === "inner"
-            ButtonGroup.group: alignGroup
-            Layout.preferredWidth: Lucent.Styles.height.lg
-            Layout.preferredHeight: Lucent.Styles.height.lg
-
-            onClicked: {
-                if (root.strokeAlign !== "inner") {
-                    root.alignChanged("inner");
+            Lucent.SegmentedButton {
+                checked: root.strokeAlign === "inner"
+                toolTipText: qsTr("Inner")
+                onClicked: {
+                    if (root.strokeAlign !== "inner") {
+                        root.alignChanged("inner");
+                    }
                 }
             }
 
-            background: Rectangle {
-                color: innerButton.checked ? root.themePalette.highlight : root.themePalette.button
-                border.color: root.themePalette.mid
-                border.width: 1
-                radius: Lucent.Styles.rad.sm
-            }
-
-            contentItem: Item {}
-
-            Lucent.ToolTipStyled {
-                visible: innerButton.hovered
-                text: qsTr("Inner")
-            }
-        }
-
-        Button {
-            id: outerButton
-            checkable: true
-            checked: root.strokeAlign === "outer"
-            ButtonGroup.group: alignGroup
-            Layout.preferredWidth: Lucent.Styles.height.lg
-            Layout.preferredHeight: Lucent.Styles.height.lg
-
-            onClicked: {
-                if (root.strokeAlign !== "outer") {
-                    root.alignChanged("outer");
+            Lucent.SegmentedButton {
+                checked: root.strokeAlign === "outer"
+                toolTipText: qsTr("Outer")
+                onClicked: {
+                    if (root.strokeAlign !== "outer") {
+                        root.alignChanged("outer");
+                    }
                 }
-            }
-
-            background: Rectangle {
-                color: outerButton.checked ? root.themePalette.highlight : root.themePalette.button
-                border.color: root.themePalette.mid
-                border.width: 1
-                radius: Lucent.Styles.rad.sm
-            }
-
-            contentItem: Item {}
-
-            Lucent.ToolTipStyled {
-                visible: outerButton.hovered
-                text: qsTr("Outer")
             }
         }
     }
