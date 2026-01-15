@@ -191,6 +191,7 @@ class Stroke(Appearance):
 
         pen = QPen(qcolor, scaled_width)
         pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        pen.setMiterLimit(100.0)
         pen.setCapStyle(self.CAP_STYLES.get(self.cap, Qt.PenCapStyle.FlatCap))
 
         if self.align == "center":
