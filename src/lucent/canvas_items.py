@@ -126,8 +126,21 @@ class ShapeItem(CanvasItem):
             qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
             path = qtransform.map(path)
 
-        for appearance in self.appearances:
-            appearance.render(painter, path, zoom_level, offset_x, offset_y)
+        # Check if stroke should render below fill
+        stroke_below = self.stroke and getattr(self.stroke, "order", "top") == "bottom"
+
+        if stroke_below:
+            # Render stroke first, then fill
+            for appearance in self.appearances:
+                if isinstance(appearance, Stroke):
+                    appearance.render(painter, path, zoom_level, offset_x, offset_y)
+            for appearance in self.appearances:
+                if not isinstance(appearance, Stroke):
+                    appearance.render(painter, path, zoom_level, offset_x, offset_y)
+        else:
+            # Normal order: fill first, stroke on top
+            for appearance in self.appearances:
+                appearance.render(painter, path, zoom_level, offset_x, offset_y)
 
     def get_bounds(self) -> QRectF:
         """Return bounding rectangle in canvas coordinates."""

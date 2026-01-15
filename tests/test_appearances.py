@@ -164,6 +164,7 @@ class TestStroke:
         assert stroke.visible is True
         assert stroke.cap == "butt"
         assert stroke.align == "center"
+        assert stroke.order == "top"
 
     def test_creation_with_parameters(self):
         """Test creating a stroke with custom parameters."""
@@ -205,6 +206,7 @@ class TestStroke:
             "visible": True,
             "cap": "butt",
             "align": "center",
+            "order": "top",
         }
 
     def test_from_dict(self):
@@ -232,6 +234,7 @@ class TestStroke:
         assert stroke.visible is True
         assert stroke.cap == "butt"
         assert stroke.align == "center"
+        assert stroke.order == "top"
 
     def test_from_dict_clamps_values(self):
         """Test from_dict clamps width and opacity values."""
@@ -249,6 +252,7 @@ class TestStroke:
             visible=False,
             cap="round",
             align="outer",
+            order="bottom",
         )
         data = original.to_dict()
         restored = Stroke.from_dict(data)
@@ -258,6 +262,7 @@ class TestStroke:
         assert restored.visible == original.visible
         assert restored.cap == original.cap
         assert restored.align == original.align
+        assert restored.order == original.order
 
     def test_cap_values(self):
         """Test that all valid cap values are accepted."""
@@ -304,6 +309,29 @@ class TestStroke:
         stroke = Stroke(align="outer")
         data = stroke.to_dict()
         assert data["align"] == "outer"
+
+    def test_order_values(self):
+        """Test that all valid order values are accepted."""
+        for order_value in ("top", "bottom"):
+            stroke = Stroke(order=order_value)
+            assert stroke.order == order_value
+
+    def test_order_invalid_defaults_to_top(self):
+        """Test that invalid order values default to top."""
+        stroke = Stroke(order="invalid")
+        assert stroke.order == "top"
+
+    def test_from_dict_with_order(self):
+        """Test deserialization with order value."""
+        data = {"type": "stroke", "order": "bottom"}
+        stroke = Stroke.from_dict(data)
+        assert stroke.order == "bottom"
+
+    def test_to_dict_with_order(self):
+        """Test serialization includes order value."""
+        stroke = Stroke(order="bottom")
+        data = stroke.to_dict()
+        assert data["order"] == "bottom"
 
     def test_render_smoke_test(self, qtbot):
         """Smoke test: render does not crash."""

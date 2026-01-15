@@ -117,7 +117,8 @@ class TextureCache:
         if hasattr(item, "stroke") and item.stroke:
             align = getattr(item.stroke, "align", "center")
             cap = getattr(item.stroke, "cap", "butt")
-            version ^= hash((item.stroke.color, item.stroke.width, cap, align))
+            order = getattr(item.stroke, "order", "top")
+            version ^= hash((item.stroke.color, item.stroke.width, cap, align, order))
 
         return version
 

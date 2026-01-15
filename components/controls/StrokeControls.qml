@@ -13,12 +13,14 @@ ColumnLayout {
     property string strokeStyle: "none"  // "none" or "solid"
     property string strokeCap: "butt"  // "butt", "square", "round"
     property string strokeAlign: "center"  // "center", "inner", "outer"
+    property string strokeOrder: "top"  // "top" or "bottom"
 
     signal widthEdited(real newWidth)
     signal widthCommitted(real newWidth)
     signal styleChanged(string newStyle)
     signal capChanged(string newCap)
     signal alignChanged(string newAlign)
+    signal orderChanged(string newOrder)
 
     readonly property SystemPalette themePalette: Lucent.Themed.palette
 
@@ -238,6 +240,41 @@ ColumnLayout {
                 onClicked: {
                     if (root.strokeAlign !== "outer") {
                         root.alignChanged("outer");
+                    }
+                }
+            }
+        }
+    }
+
+    RowLayout {
+        spacing: Lucent.Styles.pad.md
+        opacity: root.strokeStyle === "none" ? 0.5 : 1.0
+        enabled: root.strokeStyle !== "none"
+
+        Label {
+            text: qsTr("Order:")
+            font.pixelSize: 12
+            color: root.themePalette.text
+            Layout.preferredWidth: 36
+        }
+
+        Lucent.SegmentedButtonGroup {
+            Lucent.SegmentedButton {
+                checked: root.strokeOrder === "top"
+                toolTipText: qsTr("Top")
+                onClicked: {
+                    if (root.strokeOrder !== "top") {
+                        root.orderChanged("top");
+                    }
+                }
+            }
+
+            Lucent.SegmentedButton {
+                checked: root.strokeOrder === "bottom"
+                toolTipText: qsTr("Bottom")
+                onClicked: {
+                    if (root.strokeOrder !== "bottom") {
+                        root.orderChanged("bottom");
                     }
                 }
             }

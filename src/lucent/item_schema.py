@@ -85,6 +85,7 @@ def _parse_appearances(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "visible": True,
                 "cap": "butt",
                 "align": "center",
+                "order": "top",
             },
         ]
 
@@ -107,6 +108,9 @@ def _parse_appearances(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             align = a.get("align", "center")
             if align not in ("center", "inner", "outer"):
                 align = "center"
+            order = a.get("order", "top")
+            if order not in ("top", "bottom"):
+                order = "top"
             result.append(
                 {
                     "type": "stroke",
@@ -116,6 +120,7 @@ def _parse_appearances(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "visible": bool(a.get("visible", True)),
                     "cap": cap,
                     "align": align,
+                    "order": order,
                 }
             )
     return result
@@ -413,6 +418,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                     a["visible"],
                     a.get("cap", "butt"),
                     a.get("align", "center"),
+                    a.get("order", "top"),
                 )
                 for a in d["appearances"]
             ],
@@ -441,6 +447,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                     a["visible"],
                     a.get("cap", "butt"),
                     a.get("align", "center"),
+                    a.get("order", "top"),
                 )
                 for a in d["appearances"]
             ],
@@ -464,6 +471,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                     a["visible"],
                     a.get("cap", "butt"),
                     a.get("align", "center"),
+                    a.get("order", "top"),
                 )
                 for a in d["appearances"]
             ],

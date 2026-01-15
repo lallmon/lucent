@@ -20,6 +20,7 @@ RowLayout {
     property bool _defaultStrokeVisible: false
     property string _defaultStrokeCap: "butt"
     property string _defaultStrokeAlign: "center"
+    property string _defaultStrokeOrder: "top"
     property color _defaultFillColor: Lucent.Themed.defaultFill
     property real _defaultFillOpacity: 1.0
 
@@ -89,6 +90,13 @@ RowLayout {
         }
         return _defaultStrokeAlign;
     }
+    readonly property string strokeOrder: {
+        if (editMode) {
+            var stroke = _getStroke();
+            return stroke && stroke.order ? stroke.order : _defaultStrokeOrder;
+        }
+        return _defaultStrokeOrder;
+    }
 
     readonly property color fillColor: {
         if (editMode) {
@@ -120,6 +128,8 @@ RowLayout {
             _defaultStrokeCap = value;
         else if (propName === "strokeAlign")
             _defaultStrokeAlign = value;
+        else if (propName === "strokeOrder")
+            _defaultStrokeOrder = value;
         else if (propName === "fillColor")
             _defaultFillColor = value;
         else if (propName === "fillOpacity")
@@ -154,6 +164,8 @@ RowLayout {
                         updated.cap = value;
                     else if (propName === "strokeAlign")
                         updated.align = value;
+                    else if (propName === "strokeOrder")
+                        updated.order = value;
                 }
                 newAppearances.push(updated);
             }
@@ -206,11 +218,13 @@ RowLayout {
         strokeStyle: root.strokeStyle
         strokeCap: root.strokeCap
         strokeAlign: root.strokeAlign
+        strokeOrder: root.strokeOrder
         onWidthEdited: newWidth => root.updateProperty("strokeWidth", newWidth)
         onWidthCommitted: newWidth => root.updateProperty("strokeWidth", newWidth)
         onStyleChanged: newStyle => root.updateProperty("strokeVisible", newStyle === "solid")
         onCapChanged: newCap => root.updateProperty("strokeCap", newCap)
         onAlignChanged: newAlign => root.updateProperty("strokeAlign", newAlign)
+        onOrderChanged: newOrder => root.updateProperty("strokeOrder", newOrder)
         onPanelOpened: canvasModel.beginTransaction()
         onPanelClosed: canvasModel.endTransaction()
     }

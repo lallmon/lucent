@@ -88,6 +88,7 @@ Item {
         var strokeVisible = s.strokeVisible !== undefined ? s.strokeVisible : false;
         var strokeCap = s.strokeCap !== undefined ? s.strokeCap : "butt";
         var strokeAlign = s.strokeAlign !== undefined ? s.strokeAlign : "center";
+        var strokeOrder = s.strokeOrder !== undefined ? s.strokeOrder : "top";
         var fillColor = _colorString(s.fillColor);
         var fillOpacity = s.fillOpacity !== undefined ? s.fillOpacity : 1.0;
 
@@ -111,7 +112,8 @@ Item {
                     opacity: strokeOpacity,
                     visible: strokeVisible,
                     cap: strokeCap,
-                    align: strokeAlign
+                    align: strokeAlign,
+                    order: strokeOrder
                 }
             ]
         });
@@ -366,6 +368,7 @@ Item {
         var strokeVisible = s.strokeVisible !== undefined ? s.strokeVisible : false;
         var strokeCap = s.strokeCap !== undefined ? s.strokeCap : "butt";
         var strokeAlign = s.strokeAlign !== undefined ? s.strokeAlign : "center";
+        var strokeOrder = s.strokeOrder !== undefined ? s.strokeOrder : "top";
         var fillColor = tool._colorString(s.fillColor);
         var fillOpacity = s.fillOpacity !== undefined ? s.fillOpacity : 1.0;
 
@@ -391,7 +394,8 @@ Item {
                     opacity: strokeOpacity,
                     visible: strokeVisible,
                     cap: strokeCap,
-                    align: strokeAlign
+                    align: strokeAlign,
+                    order: strokeOrder
                 }
             ]
         });

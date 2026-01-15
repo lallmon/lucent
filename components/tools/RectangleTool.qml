@@ -62,7 +62,8 @@ Item {
                     opacity: style.strokeOpacity,
                     visible: style.strokeVisible,
                     cap: style.strokeCap,
-                    align: style.strokeAlign
+                    align: style.strokeAlign,
+                    order: style.strokeOrder
                 }
             ]
         });
@@ -137,7 +138,8 @@ Item {
                         opacity: style.strokeOpacity,
                         visible: style.strokeVisible,
                         cap: style.strokeCap,
-                        align: style.strokeAlign
+                        align: style.strokeAlign,
+                        order: style.strokeOrder
                     }
                 ]
             });
