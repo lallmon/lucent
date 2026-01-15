@@ -108,6 +108,18 @@ class TestRectGeometry:
         assert restored.width == original.width
         assert restored.height == original.height
 
+    def test_translated(self):
+        """Test translated() returns new geometry with offset position."""
+        rect = RectGeometry(x=10, y=20, width=100, height=50)
+        translated = rect.translated(5, -10)
+        assert translated.x == 15
+        assert translated.y == 10
+        assert translated.width == 100
+        assert translated.height == 50
+        # Original should be unchanged
+        assert rect.x == 10
+        assert rect.y == 20
+
 
 class TestEllipseGeometry:
     """Tests for EllipseGeometry class."""
@@ -198,6 +210,18 @@ class TestEllipseGeometry:
         assert restored.center_y == original.center_y
         assert restored.radius_x == original.radius_x
         assert restored.radius_y == original.radius_y
+
+    def test_translated(self):
+        """Test translated() returns new geometry with offset center."""
+        ellipse = EllipseGeometry(center_x=50, center_y=75, radius_x=30, radius_y=20)
+        translated = ellipse.translated(10, -25)
+        assert translated.center_x == 60
+        assert translated.center_y == 50
+        assert translated.radius_x == 30
+        assert translated.radius_y == 20
+        # Original should be unchanged
+        assert ellipse.center_x == 50
+        assert ellipse.center_y == 75
 
 
 # TestPolylineGeometry deleted - replaced by TestPathGeometry below
@@ -408,6 +432,50 @@ class TestPathGeometry:
         assert restored.points[1]["handleIn"] == original.points[1]["handleIn"]
         assert restored.closed == original.closed
 
+    def test_translated_corner_points(self):
+        """Test translated() offsets corner points correctly."""
+        from lucent.geometry import PathGeometry
+
+        points = [{"x": 0, "y": 0}, {"x": 100, "y": 50}]
+        path = PathGeometry(points=points, closed=False)
+        translated = path.translated(10, -20)
+
+        assert translated.points[0]["x"] == 10
+        assert translated.points[0]["y"] == -20
+        assert translated.points[1]["x"] == 110
+        assert translated.points[1]["y"] == 30
+        assert translated.closed is False
+
+    def test_translated_preserves_handles(self):
+        """Test translated() offsets bezier handles correctly."""
+        from lucent.geometry import PathGeometry
+
+        points = [
+            {"x": 0, "y": 0, "handleOut": {"x": 30, "y": 10}},
+            {"x": 100, "y": 50, "handleIn": {"x": 70, "y": 40}},
+        ]
+        path = PathGeometry(points=points, closed=True)
+        translated = path.translated(5, 15)
+
+        # Check anchor points are translated
+        assert translated.points[0]["x"] == 5
+        assert translated.points[0]["y"] == 15
+        assert translated.points[1]["x"] == 105
+        assert translated.points[1]["y"] == 65
+
+        # Check handles are also translated
+        assert translated.points[0]["handleOut"]["x"] == 35
+        assert translated.points[0]["handleOut"]["y"] == 25
+        assert translated.points[1]["handleIn"]["x"] == 75
+        assert translated.points[1]["handleIn"]["y"] == 55
+
+        # Check closed state preserved
+        assert translated.closed is True
+
+        # Original should be unchanged
+        assert path.points[0]["x"] == 0
+        assert path.points[0]["handleOut"]["x"] == 30
+
 
 class TestTextGeometry:
     """Tests for TextGeometry class."""
@@ -477,6 +545,18 @@ class TestTextGeometry:
         assert restored.y == original.y
         assert restored.width == original.width
         assert restored.height == original.height
+
+    def test_translated(self):
+        """Test translated() returns new geometry with offset position."""
+        text_geom = TextGeometry(x=10, y=20, width=200, height=50)
+        translated = text_geom.translated(15, -5)
+        assert translated.x == 25
+        assert translated.y == 15
+        assert translated.width == 200
+        assert translated.height == 50
+        # Original should be unchanged
+        assert text_geom.x == 10
+        assert text_geom.y == 20
 
 
 class TestGeometryIsAbstract:

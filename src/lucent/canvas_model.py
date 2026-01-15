@@ -254,30 +254,14 @@ class CanvasModel(QAbstractListModel):
             return None
 
         item = self._items[idx]
+
+        # Only shapes with geometry can be moved
+        if not hasattr(item, "geometry"):
+            return None
+
         old_data = self._itemToDict(item)
         new_data = dict(old_data)
-
-        if isinstance(item, RectangleItem):
-            new_data["geometry"] = dict(old_data["geometry"])
-            new_data["geometry"]["x"] = item.geometry.x + dx
-            new_data["geometry"]["y"] = item.geometry.y + dy
-        elif isinstance(item, EllipseItem):
-            new_data["geometry"] = dict(old_data["geometry"])
-            new_data["geometry"]["centerX"] = item.geometry.center_x + dx
-            new_data["geometry"]["centerY"] = item.geometry.center_y + dy
-        elif isinstance(item, TextItem):
-            new_data["geometry"] = dict(old_data["geometry"])
-            new_data["geometry"]["x"] = item.geometry.x + dx
-            new_data["geometry"]["y"] = item.geometry.y + dy
-        elif isinstance(item, PathItem):
-            new_points = [
-                {"x": p["x"] + dx, "y": p["y"] + dy} for p in item.geometry.points
-            ]
-            new_data["geometry"] = dict(old_data["geometry"])
-            new_data["geometry"]["points"] = new_points
-        else:
-            # Container or unknown type - no direct geometry to move
-            return None
+        new_data["geometry"] = item.geometry.translated(dx, dy).to_dict()
 
         return UpdateItemCommand(self, idx, old_data, new_data)
 
@@ -367,24 +351,9 @@ class CanvasModel(QAbstractListModel):
         # Apply deltas to descendant shapes
         for idx in self._get_descendant_indices(container.id):
             item = self._items[idx]
-            item_data = self._itemToDict(item)
-            if isinstance(item, RectangleItem):
-                item_data["geometry"]["x"] = item.geometry.x + dx
-                item_data["geometry"]["y"] = item.geometry.y + dy
-                self.updateItem(idx, item_data)
-            elif isinstance(item, EllipseItem):
-                item_data["geometry"]["centerX"] = item.geometry.center_x + dx
-                item_data["geometry"]["centerY"] = item.geometry.center_y + dy
-                self.updateItem(idx, item_data)
-            elif isinstance(item, TextItem):
-                item_data["geometry"]["x"] = item.x + dx
-                item_data["geometry"]["y"] = item.y + dy
-                self.updateItem(idx, item_data)
-            elif isinstance(item, PathItem):
-                new_points = [
-                    {"x": p["x"] + dx, "y": p["y"] + dy} for p in item.geometry.points
-                ]
-                item_data["geometry"]["points"] = new_points
+            if hasattr(item, "geometry"):
+                item_data = self._itemToDict(item)
+                item_data["geometry"] = item.geometry.translated(dx, dy).to_dict()
                 self.updateItem(idx, item_data)
 
     @Slot(int)

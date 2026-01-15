@@ -62,6 +62,11 @@ class Geometry(ABC):
         """
         pass
 
+    @abstractmethod
+    def translated(self, dx: float, dy: float) -> "Geometry":
+        """Return a new geometry translated by dx, dy."""
+        pass
+
 
 class RectGeometry(Geometry):
     """Rectangle geometry defined by position and dimensions."""
@@ -138,6 +143,10 @@ class RectGeometry(Geometry):
             (ox1, oy1),
             (ix1, iy1),  # Close loop back to top-left
         ]
+
+    def translated(self, dx: float, dy: float) -> "RectGeometry":
+        """Return a new rectangle translated by dx, dy."""
+        return RectGeometry(self.x + dx, self.y + dy, self.width, self.height)
 
 
 class EllipseGeometry(Geometry):
@@ -243,6 +252,12 @@ class EllipseGeometry(Geometry):
             vertices.append((ix, iy))
 
         return vertices
+
+    def translated(self, dx: float, dy: float) -> "EllipseGeometry":
+        """Return a new ellipse translated by dx, dy."""
+        return EllipseGeometry(
+            self.center_x + dx, self.center_y + dy, self.radius_x, self.radius_y
+        )
 
 
 class PathGeometry(Geometry):
@@ -535,6 +550,24 @@ class PathGeometry(Geometry):
 
         return vertices
 
+    def translated(self, dx: float, dy: float) -> "PathGeometry":
+        """Return a new path translated by dx, dy, preserving all handles."""
+        new_points: List[Dict[str, Any]] = []
+        for p in self.points:
+            new_point: Dict[str, Any] = {"x": p["x"] + dx, "y": p["y"] + dy}
+            if "handleIn" in p:
+                new_point["handleIn"] = {
+                    "x": p["handleIn"]["x"] + dx,
+                    "y": p["handleIn"]["y"] + dy,
+                }
+            if "handleOut" in p:
+                new_point["handleOut"] = {
+                    "x": p["handleOut"]["x"] + dx,
+                    "y": p["handleOut"]["y"] + dy,
+                }
+            new_points.append(new_point)
+        return PathGeometry(new_points, self.closed)
+
 
 # Alias for backward compatibility during transition
 PolylineGeometry = PathGeometry
@@ -612,3 +645,7 @@ class TextGeometry(Geometry):
             (ox1, oy1),
             (ix1, iy1),
         ]
+
+    def translated(self, dx: float, dy: float) -> "TextGeometry":
+        """Return a new text geometry translated by dx, dy."""
+        return TextGeometry(self.x + dx, self.y + dy, self.width, self.height)
