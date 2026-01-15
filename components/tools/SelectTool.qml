@@ -78,7 +78,8 @@ Item {
 
         var dx = viewportX - handleViewport.x;
         var dy = viewportY - handleViewport.y;
-        var hitRadius = (geom.handleSize + geom.armLength) * geom.zoomLevel;
+        // Cap hit radius to prevent overlap with shape at low zoom
+        var hitRadius = Math.min((geom.handleSize + geom.armLength) * geom.zoomLevel, 30);
         return Math.sqrt(dx * dx + dy * dy) < hitRadius;
     }
 
@@ -125,7 +126,8 @@ Item {
 
         var geom = overlayGeometry;
         var bounds = getOverlayBounds(geom);
-        var hitRadius = geom.handleSize * geom.zoomLevel * 2;
+        // Cap hit radius to prevent overlap with shape at low zoom
+        var hitRadius = Math.min(geom.handleSize * geom.zoomLevel * 2, 20);
 
         for (var i = 0; i < resizeHandleFactors.length; i++) {
             var f = resizeHandleFactors[i];

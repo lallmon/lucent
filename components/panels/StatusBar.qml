@@ -14,38 +14,61 @@ ToolBar {
     property string activeTool: "select"
 
     readonly property bool hasUnitSettings: typeof unitSettings !== "undefined" && unitSettings !== null
-    readonly property real displayCursorX: hasUnitSettings ? unitSettings.canvasToDisplay(root.cursorX) : root.cursorX
-    readonly property real displayCursorY: hasUnitSettings ? unitSettings.canvasToDisplay(root.cursorY) : root.cursorY
     readonly property string displayUnitLabel: hasUnitSettings ? unitSettings.displayUnit : "px"
+
+    // Cache instruction text - only updates when activeTool changes
+    readonly property string toolInstruction: {
+        var t = Lucent.ToolRegistry.tools[activeTool];
+        return t ? t.instruction : "";
+    }
 
     RowLayout {
         anchors.fill: parent
         spacing: 12
         Layout.alignment: Qt.AlignVCenter
 
-        // Tool instructions (left side)
+        // Tool instructions (left side) - bound to cached property
         Label {
             Layout.leftMargin: 10
             Layout.fillWidth: true
-            text: Lucent.ToolRegistry.getInstruction(root.activeTool)
+            text: root.toolInstruction
             color: palette.text
             font.pixelSize: 11
             elide: Text.ElideRight
         }
 
-        // Cursor readout (right side)
+        // Cursor readout (right side) - separate labels for efficient updates
         RowLayout {
             Layout.alignment: Qt.AlignVCenter
             Layout.rightMargin: 10
-            spacing: 6
+            spacing: 2
+
             Lucent.PhIcon {
                 name: "crosshair-simple"
                 size: 16
                 color: "white"
             }
+
             Label {
-                text: qsTr("X: %1  Y: %2 %3").arg(root.displayCursorX.toFixed(1)).arg(root.displayCursorY.toFixed(1)).arg(displayUnitLabel)
+                text: "X:"
+            }
+            Label {
+                id: xLabel
+                text: root.hasUnitSettings ? unitSettings.canvasToDisplay(root.cursorX).toFixed(1) : root.cursorX.toFixed(1)
                 horizontalAlignment: Text.AlignRight
+                Layout.minimumWidth: 50
+            }
+            Label {
+                text: "Y:"
+            }
+            Label {
+                id: yLabel
+                text: root.hasUnitSettings ? unitSettings.canvasToDisplay(root.cursorY).toFixed(1) : root.cursorY.toFixed(1)
+                horizontalAlignment: Text.AlignRight
+                Layout.minimumWidth: 50
+            }
+            Label {
+                text: root.displayUnitLabel
             }
         }
     }

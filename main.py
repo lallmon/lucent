@@ -93,6 +93,12 @@ if __name__ == "__main__":
     # Use threaded render loop for proper VSync at display refresh rate
     os.environ.setdefault("QSG_RENDER_LOOP", "threaded")
 
+    # Enable QML debugging for Qt Creator profiler (must be before QApplication)
+    if os.environ.get("QT_QML_DEBUG"):
+        from PySide6.QtQml import QQmlDebuggingEnabler
+
+        QQmlDebuggingEnabler.enableDebugging(True)
+
     # Use QApplication (not QGuiApplication) to support Qt.labs.platform native dialogs
     app = QApplication(sys.argv)
 
