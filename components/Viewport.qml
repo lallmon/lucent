@@ -31,7 +31,7 @@ Item {
     property real gridSpacingCanvas: gridConfig.minorCanvas || 32.0
 
     // Grid visibility (toggled from View menu)
-    property bool gridVisible: false
+    property bool gridVisible: true
 
     function refreshGrid() {
         if (!gridVisible)
