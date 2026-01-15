@@ -7,7 +7,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from lucent.canvas_model import CanvasModel
-from lucent.canvas_renderer import CanvasRenderer
+from lucent.scene_graph_renderer import SceneGraphRenderer
 from lucent.history_manager import HistoryManager
 
 
@@ -38,9 +38,9 @@ def canvas_model(history_manager):
 
 
 @pytest.fixture
-def canvas_renderer(qapp):
-    """Create a fresh CanvasRenderer instance for each test."""
-    return CanvasRenderer()
+def scene_graph_renderer(qapp):
+    """Create a fresh SceneGraphRenderer instance for each test."""
+    return SceneGraphRenderer()
 
 
 @pytest.fixture

@@ -9,10 +9,13 @@ This module provides appearance classes that define how geometry is rendered
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPainterPath
+
+if TYPE_CHECKING:
+    pass
 
 
 class Appearance(ABC):
@@ -48,6 +51,22 @@ class Appearance(ABC):
             return Stroke.from_dict(data)
         else:
             raise ValueError(f"Unknown appearance type: {appearance_type}")
+
+    def get_sg_color(self) -> Optional[QColor]:
+        """Get color with opacity for scene graph rendering.
+
+        Returns None if this appearance should not be rendered.
+        Subclasses override to provide their specific color.
+        """
+        return None
+
+    def should_render(self) -> bool:
+        """Check if this appearance should be rendered."""
+        return self.visible
+
+    def get_stroke_width(self) -> float:
+        """Get stroke width (0 for non-stroke appearances)."""
+        return 0.0
 
 
 class Fill(Appearance):
@@ -102,6 +121,18 @@ class Fill(Appearance):
             opacity=float(data.get("opacity", 0.0)),
             visible=data.get("visible", True),
         )
+
+    def get_sg_color(self) -> Optional[QColor]:
+        """Get fill color with opacity for scene graph rendering."""
+        if not self.visible or self.opacity <= 0:
+            return None
+        qcolor = QColor(self.color)
+        qcolor.setAlphaF(self.opacity)
+        return qcolor
+
+    def should_render(self) -> bool:
+        """Check if fill should be rendered."""
+        return self.visible and self.opacity > 0
 
 
 class Stroke(Appearance):
@@ -169,3 +200,28 @@ class Stroke(Appearance):
             opacity=float(data.get("opacity", 1.0)),
             visible=data.get("visible", True),
         )
+
+    def get_sg_color(self) -> Optional[QColor]:
+        """Get stroke color with opacity for scene graph rendering."""
+        if not self.visible or self.width <= 0 or self.opacity <= 0:
+            return None
+        qcolor = QColor(self.color)
+        qcolor.setAlphaF(self.opacity)
+        return qcolor
+
+    def should_render(self) -> bool:
+        """Check if stroke should be rendered."""
+        return self.visible and self.width > 0 and self.opacity > 0
+
+    def get_stroke_width(self) -> float:
+        """Get stroke width for geometry generation."""
+        return self.width
+
+    def get_scaled_width(self, zoom_level: float) -> float:
+        """Get stroke width scaled for current zoom level.
+
+        Matches the existing QPainter behavior with clamping.
+        """
+        stroke_px = self.width * zoom_level
+        clamped_px = max(0.3, min(6.0, stroke_px))
+        return clamped_px / max(zoom_level, 0.0001)

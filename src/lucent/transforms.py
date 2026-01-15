@@ -10,7 +10,7 @@ to geometry without modifying the original geometry data.
 
 from typing import Dict, Any
 
-from PySide6.QtGui import QTransform
+from PySide6.QtGui import QTransform, QMatrix4x4
 
 
 class Transform:
@@ -89,6 +89,45 @@ class Transform:
         # Move back from center
         t.translate(-center_x, -center_y)
         return t
+
+    def to_qmatrix4x4(self) -> QMatrix4x4:
+        """Convert to 4x4 matrix for GPU rendering (QSGTransformNode).
+
+        Order of operations: translate, then rotate, then scale.
+        """
+        m = QMatrix4x4()
+        m.translate(self.translate_x, self.translate_y, 0)
+        m.rotate(self.rotate, 0, 0, 1)  # Rotate around Z axis
+        m.scale(self.scale_x, self.scale_y, 1)
+        return m
+
+    def to_qmatrix4x4_centered(self, center_x: float, center_y: float) -> QMatrix4x4:
+        """Convert to 4x4 matrix with rotation/scale around a center point.
+
+        For use with QSGTransformNode in scene graph rendering.
+
+        Args:
+            center_x: X coordinate of the center point for rotation/scale.
+            center_y: Y coordinate of the center point for rotation/scale.
+
+        Returns:
+            QMatrix4x4 with transforms applied around center.
+        """
+        if self.is_identity():
+            return QMatrix4x4()
+
+        m = QMatrix4x4()
+        # Apply translation
+        m.translate(self.translate_x, self.translate_y, 0)
+        # Move to center
+        m.translate(center_x, center_y, 0)
+        # Apply rotation around Z axis
+        m.rotate(self.rotate, 0, 0, 1)
+        # Apply scale
+        m.scale(self.scale_x, self.scale_y, 1)
+        # Move back from center
+        m.translate(-center_x, -center_y, 0)
+        return m
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""

@@ -6,7 +6,7 @@ import QtQuick
 // Toggle with F12
 Rectangle {
     id: root
-    width: 100
+    width: 80
     height: contentColumn.height + 16
     color: "#CC000000"
     radius: 4
@@ -33,7 +33,7 @@ Rectangle {
     Column {
         id: contentColumn
         anchors.centerIn: parent
-        spacing: 4
+        spacing: 8
 
         Row {
             spacing: 6

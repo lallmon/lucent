@@ -345,8 +345,12 @@ class CanvasModel(QAbstractListModel):
         if not commands:
             return
 
-        # Execute as single transaction for undo/redo
-        if len(commands) == 1:
+        # If inside a transaction (e.g., drag operation), just execute without
+        # recording - the transaction will capture the full change at end
+        if self._transaction_active:
+            for cmd in commands:
+                cmd.execute()
+        elif len(commands) == 1:
             self._execute_command(commands[0])
         else:
             transaction = TransactionCommand(commands, "Move Items")
@@ -918,6 +922,25 @@ class CanvasModel(QAbstractListModel):
         if 0 <= index < len(self._items):
             return self._itemToDict(self._items[index])
         return None
+
+    def getItem(self, index: int) -> Optional[CanvasItem]:
+        """Get the CanvasItem object at the given index.
+
+        Used by SceneGraphRenderer for incremental updates.
+        """
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def getItemIndex(self, item: CanvasItem) -> int:
+        """Get the index of a CanvasItem in the model.
+
+        Returns -1 if not found.
+        """
+        try:
+            return self._items.index(item)
+        except ValueError:
+            return -1
 
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getItemTransform(self, index: int) -> Optional[Dict[str, Any]]:

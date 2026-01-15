@@ -182,8 +182,13 @@ Item {
     }
 
     // Dynamic tool loader for drawing tools
+    // Centered at (0,0) to match TiledShapesLayer coordinate system
     Tools.ToolLoader {
         id: toolLoader
+        anchors.centerIn: parent
+        width: 0
+        height: 0
+
         drawingMode: root.drawingMode
         zoomLevel: root.zoomLevel
         toolSettings: root.toolSettings

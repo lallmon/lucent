@@ -285,8 +285,18 @@ ApplicationWindow {
                 }
 
                 Item {
+                    id: canvasContainer
                     SplitView.fillWidth: true
                     SplitView.fillHeight: true
+
+                    // Debug panel overlay (toggle with F12)
+                    DebugPanel {
+                        id: debugPanel
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        z: 1000
+                    }
 
                     Viewport {
                         id: viewport
@@ -304,15 +314,6 @@ ApplicationWindow {
                                 viewport.pan(dx, dy);
                             }
                         }
-                    }
-
-                    // Debug panel overlay (toggle with F12) - outside Viewport to stay fixed
-                    DebugPanel {
-                        id: debugPanel
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.margins: 10
-                        z: 1000
                     }
                 }
 

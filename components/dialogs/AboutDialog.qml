@@ -38,11 +38,6 @@ Dialog {
             Label {
                 text: qsTr("Renderer: %1 (%2)").arg(appInfo ? appInfo.rendererBackend : "unknown").arg(appInfo ? appInfo.rendererType : "unknown")
             }
-
-            Label {
-                text: qsTr("Graphics: %1").arg(appInfo ? appInfo.glVendor : "unknown")
-                visible: appInfo && appInfo.rendererBackend === "opengl"
-            }
         }
     }
 }
