@@ -215,7 +215,12 @@ ApplicationWindow {
             return;
         }
 
-        if (documentManager && documentManager.dirty) {
+        // Don't prompt to save an empty canvas with no file
+        var hasContent = canvasModel && canvasModel.count() > 0;
+        var hasFile = documentManager && documentManager.filePath !== "";
+        var shouldPrompt = documentManager && documentManager.dirty && (hasContent || hasFile);
+
+        if (shouldPrompt) {
             close.accepted = false;
             unsavedDialog.open();
         } else {
@@ -224,7 +229,12 @@ ApplicationWindow {
     }
 
     function handleNew() {
-        if (documentManager && documentManager.dirty) {
+        // Don't prompt to save an empty canvas with no file
+        var hasContent = canvasModel && canvasModel.count() > 0;
+        var hasFile = documentManager && documentManager.filePath !== "";
+        var shouldPrompt = documentManager && documentManager.dirty && (hasContent || hasFile);
+
+        if (shouldPrompt) {
             unsavedDialog.open();
         } else {
             if (documentManager) {
