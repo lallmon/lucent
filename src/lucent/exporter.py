@@ -127,6 +127,10 @@ def _item_to_svg_element(item: "CanvasItem") -> Optional[ET.Element]:
         elem.set("y", str(item.geometry.y))
         elem.set("width", str(item.geometry.width))
         elem.set("height", str(item.geometry.height))
+        if item.geometry.corner_radius > 0:
+            r = item.geometry.corner_radius_pixels
+            elem.set("rx", str(r))
+            elem.set("ry", str(r))
         stroke = item.stroke
         fill = item.fill
         elem.set("stroke", stroke.color if stroke else "none")

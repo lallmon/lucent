@@ -71,7 +71,7 @@ class TestRectGeometry:
         """Test serialization to dictionary."""
         rect = RectGeometry(x=10, y=20, width=100, height=50)
         data = rect.to_dict()
-        assert data == {"x": 10, "y": 20, "width": 100, "height": 50}
+        assert data == {"x": 10, "y": 20, "width": 100, "height": 50, "cornerRadius": 0}
 
     def test_from_dict(self):
         """Test deserialization from dictionary."""
@@ -119,6 +119,70 @@ class TestRectGeometry:
         # Original should be unchanged
         assert rect.x == 10
         assert rect.y == 20
+
+    def test_corner_radius_default_zero(self):
+        """Test corner radius defaults to 0."""
+        rect = RectGeometry(x=0, y=0, width=100, height=50)
+        assert rect.corner_radius == 0.0
+
+    def test_corner_radius_set(self):
+        """Test corner radius can be set."""
+        rect = RectGeometry(x=0, y=0, width=100, height=50, corner_radius=25)
+        assert rect.corner_radius == 25.0
+
+    def test_corner_radius_clamped_to_50(self):
+        """Test corner radius is clamped to 50%."""
+        rect = RectGeometry(x=0, y=0, width=100, height=50, corner_radius=75)
+        assert rect.corner_radius == 50.0
+
+    def test_corner_radius_clamped_to_zero(self):
+        """Test negative corner radius is clamped to 0."""
+        rect = RectGeometry(x=0, y=0, width=100, height=50, corner_radius=-10)
+        assert rect.corner_radius == 0.0
+
+    def test_corner_radius_to_dict(self):
+        """Test corner radius is included in serialization."""
+        rect = RectGeometry(x=10, y=20, width=100, height=50, corner_radius=25)
+        data = rect.to_dict()
+        assert data["cornerRadius"] == 25.0
+
+    def test_corner_radius_from_dict(self):
+        """Test corner radius is parsed from dictionary."""
+        data = {"x": 10, "y": 20, "width": 100, "height": 50, "cornerRadius": 30}
+        rect = RectGeometry.from_dict(data)
+        assert rect.corner_radius == 30.0
+
+    def test_corner_radius_from_dict_default(self):
+        """Test corner radius defaults to 0 when not in dict."""
+        data = {"x": 10, "y": 20, "width": 100, "height": 50}
+        rect = RectGeometry.from_dict(data)
+        assert rect.corner_radius == 0.0
+
+    def test_corner_radius_translated_preserved(self):
+        """Test translated() preserves corner radius."""
+        rect = RectGeometry(x=10, y=20, width=100, height=50, corner_radius=25)
+        translated = rect.translated(5, -10)
+        assert translated.corner_radius == 25.0
+
+    def test_corner_radius_actual_pixels(self):
+        """Test actual corner radius in pixels is computed correctly."""
+        rect = RectGeometry(x=0, y=0, width=200, height=100, corner_radius=25)
+        # 25% of min(200, 100) = 25% of 100 = 25px
+        assert rect.corner_radius_pixels == 25.0
+
+    def test_corner_radius_actual_pixels_max(self):
+        """Test 50% corner radius gives half the smaller dimension."""
+        rect = RectGeometry(x=0, y=0, width=200, height=100, corner_radius=50)
+        # 50% of min(200, 100) = 50% of 100 = 50px
+        assert rect.corner_radius_pixels == 50.0
+
+    def test_to_painter_path_rounded(self):
+        """Test to_painter_path creates rounded rectangle when corner_radius > 0."""
+        rect = RectGeometry(x=10, y=20, width=100, height=50, corner_radius=25)
+        path = rect.to_painter_path()
+        assert isinstance(path, QPainterPath)
+        # Path should have curves (more elements than a simple rect)
+        assert path.elementCount() > 4
 
 
 class TestEllipseGeometry:

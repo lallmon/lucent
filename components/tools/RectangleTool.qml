@@ -40,13 +40,15 @@ Item {
             return;
 
         var style = helper.extractStyle(settings);
+        var cornerRadius = settings ? (settings.cornerRadius || 0) : 0;
         setPreviewCallback({
             type: "rectangle",
             geometry: {
                 x: currentRect.x,
                 y: currentRect.y,
                 width: currentRect.width,
-                height: currentRect.height
+                height: currentRect.height,
+                cornerRadius: cornerRadius
             },
             appearances: [
                 {
@@ -116,13 +118,15 @@ Item {
 
         if (helper.hasSize(currentRect)) {
             var style = helper.extractStyle(settings);
+            var cornerRadius = settings ? (settings.cornerRadius || 0) : 0;
             itemCompleted({
                 type: "rectangle",
                 geometry: {
                     x: currentRect.x,
                     y: currentRect.y,
                     width: currentRect.width,
-                    height: currentRect.height
+                    height: currentRect.height,
+                    cornerRadius: cornerRadius
                 },
                 appearances: [
                     {

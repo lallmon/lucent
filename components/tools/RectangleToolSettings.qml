@@ -23,6 +23,7 @@ RowLayout {
     property string _defaultStrokeOrder: "top"
     property color _defaultFillColor: Lucent.Themed.defaultFill
     property real _defaultFillOpacity: 1.0
+    property real _defaultCornerRadius: 0
 
     // Helper to get fill appearance from selectedItem
     function _getFill() {
@@ -112,6 +113,12 @@ RowLayout {
         }
         return _defaultFillOpacity;
     }
+    readonly property real cornerRadius: {
+        if (editMode && selectedItem && selectedItem.geometry) {
+            return selectedItem.geometry.cornerRadius || 0;
+        }
+        return _defaultCornerRadius;
+    }
 
     // Update helper: always updates defaults, and also updates selected item in edit mode
     function updateProperty(propName, value) {
@@ -134,6 +141,8 @@ RowLayout {
             _defaultFillColor = value;
         else if (propName === "fillOpacity")
             _defaultFillOpacity = value;
+        else if (propName === "cornerRadius")
+            _defaultCornerRadius = value;
 
         // Also update selected item if in edit mode
         if (editMode && Lucent.SelectionManager.selectedItemIndex >= 0) {
@@ -170,9 +179,13 @@ RowLayout {
                 newAppearances.push(updated);
             }
 
+            var newGeometry = Object.assign({}, currentItem.geometry);
+            if (propName === "cornerRadius")
+                newGeometry.cornerRadius = value;
+
             canvasModel.updateItem(Lucent.SelectionManager.selectedItemIndex, {
                 type: currentItem.type,
-                geometry: currentItem.geometry,
+                geometry: newGeometry,
                 appearances: newAppearances,
                 name: currentItem.name,
                 parentId: currentItem.parentId,
@@ -239,5 +252,89 @@ RowLayout {
         onOpacityPreview: previewOpacity => root.updateProperty("strokeOpacity", previewOpacity)
         onColorPicked: newColor => root.updateProperty("strokeColor", newColor.toString())
         onOpacityPicked: newOpacity => root.updateProperty("strokeOpacity", newOpacity)
+    }
+
+    ToolSeparator {
+        contentItem: Rectangle {
+            implicitWidth: 1
+            implicitHeight: 16
+            color: Lucent.Themed.palette.mid
+        }
+    }
+
+    Label {
+        text: qsTr("Corner:")
+        font.pixelSize: 12
+        Layout.alignment: Qt.AlignVCenter
+    }
+
+    ComboBox {
+        id: cornerTypeCombo
+        Layout.preferredWidth: 90
+        Layout.preferredHeight: Lucent.Styles.height.md
+        Layout.alignment: Qt.AlignVCenter
+        model: ["Default", "Rounded"]
+        currentIndex: root.cornerRadius > 0 ? 1 : 0
+
+        onActivated: index => {
+            if (index === 0) {
+                root.updateProperty("cornerRadius", 0);
+            } else {
+                root.updateProperty("cornerRadius", 25);
+            }
+        }
+
+        background: Rectangle {
+            color: palette.base
+            border.color: cornerTypeCombo.activeFocus ? palette.highlight : palette.mid
+            border.width: 1
+            radius: Lucent.Styles.rad.sm
+        }
+
+        contentItem: Text {
+            text: cornerTypeCombo.displayText
+            color: palette.text
+            font.pixelSize: 11
+            verticalAlignment: Text.AlignVCenter
+            leftPadding: 6
+            elide: Text.ElideRight
+        }
+    }
+
+    TextField {
+        id: cornerRadiusField
+        visible: root.cornerRadius > 0
+        Layout.preferredWidth: 50
+        Layout.preferredHeight: Lucent.Styles.height.md
+        Layout.alignment: Qt.AlignVCenter
+        horizontalAlignment: Text.AlignHCenter
+        text: Math.round(root.cornerRadius).toString()
+        validator: IntValidator {
+            bottom: 1
+            top: 50
+        }
+
+        onEditingFinished: {
+            var val = parseInt(text);
+            if (!isNaN(val) && val >= 1 && val <= 50) {
+                root.updateProperty("cornerRadius", val);
+            } else {
+                text = Math.round(root.cornerRadius).toString();
+            }
+        }
+
+        background: Rectangle {
+            color: palette.base
+            border.color: cornerRadiusField.activeFocus ? palette.highlight : palette.mid
+            border.width: 1
+            radius: Lucent.Styles.rad.sm
+        }
+    }
+
+    Label {
+        visible: root.cornerRadius > 0
+        text: "%"
+        font.pixelSize: 11
+        Layout.alignment: Qt.AlignVCenter
     }
 }

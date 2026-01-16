@@ -175,6 +175,7 @@ def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
         y = float(geom.get("y", 0))
         width = _clamp_min(float(geom.get("width", 0)), 0.0)
         height = _clamp_min(float(geom.get("height", 0)), 0.0)
+        corner_radius = max(0.0, min(50.0, float(geom.get("cornerRadius", 0))))
     except (TypeError, ValueError) as exc:
         raise ItemSchemaError(f"Invalid rectangle numeric field: {exc}") from exc
 
@@ -191,7 +192,13 @@ def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
         "parentId": parent_id,
         "visible": visible,
         "locked": locked,
-        "geometry": {"x": x, "y": y, "width": width, "height": height},
+        "geometry": {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "cornerRadius": corner_radius,
+        },
         "appearances": appearances,
     }
     if transform is not None:
@@ -418,7 +425,11 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
     if t is ItemType.RECTANGLE:
         geom = d["geometry"]
         geometry = RectGeometry(
-            x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
+            x=geom["x"],
+            y=geom["y"],
+            width=geom["width"],
+            height=geom["height"],
+            corner_radius=geom.get("cornerRadius", 0),
         )
         return RectangleItem(
             geometry=geometry,

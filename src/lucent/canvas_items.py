@@ -202,6 +202,7 @@ class RectangleItem(ShapeItem):
             y=float(geom.get("y", 0)),
             width=float(geom.get("width", 0)),
             height=float(geom.get("height", 0)),
+            corner_radius=float(geom.get("cornerRadius", 0)),
         )
         appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
         transform = (

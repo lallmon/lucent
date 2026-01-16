@@ -71,16 +71,33 @@ class Geometry(ABC):
 class RectGeometry(Geometry):
     """Rectangle geometry defined by position and dimensions."""
 
-    def __init__(self, x: float, y: float, width: float, height: float) -> None:
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        corner_radius: float = 0.0,
+    ) -> None:
         self.x = float(x)
         self.y = float(y)
         self.width = max(0.0, float(width))
         self.height = max(0.0, float(height))
+        self.corner_radius = max(0.0, min(50.0, float(corner_radius)))
+
+    @property
+    def corner_radius_pixels(self) -> float:
+        """Return corner radius in pixels (percentage of smaller dimension)."""
+        return (self.corner_radius / 100.0) * min(self.width, self.height)
 
     def to_painter_path(self) -> QPainterPath:
         """Convert to QPainterPath."""
         path = QPainterPath()
-        path.addRect(self.x, self.y, self.width, self.height)
+        if self.corner_radius > 0:
+            r = self.corner_radius_pixels
+            path.addRoundedRect(self.x, self.y, self.width, self.height, r, r)
+        else:
+            path.addRect(self.x, self.y, self.width, self.height)
         return path
 
     def get_bounds(self) -> QRectF:
@@ -94,6 +111,7 @@ class RectGeometry(Geometry):
             "y": self.y,
             "width": self.width,
             "height": self.height,
+            "cornerRadius": self.corner_radius,
         }
 
     @staticmethod
@@ -104,6 +122,7 @@ class RectGeometry(Geometry):
             y=float(data.get("y", 0)),
             width=float(data.get("width", 0)),
             height=float(data.get("height", 0)),
+            corner_radius=float(data.get("cornerRadius", 0)),
         )
 
     def to_fill_vertices(self) -> VertexList:
@@ -146,7 +165,9 @@ class RectGeometry(Geometry):
 
     def translated(self, dx: float, dy: float) -> "RectGeometry":
         """Return a new rectangle translated by dx, dy."""
-        return RectGeometry(self.x + dx, self.y + dy, self.width, self.height)
+        return RectGeometry(
+            self.x + dx, self.y + dy, self.width, self.height, self.corner_radius
+        )
 
 
 class EllipseGeometry(Geometry):
