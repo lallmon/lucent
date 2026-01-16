@@ -136,8 +136,8 @@ Item {
 
             var originX = width / 2;
             var originY = height / 2;
-            var handleLineColor = Lucent.Themed.palette.highlight.toString();
-            var handleGripColor = Lucent.Themed.palette.highlight.toString();
+            var handleLineColor = Lucent.Themed.selector.toString();
+            var handleGripColor = Lucent.Themed.selector.toString();
 
             ctx.save();
             ctx.lineWidth = 1;
