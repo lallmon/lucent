@@ -1535,37 +1535,6 @@ class CanvasModel(QAbstractListModel):
         self.setItemTransform(index, new_transform)
 
     @Slot(int)
-    def ensureOriginCentered(self, index: int) -> None:
-        """Move transform origin to center without changing visual appearance.
-
-        Should be called before starting rotation to ensure rotation
-        happens around center. Adjusts translation to compensate.
-
-        Args:
-            index: Item index.
-        """
-        if not (0 <= index < len(self._items)):
-            return
-
-        item = self._items[index]
-        if not hasattr(item, "transform"):
-            return
-
-        bounds = compute_geometry_bounds(item)
-        if not bounds:
-            return
-        center_geom_x = bounds["x"] + bounds["width"] * 0.5
-        center_geom_y = bounds["y"] + bounds["height"] * 0.5
-
-        if (
-            abs(item.transform.pivot_x - center_geom_x) < 0.001
-            and abs(item.transform.pivot_y - center_geom_y) < 0.001
-        ):
-            return
-
-        self.setItemOrigin(index, 0.5, 0.5)
-
-    @Slot(int)
     def bakeTransform(self, index: int) -> None:
         """Apply transform to geometry and reset transform to identity.
 
