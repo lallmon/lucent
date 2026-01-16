@@ -930,7 +930,42 @@ class CanvasModel(QAbstractListModel):
         item = self._items[index]
         if not hasattr(item, "transform"):
             return None
-        return item.transform.to_dict()
+
+        transform_dict = item.transform.to_dict()
+        bounds = compute_geometry_bounds(item)
+        if not bounds:
+            transform_dict["originX"] = 0
+            transform_dict["originY"] = 0
+            return transform_dict
+
+        origin_x, origin_y = self._derive_origin_from_pivot(
+            bounds, item.transform.pivot_x, item.transform.pivot_y
+        )
+        transform_dict["originX"] = origin_x
+        transform_dict["originY"] = origin_y
+        return transform_dict
+
+    @staticmethod
+    def _derive_origin_from_pivot(
+        bounds: Dict[str, float], pivot_x: float, pivot_y: float
+    ) -> tuple[float, float]:
+        """Convert absolute pivot coords into normalized origin for UI."""
+        origin_x = 0.0
+        origin_y = 0.0
+        if bounds["width"] != 0:
+            origin_x = (pivot_x - bounds["x"]) / bounds["width"]
+        if bounds["height"] != 0:
+            origin_y = (pivot_y - bounds["y"]) / bounds["height"]
+        return origin_x, origin_y
+
+    @staticmethod
+    def _pivot_from_origin(
+        bounds: Dict[str, float], origin_x: float, origin_y: float
+    ) -> tuple[float, float]:
+        """Convert normalized origin into absolute pivot coords."""
+        pivot_x = bounds["x"] + bounds["width"] * origin_x
+        pivot_y = bounds["y"] + bounds["height"] * origin_y
+        return pivot_x, pivot_y
 
     @staticmethod
     def _normalizeRotation(degrees: float) -> float:
@@ -968,6 +1003,15 @@ class CanvasModel(QAbstractListModel):
             transform = dict(transform)  # Copy to avoid mutating input
             transform["rotate"] = self._normalizeRotation(transform["rotate"])
 
+        bounds = compute_geometry_bounds(item)
+        if not bounds:
+            return
+
+        if "pivotX" not in transform or "pivotY" not in transform:
+            transform = dict(transform)
+            transform["pivotX"] = item.transform.pivot_x
+            transform["pivotY"] = item.transform.pivot_y
+
         # Get current item data and update transform
         current_data = self._itemToDict(item)
         current_data["transform"] = transform
@@ -983,25 +1027,27 @@ class CanvasModel(QAbstractListModel):
             prop: Property name (translateX, translateY, rotate, scaleX, scaleY).
             value: New value for the property.
         """
-        current = self.getItemTransform(index) or {}
+        item = self._items[index]
+        if not hasattr(item, "transform"):
+            return
+
         new_transform = {
-            "translateX": current.get("translateX", 0),
-            "translateY": current.get("translateY", 0),
-            "rotate": current.get("rotate", 0),
-            "scaleX": current.get("scaleX", 1),
-            "scaleY": current.get("scaleY", 1),
-            "originX": current.get("originX", 0),
-            "originY": current.get("originY", 0),
+            "translateX": item.transform.translate_x,
+            "translateY": item.transform.translate_y,
+            "rotate": item.transform.rotate,
+            "scaleX": item.transform.scale_x,
+            "scaleY": item.transform.scale_y,
+            "pivotX": item.transform.pivot_x,
+            "pivotY": item.transform.pivot_y,
         }
         new_transform[prop] = value
         self.setItemTransform(index, new_transform)
 
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
     def getDisplayedPosition(self, index: int) -> Optional[Dict[str, float]]:
-        """Get displayed X, Y position based on geometry, origin, and translation.
+        """Get displayed X, Y position based on pivot and translation.
 
-        The displayed position is where the origin point appears after transforms.
-        Formula: displayedX = geometry.x + geometry.width * originX + translateX
+        The displayed position is where the pivot point appears after transforms.
 
         Args:
             index: Index of the item.
@@ -1020,15 +1066,9 @@ class CanvasModel(QAbstractListModel):
         if not bounds:
             return None
 
-        current = self.getItemTransform(index) or {}
-        origin_x = current.get("originX", 0)
-        origin_y = current.get("originY", 0)
-        translate_x = current.get("translateX", 0)
-        translate_y = current.get("translateY", 0)
-
         return {
-            "x": bounds["x"] + bounds["width"] * origin_x + translate_x,
-            "y": bounds["y"] + bounds["height"] * origin_y + translate_y,
+            "x": item.transform.pivot_x + item.transform.translate_x,
+            "y": item.transform.pivot_y + item.transform.translate_y,
         }
 
     @Slot(int, result="QVariant")  # type: ignore[arg-type]
@@ -1089,10 +1129,9 @@ class CanvasModel(QAbstractListModel):
         if item.transform.is_identity():
             return [self._point_to_dict(pt) for pt in points]
 
-        bounds = geometry.get_bounds()
-        origin_x = bounds.x() + bounds.width() * item.transform.origin_x
-        origin_y = bounds.y() + bounds.height() * item.transform.origin_y
-        qtransform = item.transform.to_qtransform_centered(origin_x, origin_y)
+        qtransform = item.transform.to_qtransform_centered(
+            item.transform.pivot_x, item.transform.pivot_y
+        )
 
         transformed = []
         for pt in points:
@@ -1149,10 +1188,9 @@ class CanvasModel(QAbstractListModel):
         if item.transform.is_identity():
             return {"x": screen_x, "y": screen_y}
 
-        bounds = item.geometry.get_bounds()
-        origin_x = bounds.x() + bounds.width() * item.transform.origin_x
-        origin_y = bounds.y() + bounds.height() * item.transform.origin_y
-        qtransform = item.transform.to_qtransform_centered(origin_x, origin_y)
+        qtransform = item.transform.to_qtransform_centered(
+            item.transform.pivot_x, item.transform.pivot_y
+        )
 
         inverted, ok = qtransform.inverted()
         if not ok:
@@ -1171,13 +1209,9 @@ class CanvasModel(QAbstractListModel):
         if not hasattr(item, "transform") or not hasattr(item, "geometry"):
             return
 
-        bounds = item.geometry.get_bounds()
-        pivot_geom_x = bounds.x() + bounds.width() * item.transform.origin_x
-        pivot_geom_y = bounds.y() + bounds.height() * item.transform.origin_y
-
         self._locked_edit_transforms[index] = {
-            "pivot_geom_x": pivot_geom_x,
-            "pivot_geom_y": pivot_geom_y,
+            "pivot_geom_x": item.transform.pivot_x,
+            "pivot_geom_y": item.transform.pivot_y,
         }
 
     @Slot(int)
@@ -1191,83 +1225,12 @@ class CanvasModel(QAbstractListModel):
     ) -> None:
         """Update item geometry while keeping the transform pivot stable.
 
-        When geometry changes (e.g., moving a path point), the bounds change,
-        which shifts the origin position (since origin is a percentage of bounds).
-        This method preserves the pivot in geometry space by updating originX/Y,
-        so the overall transform stays visually stable without changing translation.
-
-        Args:
-            index: Index of the item to update.
-            geometry_data: New geometry data (points, closed, etc.).
+        With absolute pivots, geometry updates do not require compensation.
         """
         if not (0 <= index < len(self._items)):
             return
 
-        item = self._items[index]
-        if not hasattr(item, "geometry") or not hasattr(item, "transform"):
-            self.updateItem(index, {"geometry": geometry_data})
-            return
-
-        transform = item.transform
-
-        # Pivot compensation only needed when rotation or non-unity scale exists.
-        # With identity transform, origin position doesn't affect visual result.
-        needs_compensation = (
-            transform.rotate != 0 or transform.scale_x != 1 or transform.scale_y != 1
-        )
-
-        if not needs_compensation:
-            self.updateItem(index, {"geometry": geometry_data})
-            return
-
-        # Capture current pivot in geometry space
-        old_bounds = item.geometry.get_bounds()
-        locked_origin = self._locked_edit_transforms.get(index)
-        pivot_geom_x = (
-            locked_origin["pivot_geom_x"]
-            if locked_origin
-            else old_bounds.x() + old_bounds.width() * transform.origin_x
-        )
-        pivot_geom_y = (
-            locked_origin["pivot_geom_y"]
-            if locked_origin
-            else old_bounds.y() + old_bounds.height() * transform.origin_y
-        )
-
-        # Apply geometry update
         self.updateItem(index, {"geometry": geometry_data})
-
-        # Get updated item and new bounds
-        new_item = self._items[index]
-        if not hasattr(new_item, "geometry"):
-            return
-
-        new_bounds = new_item.geometry.get_bounds()
-        new_origin_x = new_item.transform.origin_x
-        new_origin_y = new_item.transform.origin_y
-        if new_bounds.width() != 0:
-            new_origin_x = (pivot_geom_x - new_bounds.x()) / new_bounds.width()
-        if new_bounds.height() != 0:
-            new_origin_y = (pivot_geom_y - new_bounds.y()) / new_bounds.height()
-
-        if (
-            new_origin_x != new_item.transform.origin_x
-            or new_origin_y != new_item.transform.origin_y
-        ):
-            self.updateItem(
-                index,
-                {
-                    "transform": {
-                        "translateX": new_item.transform.translate_x,
-                        "translateY": new_item.transform.translate_y,
-                        "rotate": new_item.transform.rotate,
-                        "scaleX": new_item.transform.scale_x,
-                        "scaleY": new_item.transform.scale_y,
-                        "originX": new_origin_x,
-                        "originY": new_origin_y,
-                    }
-                },
-            )
 
     @Slot(int, float, float, result="QVariant")  # type: ignore[arg-type]
     def transformPointToGeometryLocked(
@@ -1355,26 +1318,20 @@ class CanvasModel(QAbstractListModel):
         if not bounds:
             return
 
-        current = self.getItemTransform(index) or {}
         new_transform = {
-            "translateX": current.get("translateX", 0),
-            "translateY": current.get("translateY", 0),
-            "rotate": current.get("rotate", 0),
-            "scaleX": current.get("scaleX", 1),
-            "scaleY": current.get("scaleY", 1),
-            "originX": current.get("originX", 0),
-            "originY": current.get("originY", 0),
+            "translateX": item.transform.translate_x,
+            "translateY": item.transform.translate_y,
+            "rotate": item.transform.rotate,
+            "scaleX": item.transform.scale_x,
+            "scaleY": item.transform.scale_y,
+            "pivotX": item.transform.pivot_x,
+            "pivotY": item.transform.pivot_y,
         }
 
-        # translateX = value - geometry.x - geometry.width * originX
         if axis == "x":
-            new_transform["translateX"] = (
-                value - bounds["x"] - bounds["width"] * new_transform["originX"]
-            )
+            new_transform["translateX"] = value - item.transform.pivot_x
         else:
-            new_transform["translateY"] = (
-                value - bounds["y"] - bounds["height"] * new_transform["originY"]
-            )
+            new_transform["translateY"] = value - item.transform.pivot_y
 
         self.setItemTransform(index, new_transform)
 
@@ -1460,19 +1417,19 @@ class CanvasModel(QAbstractListModel):
         if not bounds:
             return
 
-        current = self.getItemTransform(index) or {}
-        old_ox = current.get("originX", 0)
-        old_oy = current.get("originY", 0)
-        rotation = current.get("rotate", 0)
-        scale_x = current.get("scaleX", 1)
-        scale_y = current.get("scaleY", 1)
-        old_tx = current.get("translateX", 0)
-        old_ty = current.get("translateY", 0)
+        rotation = item.transform.rotate
+        scale_x = item.transform.scale_x
+        scale_y = item.transform.scale_y
+        old_tx = item.transform.translate_x
+        old_ty = item.transform.translate_y
 
-        # Adjust translation to keep shape visually in place when origin changes
-        # Formula: adjustment = delta - R(S(delta))
-        dx = (old_ox - new_ox) * bounds["width"]
-        dy = (old_oy - new_oy) * bounds["height"]
+        old_pivot_x = item.transform.pivot_x
+        old_pivot_y = item.transform.pivot_y
+        new_pivot_x, new_pivot_y = self._pivot_from_origin(bounds, new_ox, new_oy)
+
+        # Adjust translation to keep shape visually in place when pivot changes
+        dx = old_pivot_x - new_pivot_x
+        dy = old_pivot_y - new_pivot_y
 
         scaled_dx = dx * scale_x
         scaled_dy = dy * scale_y
@@ -1489,8 +1446,8 @@ class CanvasModel(QAbstractListModel):
             "rotate": rotation,
             "scaleX": scale_x,
             "scaleY": scale_y,
-            "originX": new_ox,
-            "originY": new_oy,
+            "pivotX": new_pivot_x,
+            "pivotY": new_pivot_y,
         }
 
         self.setItemTransform(index, new_transform)
@@ -1523,30 +1480,27 @@ class CanvasModel(QAbstractListModel):
         if not hasattr(item, "transform"):
             return
 
-        current = self.getItemTransform(index) or {}
         bounds = compute_geometry_bounds(item)
         if not bounds:
             return
 
-        old_origin_x = current.get("originX", 0)
-        old_origin_y = current.get("originY", 0)
-        old_scale_x = current.get("scaleX", 1)
-        old_scale_y = current.get("scaleY", 1)
-        rotation = current.get("rotate", 0)
-        old_tx = current.get("translateX", 0)
-        old_ty = current.get("translateY", 0)
+        old_pivot_x = item.transform.pivot_x
+        old_pivot_y = item.transform.pivot_y
+        old_scale_x = item.transform.scale_x
+        old_scale_y = item.transform.scale_y
+        rotation = item.transform.rotate
+        old_tx = item.transform.translate_x
+        old_ty = item.transform.translate_y
 
         import math
 
         # Origin points in geometry space
-        old_origin_geom_x = bounds["x"] + bounds["width"] * old_origin_x
-        old_origin_geom_y = bounds["y"] + bounds["height"] * old_origin_y
         anchor_geom_x = bounds["x"] + bounds["width"] * anchor_x
         anchor_geom_y = bounds["y"] + bounds["height"] * anchor_y
 
-        # Displacement from old origin to anchor in geometry space
-        d_x = anchor_geom_x - old_origin_geom_x
-        d_y = anchor_geom_y - old_origin_geom_y
+        # Displacement from old pivot to anchor in geometry space
+        d_x = anchor_geom_x - old_pivot_x
+        d_y = anchor_geom_y - old_pivot_y
 
         # Scale the displacement
         scaled_d_x = d_x * old_scale_x
@@ -1570,8 +1524,8 @@ class CanvasModel(QAbstractListModel):
             "rotate": rotation,
             "scaleX": new_scale_x,
             "scaleY": new_scale_y,
-            "originX": anchor_x,
-            "originY": anchor_y,
+            "pivotX": anchor_geom_x,
+            "pivotY": anchor_geom_y,
         }
 
         self.setItemTransform(index, new_transform)
@@ -1593,68 +1547,19 @@ class CanvasModel(QAbstractListModel):
         if not hasattr(item, "transform"):
             return
 
-        current = self.getItemTransform(index) or {}
         bounds = compute_geometry_bounds(item)
         if not bounds:
             return
+        center_geom_x = bounds["x"] + bounds["width"] * 0.5
+        center_geom_y = bounds["y"] + bounds["height"] * 0.5
 
-        old_origin_x = current.get("originX", 0.5)
-        old_origin_y = current.get("originY", 0.5)
-
-        center_x = 0.5
-        center_y = 0.5
-
-        # If origin is already at center, nothing to do
         if (
-            abs(old_origin_x - center_x) < 0.001
-            and abs(old_origin_y - center_y) < 0.001
+            abs(item.transform.pivot_x - center_geom_x) < 0.001
+            and abs(item.transform.pivot_y - center_geom_y) < 0.001
         ):
             return
 
-        old_scale_x = current.get("scaleX", 1)
-        old_scale_y = current.get("scaleY", 1)
-        old_rotation = current.get("rotate", 0)
-        old_tx = current.get("translateX", 0)
-        old_ty = current.get("translateY", 0)
-
-        import math
-
-        # Origin points in geometry space
-        old_origin_geom_x = bounds["x"] + bounds["width"] * old_origin_x
-        old_origin_geom_y = bounds["y"] + bounds["height"] * old_origin_y
-        center_geom_x = bounds["x"] + bounds["width"] * center_x
-        center_geom_y = bounds["y"] + bounds["height"] * center_y
-
-        # Displacement from old origin to center in geometry space
-        d_x = center_geom_x - old_origin_geom_x
-        d_y = center_geom_y - old_origin_geom_y
-
-        # Scale the displacement
-        scaled_d_x = d_x * old_scale_x
-        scaled_d_y = d_y * old_scale_y
-
-        # Rotate the scaled displacement
-        radians = old_rotation * math.pi / 180
-        cos_r = math.cos(radians)
-        sin_r = math.sin(radians)
-        rotated_d_x = scaled_d_x * cos_r - scaled_d_y * sin_r
-        rotated_d_y = scaled_d_x * sin_r + scaled_d_y * cos_r
-
-        # Translation adjustment: T_new = T_old - d + R(S * d)
-        new_tx = old_tx - d_x + rotated_d_x
-        new_ty = old_ty - d_y + rotated_d_y
-
-        new_transform = {
-            "translateX": new_tx,
-            "translateY": new_ty,
-            "rotate": old_rotation,  # Keep rotation unchanged
-            "scaleX": old_scale_x,
-            "scaleY": old_scale_y,
-            "originX": center_x,
-            "originY": center_y,
-        }
-
-        self.setItemTransform(index, new_transform)
+        self.setItemOrigin(index, 0.5, 0.5)
 
     @Slot(int)
     def bakeTransform(self, index: int) -> None:
@@ -1712,8 +1617,8 @@ class CanvasModel(QAbstractListModel):
                 "rotate": 0,
                 "scaleX": 1,
                 "scaleY": 1,
-                "originX": 0.5,
-                "originY": 0.5,
+                "pivotX": transformed_bounds.x() + transformed_bounds.width() * 0.5,
+                "pivotY": transformed_bounds.y() + transformed_bounds.height() * 0.5,
             },
         )
 

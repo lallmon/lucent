@@ -137,8 +137,11 @@ def _parse_transform(data: Dict[str, Any]) -> Dict[str, Any] | None:
     rotate = float(t.get("rotate", 0))
     scale_x = float(t.get("scaleX", 1))
     scale_y = float(t.get("scaleY", 1))
-    origin_x = float(t.get("originX", 0))
-    origin_y = float(t.get("originY", 0))
+    pivot_x = t.get("pivotX")
+    pivot_y = t.get("pivotY")
+    has_pivot = pivot_x is not None or pivot_y is not None
+    pivot_x = float(pivot_x) if pivot_x is not None else None
+    pivot_y = float(pivot_y) if pivot_y is not None else None
 
     # Return None for identity transforms to keep serialized data clean
     if (
@@ -147,20 +150,21 @@ def _parse_transform(data: Dict[str, Any]) -> Dict[str, Any] | None:
         and rotate == 0
         and scale_x == 1
         and scale_y == 1
-        and origin_x == 0
-        and origin_y == 0
+        and not has_pivot
     ):
         return None
 
-    return {
+    result = {
         "translateX": translate_x,
         "translateY": translate_y,
         "rotate": rotate,
         "scaleX": scale_x,
         "scaleY": scale_y,
-        "originX": origin_x,
-        "originY": origin_y,
     }
+    if has_pivot:
+        result["pivotX"] = pivot_x if pivot_x is not None else 0.0
+        result["pivotY"] = pivot_y if pivot_y is not None else 0.0
+    return result
 
 
 def validate_rectangle(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -382,19 +386,28 @@ def parse_item_data(data: Dict[str, Any]) -> ParsedItem:
     return ParsedItem(type=item_type, name=validated.get("name", ""), data=validated)
 
 
-def _create_transform(data: Dict[str, Any]) -> Transform | None:
+def _create_transform(data: Dict[str, Any], geometry: Any) -> Transform | None:
     """Create a Transform object from validated data, or None for identity."""
     t = data.get("transform")
     if not t:
         return None
+    pivot_x = t.get("pivotX")
+    pivot_y = t.get("pivotY")
+    if pivot_x is None or pivot_y is None:
+        bounds = geometry.get_bounds()
+        pivot_x = bounds.x()
+        pivot_y = bounds.y()
+    else:
+        pivot_x = float(pivot_x)
+        pivot_y = float(pivot_y)
     return Transform(
         translate_x=t["translateX"],
         translate_y=t["translateY"],
         rotate=t["rotate"],
         scale_x=t["scaleX"],
         scale_y=t["scaleY"],
-        origin_x=t.get("originX", 0),
-        origin_y=t.get("originY", 0),
+        pivot_x=pivot_x,
+        pivot_y=pivot_y,
     )
 
 
@@ -404,10 +417,11 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
     d = parsed.data
     if t is ItemType.RECTANGLE:
         geom = d["geometry"]
+        geometry = RectGeometry(
+            x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
+        )
         return RectangleItem(
-            geometry=RectGeometry(
-                x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
-            ),
+            geometry=geometry,
             appearances=[
                 Fill(a["color"], a["opacity"], a["visible"])
                 if a["type"] == "fill"
@@ -422,7 +436,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                 )
                 for a in d["appearances"]
             ],
-            transform=_create_transform(d),
+            transform=_create_transform(d, geometry),
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
@@ -430,13 +444,14 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
         )
     if t is ItemType.ELLIPSE:
         geom = d["geometry"]
+        geometry = EllipseGeometry(
+            center_x=geom["centerX"],
+            center_y=geom["centerY"],
+            radius_x=geom["radiusX"],
+            radius_y=geom["radiusY"],
+        )
         return EllipseItem(
-            geometry=EllipseGeometry(
-                center_x=geom["centerX"],
-                center_y=geom["centerY"],
-                radius_x=geom["radiusX"],
-                radius_y=geom["radiusY"],
-            ),
+            geometry=geometry,
             appearances=[
                 Fill(a["color"], a["opacity"], a["visible"])
                 if a["type"] == "fill"
@@ -451,7 +466,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                 )
                 for a in d["appearances"]
             ],
-            transform=_create_transform(d),
+            transform=_create_transform(d, geometry),
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
@@ -459,8 +474,9 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
         )
     if t is ItemType.PATH:
         geom = d["geometry"]
+        geometry = PathGeometry(points=geom["points"], closed=geom["closed"])
         return PathItem(
-            geometry=PathGeometry(points=geom["points"], closed=geom["closed"]),
+            geometry=geometry,
             appearances=[
                 Fill(a["color"], a["opacity"], a["visible"])
                 if a["type"] == "fill"
@@ -475,7 +491,7 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
                 )
                 for a in d["appearances"]
             ],
-            transform=_create_transform(d),
+            transform=_create_transform(d, geometry),
             name=d.get("name", ""),
             parent_id=d.get("parentId"),
             visible=d.get("visible", True),
@@ -498,16 +514,17 @@ def parse_item(data: Dict[str, Any]) -> CanvasItem:
         )
     if t is ItemType.TEXT:
         geom = d["geometry"]
+        geometry = TextGeometry(
+            x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
+        )
         return TextItem(
-            geometry=TextGeometry(
-                x=geom["x"], y=geom["y"], width=geom["width"], height=geom["height"]
-            ),
+            geometry=geometry,
             text=d["text"],
             font_family=d["fontFamily"],
             font_size=d["fontSize"],
             text_color=d["textColor"],
             text_opacity=d["textOpacity"],
-            transform=_create_transform(d),
+            transform=_create_transform(d, geometry),
             name=d["name"],
             parent_id=d["parentId"],
             visible=d.get("visible", True),
@@ -527,6 +544,24 @@ def _geometry_bounds_dict(geom: Any) -> Dict[str, float]:
     }
 
 
+def _should_serialize_transform(item: Any) -> bool:
+    """Return True when transform should be included in serialization."""
+    if not hasattr(item, "transform") or item.transform is None:
+        return False
+
+    if not item.transform.is_identity():
+        return True
+
+    # Persist pivot changes even if rotation/scale/translate are identity.
+    bounds = item.geometry.get_bounds()
+    default_pivot_x = bounds.x()
+    default_pivot_y = bounds.y()
+    return (
+        abs(item.transform.pivot_x - default_pivot_x) > 0.001
+        or abs(item.transform.pivot_y - default_pivot_y) > 0.001
+    )
+
+
 def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
     """Serialize a CanvasItem to dictionary."""
     if isinstance(item, RectangleItem):
@@ -540,7 +575,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "bounds": _geometry_bounds_dict(item.geometry),
             "appearances": [a.to_dict() for a in item.appearances],
         }
-        if not item.transform.is_identity():
+        if _should_serialize_transform(item):
             result["transform"] = item.transform.to_dict()
         return result
     if isinstance(item, EllipseItem):
@@ -554,7 +589,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "bounds": _geometry_bounds_dict(item.geometry),
             "appearances": [a.to_dict() for a in item.appearances],
         }
-        if not item.transform.is_identity():
+        if _should_serialize_transform(item):
             result["transform"] = item.transform.to_dict()
         return result
     if isinstance(item, PathItem):
@@ -568,7 +603,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "bounds": _geometry_bounds_dict(item.geometry),
             "appearances": [a.to_dict() for a in item.appearances],
         }
-        if not item.transform.is_identity():
+        if _should_serialize_transform(item):
             result["transform"] = item.transform.to_dict()
         return result
     if isinstance(item, LayerItem):
@@ -603,7 +638,7 @@ def item_to_dict(item: CanvasItem) -> Dict[str, Any]:
             "textColor": item.text_color,
             "textOpacity": item.text_opacity,
         }
-        if not item.transform.is_identity():
+        if _should_serialize_transform(item):
             result["transform"] = item.transform.to_dict()
         return result
     raise ItemSchemaError(f"Cannot serialize unknown item type: {type(item).__name__}")

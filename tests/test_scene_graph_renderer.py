@@ -565,7 +565,7 @@ class TestSceneGraphRendererCreateTransformWrapper:
             name="Centered",
             geometry=RectGeometry(0, 0, 100, 100),
             appearances=[Fill(color="#0000ff")],
-            transform=Transform(rotate=90.0, origin_x=0.5, origin_y=0.5),
+            transform=Transform(rotate=90.0, pivot_x=50, pivot_y=50),
             visible=True,
             locked=False,
         )

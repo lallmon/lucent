@@ -35,7 +35,7 @@ class TestGetDisplayedPosition:
     def test_displayed_position_with_origin_offset(self, canvas_model):
         """Displayed position accounts for origin point in geometry."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
-        rect_data["transform"] = {"originX": 0.5, "originY": 0.5}
+        rect_data["transform"] = {"pivotX": 50, "pivotY": 50}
         canvas_model.addItem(rect_data)
 
         pos = canvas_model.getDisplayedPosition(0)
@@ -49,8 +49,8 @@ class TestGetDisplayedPosition:
         """Displayed position combines origin offset and translation."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
             "translateX": 10,
             "translateY": -20,
         }
@@ -100,7 +100,7 @@ class TestSetItemPosition:
     def test_set_position_with_origin_at_center(self, canvas_model):
         """Position is relative to origin point."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
-        rect_data["transform"] = {"originX": 0.5, "originY": 0.5}
+        rect_data["transform"] = {"pivotX": 50, "pivotY": 50}
         canvas_model.addItem(rect_data)
 
         canvas_model.setItemPosition(0, "x", 200)
@@ -116,8 +116,8 @@ class TestSetItemPosition:
             "rotate": 45,
             "scaleX": 2.0,
             "scaleY": 1.5,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(rect_data)
 
@@ -219,8 +219,8 @@ class TestSetDisplayedSize:
             "rotate": 30,
             "translateX": 10,
             "translateY": 20,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(rect_data)
 
@@ -402,8 +402,8 @@ class TestSetItemOrigin:
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
             "rotate": 45,
-            "originX": 0.0,
-            "originY": 0.0,
+            "pivotX": 0,
+            "pivotY": 0,
         }
         canvas_model.addItem(rect_data)
 
@@ -422,8 +422,8 @@ class TestSetItemOrigin:
         rect_data["transform"] = {
             "scaleX": 2.0,
             "scaleY": 1.5,
-            "originX": 0.0,
-            "originY": 0.0,
+            "pivotX": 0,
+            "pivotY": 0,
         }
         canvas_model.addItem(rect_data)
 
@@ -445,8 +445,8 @@ class TestSetItemOrigin:
             "rotate": 30,
             "scaleX": 2.0,
             "scaleY": 1.5,
-            "originX": 0.0,
-            "originY": 0.0,
+            "pivotX": 0,
+            "pivotY": 0,
         }
         canvas_model.addItem(rect_data)
 

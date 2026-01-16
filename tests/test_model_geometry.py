@@ -17,7 +17,7 @@ class TestShapeToPathData:
     def test_rectangle_with_rotation_returns_4_points(self):
         """Rotated rectangle should convert to 4-point path."""
         geometry = RectGeometry(x=0, y=0, width=100, height=100)
-        transform = Transform(rotate=45, origin_x=0.5, origin_y=0.5)
+        transform = Transform(rotate=45, pivot_x=50, pivot_y=50)
         item = RectangleItem(geometry=geometry, appearances=[], transform=transform)
 
         result = shape_to_path_data(item, item_to_dict)
@@ -31,7 +31,7 @@ class TestShapeToPathData:
     def test_ellipse_with_rotation_returns_32_points(self):
         """Rotated ellipse should convert to 32-point path."""
         geometry = EllipseGeometry(center_x=50, center_y=50, radius_x=40, radius_y=20)
-        transform = Transform(rotate=30, origin_x=0.5, origin_y=0.5)
+        transform = Transform(rotate=30, pivot_x=50, pivot_y=50)
         item = EllipseItem(geometry=geometry, appearances=[], transform=transform)
 
         result = shape_to_path_data(item, item_to_dict)
@@ -45,7 +45,7 @@ class TestShapeToPathData:
         """Rotated path should have all points transformed."""
         points = [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}]
         geometry = PolylineGeometry(points=points, closed=True)
-        transform = Transform(rotate=90, origin_x=0.5, origin_y=0.5)
+        transform = Transform(rotate=90, pivot_x=50, pivot_y=50)
         item = PathItem(geometry=geometry, appearances=[], transform=transform)
 
         result = shape_to_path_data(item, item_to_dict)
@@ -86,7 +86,7 @@ class TestShapeToPathData:
         """Verify rotated rectangle corner points are mathematically correct."""
         # 100x100 square at origin, rotated 45° around center (50, 50)
         geometry = RectGeometry(x=0, y=0, width=100, height=100)
-        transform = Transform(rotate=45, origin_x=0.5, origin_y=0.5)
+        transform = Transform(rotate=45, pivot_x=50, pivot_y=50)
         item = RectangleItem(geometry=geometry, appearances=[], transform=transform)
 
         result = shape_to_path_data(item, item_to_dict)
@@ -110,7 +110,7 @@ class TestShapeToPathData:
         from lucent.appearances import Fill, Stroke
 
         geometry = RectGeometry(x=0, y=0, width=100, height=100)
-        transform = Transform(rotate=45, origin_x=0.5, origin_y=0.5)
+        transform = Transform(rotate=45, pivot_x=50, pivot_y=50)
         appearances = [
             Fill(color="#ff0000", opacity=0.5),
             Stroke(color="#00ff00", width=2.0),

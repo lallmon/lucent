@@ -24,6 +24,7 @@ from lucent.canvas_items import (
     RectangleItem,
     TextItem,
 )
+from lucent.geometry import PathGeometry
 
 
 def compute_bounding_box(
@@ -138,9 +139,9 @@ def shape_to_path_data(
     geom = item.geometry
     bounds = geom.get_bounds()
 
-    # Compute transform origin in world coordinates
-    origin_x = bounds.x() + bounds.width() * transform.origin_x
-    origin_y = bounds.y() + bounds.height() * transform.origin_y
+    # Compute transform pivot in world coordinates
+    origin_x = transform.pivot_x
+    origin_y = transform.pivot_y
 
     def apply_transform(x: float, y: float) -> Dict[str, float]:
         """Apply scale, rotation, and translation to a point."""
@@ -210,6 +211,9 @@ def shape_to_path_data(
     is_closed = geom.closed if isinstance(item, PathItem) else True
 
     # Create path data with identity transform
+    bounds = PathGeometry(points=points, closed=is_closed).get_bounds()
+    pivot_x = bounds.x() + bounds.width() * 0.5
+    pivot_y = bounds.y() + bounds.height() * 0.5
     path_data = {
         "type": "path",
         "geometry": {
@@ -223,8 +227,8 @@ def shape_to_path_data(
             "rotate": 0,
             "scaleX": 1,
             "scaleY": 1,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": pivot_x,
+            "pivotY": pivot_y,
         },
         "name": current_data.get("name", ""),
         "visible": current_data.get("visible", True),

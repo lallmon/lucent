@@ -76,8 +76,8 @@ class TestCanvasModelTransforms:
             "rotate": 45,
             "scaleX": 1.5,
             "scaleY": 2.0,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 25,
         }
         canvas_model.addItem(rect_data)
 
@@ -176,9 +176,7 @@ class TestRotationNormalization:
         """Normalized rotation should produce same visual result."""
         # -45° and 315° should produce identical bounding boxes
         canvas_model.addItem(make_rectangle(x=0, y=0, width=100, height=100))
-        canvas_model.setItemTransform(
-            0, {"rotate": 315, "originX": 0.5, "originY": 0.5}
-        )
+        canvas_model.setItemTransform(0, {"rotate": 315, "pivotX": 50, "pivotY": 50})
         bounds_315 = canvas_model.getBoundingBox(0)
 
         # The stored value should be 315, not -45
@@ -254,8 +252,8 @@ class TestApplyScaleResize:
             "rotate": 0,
             "scaleX": 1.0,
             "scaleY": 1.0,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(rect_data)
 
@@ -281,8 +279,8 @@ class TestEnsureOriginCentered:
         """ensureOriginCentered should move origin from corner to center."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "originX": 0.0,
-            "originY": 0.0,
+            "pivotX": 0,
+            "pivotY": 0,
         }
         canvas_model.addItem(rect_data)
 
@@ -296,8 +294,8 @@ class TestEnsureOriginCentered:
         """ensureOriginCentered should do nothing if already centered."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
             "translateX": 10,
         }
         canvas_model.addItem(rect_data)
@@ -314,8 +312,8 @@ class TestEnsureOriginCentered:
         """ensureOriginCentered adjusts translation to maintain visual position."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "originX": 0.0,  # Top-left corner
-            "originY": 0.0,
+            "pivotX": 0,  # Top-left corner
+            "pivotY": 0,
             "rotate": 45,
             "translateX": 0,
             "translateY": 0,
@@ -351,8 +349,8 @@ class TestEnsureOriginCentered:
         """ensureOriginCentered should work correctly with existing scale."""
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
-            "originX": 1.0,  # Bottom-right
-            "originY": 1.0,
+            "pivotX": 100,  # Bottom-right
+            "pivotY": 100,
             "scaleX": 2.0,
             "scaleY": 2.0,
         }
@@ -402,8 +400,8 @@ class TestBakeTransform:
         rect_data = make_rectangle(x=0, y=0, width=100, height=100)
         rect_data["transform"] = {
             "rotate": 45,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(rect_data)
 
@@ -514,8 +512,8 @@ class TestBakeTransform:
         ellipse_data = make_ellipse(center_x=50, center_y=50, radius_x=40, radius_y=20)
         ellipse_data["transform"] = {
             "rotate": 30,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(ellipse_data)
 
@@ -549,8 +547,8 @@ class TestBakeTransform:
         path_data = make_path(points=original_points, closed=True)
         path_data["transform"] = {
             "rotate": 90,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(path_data)
 
@@ -667,8 +665,8 @@ class TestTransformedPathPoints:
         path_data["transform"] = {
             "scaleX": 2.0,
             "scaleY": 2.0,
-            "originX": 0,
-            "originY": 0,
+            "pivotX": 0,
+            "pivotY": 0,
         }
         canvas_model.addItem(path_data)
 
@@ -737,8 +735,8 @@ class TestTransformedPathPoints:
             "rotate": 45,
             "scaleX": 1.5,
             "scaleY": 0.8,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(path_data)
 
@@ -757,154 +755,36 @@ class TestTransformedPathPoints:
         assert canvas_model.transformPointToGeometry(999, 0, 0) is None
 
 
-class TestOriginCompensation:
+class TestPivotStability:
     """Tests for updateGeometryWithOriginCompensation method."""
 
-    def test_origin_compensation_keeps_origin_stable(self, canvas_model):
-        """Moving a point should not shift the visual position of other points."""
+    def test_geometry_update_keeps_pivot(self, canvas_model):
+        """Geometry updates should not change pivot or translation."""
         path_data = make_path(
             points=[{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 100, "y": 100}],
             closed=False,
         )
-        path_data["transform"] = {
-            "rotate": 45,
-            "originX": 0.5,
-            "originY": 0.5,
-        }
+        path_data["transform"] = {"rotate": 45, "pivotX": 50, "pivotY": 50}
         canvas_model.addItem(path_data)
 
-        # Get the world position of the origin before the edit
         item = canvas_model._items[0]
-        old_bounds = item.geometry.get_bounds()
-        old_origin_x = old_bounds.x() + old_bounds.width() * 0.5
-        old_origin_y = old_bounds.y() + old_bounds.height() * 0.5
-        old_translate_x = item.transform.translate_x
-        old_translate_y = item.transform.translate_y
-        old_origin_world = (
-            old_origin_x + old_translate_x,
-            old_origin_y + old_translate_y,
-        )
+        old_pivot = (item.transform.pivot_x, item.transform.pivot_y)
+        old_translate = (item.transform.translate_x, item.transform.translate_y)
 
-        # Move the third point, which changes the bounds
         new_geometry = {
             "points": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 150, "y": 150}],
             "closed": False,
         }
         canvas_model.updateGeometryWithOriginCompensation(0, new_geometry)
 
-        # Get the new origin world position
         new_item = canvas_model._items[0]
-        new_bounds = new_item.geometry.get_bounds()
-        new_origin_x = new_bounds.x() + new_bounds.width() * 0.5
-        new_origin_y = new_bounds.y() + new_bounds.height() * 0.5
-        new_translate_x = new_item.transform.translate_x
-        new_translate_y = new_item.transform.translate_y
-        new_origin_world = (
-            new_origin_x + new_translate_x,
-            new_origin_y + new_translate_y,
-        )
+        new_pivot = (new_item.transform.pivot_x, new_item.transform.pivot_y)
+        new_translate = (new_item.transform.translate_x, new_item.transform.translate_y)
 
-        # Origin world position should be the same after compensation
-        assert abs(new_origin_world[0] - old_origin_world[0]) < 0.001
-        assert abs(new_origin_world[1] - old_origin_world[1]) < 0.001
+        assert new_pivot == old_pivot
+        assert new_translate == old_translate
 
-    def test_origin_compensation_with_scale(self, canvas_model):
-        """Origin compensation should work with scaled items."""
-        path_data = make_path(
-            points=[{"x": 0, "y": 0}, {"x": 100, "y": 100}],
-            closed=False,
-        )
-        path_data["transform"] = {
-            "scaleX": 2.0,
-            "scaleY": 0.5,
-            "originX": 0.5,
-            "originY": 0.5,
-        }
-        canvas_model.addItem(path_data)
-
-        # Get original origin world position
-        item = canvas_model._items[0]
-        old_bounds = item.geometry.get_bounds()
-        old_origin_world = (
-            old_bounds.x() + old_bounds.width() * 0.5 + item.transform.translate_x,
-            old_bounds.y() + old_bounds.height() * 0.5 + item.transform.translate_y,
-        )
-
-        # Move the second point
-        new_geometry = {
-            "points": [{"x": 0, "y": 0}, {"x": 200, "y": 50}],
-            "closed": False,
-        }
-        canvas_model.updateGeometryWithOriginCompensation(0, new_geometry)
-
-        # Check origin stability
-        new_item = canvas_model._items[0]
-        new_bounds = new_item.geometry.get_bounds()
-        new_origin_world = (
-            new_bounds.x() + new_bounds.width() * 0.5 + new_item.transform.translate_x,
-            new_bounds.y() + new_bounds.height() * 0.5 + new_item.transform.translate_y,
-        )
-
-        assert abs(new_origin_world[0] - old_origin_world[0]) < 0.001
-        assert abs(new_origin_world[1] - old_origin_world[1]) < 0.001
-
-    def test_origin_compensation_corner_origin(self, canvas_model):
-        """Origin compensation works when origin is at a corner."""
-        path_data = make_path(
-            points=[{"x": 0, "y": 0}, {"x": 100, "y": 100}],
-            closed=False,
-        )
-        path_data["transform"] = {
-            "rotate": 30,
-            "originX": 0.0,
-            "originY": 0.0,
-        }
-        canvas_model.addItem(path_data)
-
-        item = canvas_model._items[0]
-        old_bounds = item.geometry.get_bounds()
-        # Origin at (0,0) of bounds
-        old_origin_world = (
-            old_bounds.x() + item.transform.translate_x,
-            old_bounds.y() + item.transform.translate_y,
-        )
-
-        new_geometry = {
-            "points": [{"x": 0, "y": 0}, {"x": 150, "y": 80}],
-            "closed": False,
-        }
-        canvas_model.updateGeometryWithOriginCompensation(0, new_geometry)
-
-        new_item = canvas_model._items[0]
-        new_bounds = new_item.geometry.get_bounds()
-        new_origin_world = (
-            new_bounds.x() + new_item.transform.translate_x,
-            new_bounds.y() + new_item.transform.translate_y,
-        )
-
-        assert abs(new_origin_world[0] - old_origin_world[0]) < 0.001
-        assert abs(new_origin_world[1] - old_origin_world[1]) < 0.001
-
-    def test_origin_compensation_identity_transform_no_change(self, canvas_model):
-        """With identity transform, compensation should be minimal."""
-        path_data = make_path(
-            points=[{"x": 0, "y": 0}, {"x": 100, "y": 100}],
-            closed=False,
-        )
-        canvas_model.addItem(path_data)
-
-        new_geometry = {
-            "points": [{"x": 0, "y": 0}, {"x": 150, "y": 80}],
-            "closed": False,
-        }
-        canvas_model.updateGeometryWithOriginCompensation(0, new_geometry)
-
-        # With identity transform, translation should still be zero
-        item = canvas_model._items[0]
-        assert item.transform.translate_x == 0
-        assert item.transform.translate_y == 0
-
-    def test_origin_compensation_invalid_index(self, canvas_model):
+    def test_geometry_update_invalid_index(self, canvas_model):
         """Invalid index should not raise."""
         canvas_model.updateGeometryWithOriginCompensation(-1, {"points": []})
         canvas_model.updateGeometryWithOriginCompensation(999, {"points": []})
@@ -923,8 +803,8 @@ class TestEditTransformLock:
             "rotate": 30,
             "scaleX": 1.4,
             "scaleY": 0.8,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 60,
+            "pivotY": 50,
         }
         canvas_model.addItem(path_data)
 
@@ -961,8 +841,8 @@ class TestEditTransformLock:
             "rotate": 25,
             "scaleX": 1.2,
             "scaleY": 0.9,
-            "originX": 0.3,
-            "originY": 0.7,
+            "pivotX": 30,
+            "pivotY": 84,
         }
         canvas_model.addItem(path_data)
 
@@ -970,9 +850,8 @@ class TestEditTransformLock:
 
         def _origin_world():
             item = canvas_model._items[0]
-            bounds = item.geometry.get_bounds()
-            origin_x = bounds.x() + bounds.width() * item.transform.origin_x
-            origin_y = bounds.y() + bounds.height() * item.transform.origin_y
+            origin_x = item.transform.pivot_x
+            origin_y = item.transform.pivot_y
             return (
                 origin_x + item.transform.translate_x,
                 origin_y + item.transform.translate_y,

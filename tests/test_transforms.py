@@ -118,8 +118,8 @@ class TestTransform:
             "rotate": 45,
             "scaleX": 2.0,
             "scaleY": 0.5,
-            "originX": 0.0,
-            "originY": 0.0,
+            "pivotX": 0.0,
+            "pivotY": 0.0,
         }
 
     def test_from_dict(self):
@@ -266,41 +266,41 @@ class TestTransform:
         assert abs(result.y() - 20) < 0.001
 
 
-class TestTransformOrigin:
-    """Tests for transform origin point handling."""
+class TestTransformPivot:
+    """Tests for transform pivot handling."""
 
-    def test_origin_defaults_to_zero(self):
-        """Default origin should be (0, 0) = top-left."""
+    def test_pivot_defaults_to_zero(self):
+        """Default pivot should be (0, 0) in geometry space."""
         transform = Transform()
-        assert transform.origin_x == 0
-        assert transform.origin_y == 0
+        assert transform.pivot_x == 0
+        assert transform.pivot_y == 0
 
-    def test_origin_in_constructor(self):
-        """Origin can be set in constructor."""
-        transform = Transform(origin_x=0.5, origin_y=0.5)
-        assert transform.origin_x == 0.5
-        assert transform.origin_y == 0.5
+    def test_pivot_in_constructor(self):
+        """Pivot can be set in constructor."""
+        transform = Transform(pivot_x=10, pivot_y=20)
+        assert transform.pivot_x == 10
+        assert transform.pivot_y == 20
 
-    def test_origin_serialization(self):
-        """Origin is serialized to dict."""
-        transform = Transform(origin_x=0.5, origin_y=1.0)
+    def test_pivot_serialization(self):
+        """Pivot is serialized to dict."""
+        transform = Transform(pivot_x=10, pivot_y=20)
         data = transform.to_dict()
-        assert data["originX"] == 0.5
-        assert data["originY"] == 1.0
+        assert data["pivotX"] == 10
+        assert data["pivotY"] == 20
 
-    def test_origin_deserialization(self):
-        """Origin is deserialized from dict."""
-        data = {"originX": 0.25, "originY": 0.75}
+    def test_pivot_deserialization(self):
+        """Pivot is deserialized from dict."""
+        data = {"pivotX": 25, "pivotY": 75}
         transform = Transform.from_dict(data)
-        assert transform.origin_x == 0.25
-        assert transform.origin_y == 0.75
+        assert transform.pivot_x == 25
+        assert transform.pivot_y == 75
 
-    def test_origin_defaults_in_deserialization(self):
-        """Missing origin defaults to 0."""
+    def test_pivot_defaults_in_deserialization(self):
+        """Missing pivot defaults to 0."""
         data = {"rotate": 45}
         transform = Transform.from_dict(data)
-        assert transform.origin_x == 0
-        assert transform.origin_y == 0
+        assert transform.pivot_x == 0
+        assert transform.pivot_y == 0
 
     def test_rotation_around_topleft_origin(self):
         """Rotation around top-left moves the shape."""

@@ -204,8 +204,8 @@ class TestCanvasModelGetGeometryBounds:
             "rotate": 45,
             "scaleX": 2.0,
             "scaleY": 0.5,
-            "originX": 0.5,
-            "originY": 0.5,
+            "pivotX": 50,
+            "pivotY": 50,
         }
         canvas_model.addItem(data)
         bounds = canvas_model.getGeometryBounds(0)
@@ -239,7 +239,7 @@ class TestCanvasModelBoundingBoxWithTransforms:
 
     def test_bounding_box_with_rotation(self, canvas_model):
         rect_data = make_rectangle(x=0, y=0, width=100, height=50)
-        rect_data["transform"] = {"rotate": 45, "originX": 0.5, "originY": 0.5}
+        rect_data["transform"] = {"rotate": 45, "pivotX": 50, "pivotY": 25}
         canvas_model.addItem(rect_data)
 
         bbox = canvas_model.getBoundingBox(0)
@@ -248,7 +248,7 @@ class TestCanvasModelBoundingBoxWithTransforms:
 
     def test_bounding_box_90_degree_rotation(self, canvas_model):
         rect_data = make_rectangle(x=0, y=0, width=100, height=50)
-        rect_data["transform"] = {"rotate": 90, "originX": 0.5, "originY": 0.5}
+        rect_data["transform"] = {"rotate": 90, "pivotX": 50, "pivotY": 25}
         canvas_model.addItem(rect_data)
 
         bbox = canvas_model.getBoundingBox(0)
@@ -257,14 +257,14 @@ class TestCanvasModelBoundingBoxWithTransforms:
 
     def test_bounding_box_with_origin_affects_position(self, canvas_model):
         rect_tl = make_rectangle(x=0, y=0, width=100, height=100)
-        rect_tl["transform"] = {"rotate": 180, "originX": 0, "originY": 0}
+        rect_tl["transform"] = {"rotate": 180, "pivotX": 0, "pivotY": 0}
         canvas_model.addItem(rect_tl)
         bbox_tl = canvas_model.getBoundingBox(0)
 
         canvas_model.removeItem(0)
 
         rect_center = make_rectangle(x=0, y=0, width=100, height=100)
-        rect_center["transform"] = {"rotate": 180, "originX": 0.5, "originY": 0.5}
+        rect_center["transform"] = {"rotate": 180, "pivotX": 50, "pivotY": 50}
         canvas_model.addItem(rect_center)
         bbox_center = canvas_model.getBoundingBox(0)
 

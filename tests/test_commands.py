@@ -789,8 +789,8 @@ class TestUpdateItemCommandTransforms:
             "rotate": 0,
             "scaleX": 1,
             "scaleY": 1,
-            "originX": 0,
-            "originY": 0,
+            "pivotX": 0,
+            "pivotY": 0,
             "translateX": 0,
             "translateY": 0,
         }
@@ -799,8 +799,8 @@ class TestUpdateItemCommandTransforms:
             "rotate": 45,
             "scaleX": 1,
             "scaleY": 1,
-            "originX": 0,
-            "originY": 0,
+            "pivotX": 0,
+            "pivotY": 0,
             "translateX": 0,
             "translateY": 0,
         }
@@ -823,9 +823,9 @@ class TestUpdateItemCommandTransforms:
     def test_description_move_origin(self, canvas_model):
         """Test description for origin change."""
         old_data = make_rectangle()
-        old_data["transform"] = {"rotate": 45, "scaleX": 1, "scaleY": 1, "originX": 0}
+        old_data["transform"] = {"rotate": 45, "scaleX": 1, "scaleY": 1, "pivotX": 0}
         new_data = make_rectangle()
-        new_data["transform"] = {"rotate": 45, "scaleX": 1, "scaleY": 1, "originX": 50}
+        new_data["transform"] = {"rotate": 45, "scaleX": 1, "scaleY": 1, "pivotX": 50}
         canvas_model.addItem(old_data)
         cmd = UpdateItemCommand(canvas_model, 0, old_data, new_data)
 

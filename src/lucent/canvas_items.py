@@ -85,7 +85,10 @@ class ShapeItem(CanvasItem):
     ) -> None:
         self.geometry = geometry
         self.appearances = appearances
-        self.transform = transform or Transform()
+        if transform is None:
+            bounds = geometry.get_bounds()
+            transform = Transform(pivot_x=bounds.x(), pivot_y=bounds.y())
+        self.transform = transform
         self.name = name
         self.parent_id = parent_id
         self.visible = bool(visible)
@@ -120,10 +123,9 @@ class ShapeItem(CanvasItem):
 
         path = self.geometry.to_painter_path()
         if not self.transform.is_identity():
-            bounds = self.geometry.get_bounds()
-            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
-            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
-            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
+            qtransform = self.transform.to_qtransform_centered(
+                self.transform.pivot_x, self.transform.pivot_y
+            )
             path = qtransform.map(path)
 
         # Check if stroke should render below fill
@@ -146,9 +148,9 @@ class ShapeItem(CanvasItem):
         """Return bounding rectangle in canvas coordinates."""
         bounds = self.geometry.get_bounds()
         if not self.transform.is_identity():
-            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
-            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
-            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
+            qtransform = self.transform.to_qtransform_centered(
+                self.transform.pivot_x, self.transform.pivot_y
+            )
             return qtransform.mapRect(bounds)
         return bounds
 
@@ -156,6 +158,13 @@ class ShapeItem(CanvasItem):
     def from_dict(data: Dict[str, Any]) -> "ShapeItem":
         """Factory method - subclasses must override."""
         raise NotImplementedError("ShapeItem.from_dict must be overridden")
+
+
+def _transform_from_data(
+    transform_data: Dict[str, Any], geometry: Geometry
+) -> Transform:
+    """Create Transform from data."""
+    return Transform.from_dict(transform_data)
 
 
 class RectangleItem(ShapeItem):
@@ -193,7 +202,9 @@ class RectangleItem(ShapeItem):
         )
         appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
         transform = (
-            Transform.from_dict(data["transform"]) if "transform" in data else None
+            _transform_from_data(data["transform"], geometry)
+            if "transform" in data
+            else None
         )
         return RectangleItem(
             geometry=geometry,
@@ -241,7 +252,9 @@ class EllipseItem(ShapeItem):
         )
         appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
         transform = (
-            Transform.from_dict(data["transform"]) if "transform" in data else None
+            _transform_from_data(data["transform"], geometry)
+            if "transform" in data
+            else None
         )
         return EllipseItem(
             geometry=geometry,
@@ -287,7 +300,9 @@ class PathItem(ShapeItem):
         )
         appearances = [Appearance.from_dict(a) for a in data.get("appearances", [])]
         transform = (
-            Transform.from_dict(data["transform"]) if "transform" in data else None
+            _transform_from_data(data["transform"], geometry)
+            if "transform" in data
+            else None
         )
         return PathItem(
             geometry=geometry,
@@ -473,11 +488,9 @@ class TextItem(ShapeItem):
 
         # Apply transform if not identity
         if not self.transform.is_identity():
-            bounds = geom.get_bounds()
-            # Calculate origin point based on transform origin settings
-            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
-            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
-            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
+            qtransform = self.transform.to_qtransform_centered(
+                self.transform.pivot_x, self.transform.pivot_y
+            )
 
             # Apply offset, then transform, then translate to geometry position
             painter.translate(offset_x, offset_y)
@@ -508,9 +521,13 @@ class TextItem(ShapeItem):
 
         # Apply transform if not identity
         if not self.transform.is_identity():
-            origin_x = bounds.x() + bounds.width() * self.transform.origin_x
-            origin_y = bounds.y() + bounds.height() * self.transform.origin_y
-            qtransform = self.transform.to_qtransform_centered(origin_x, origin_y)
+            qtransform = self.transform.to_qtransform_centered(
+                self.transform.pivot_x, self.transform.pivot_y
+            )
+        if not self.transform.is_identity():
+            qtransform = self.transform.to_qtransform_centered(
+                self.transform.pivot_x, self.transform.pivot_y
+            )
             return qtransform.mapRect(bounds)
         return bounds
 
@@ -525,7 +542,9 @@ class TextItem(ShapeItem):
             height=float(geom.get("height", data.get("height", 0))),
         )
         transform = (
-            Transform.from_dict(data["transform"]) if "transform" in data else None
+            _transform_from_data(data["transform"], geometry)
+            if "transform" in data
+            else None
         )
         return TextItem(
             geometry=geometry,

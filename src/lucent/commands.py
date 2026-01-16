@@ -205,9 +205,9 @@ class UpdateItemCommand(Command):
                 "scaleX"
             ) or old_transform.get("scaleY") != new_transform.get("scaleY"):
                 return "Scale"
-            if old_transform.get("originX") != new_transform.get(
-                "originX"
-            ) or old_transform.get("originY") != new_transform.get("originY"):
+            if old_transform.get("pivotX") != new_transform.get(
+                "pivotX"
+            ) or old_transform.get("pivotY") != new_transform.get("pivotY"):
                 return "Move Origin"
             if old_transform.get("translateX") != new_transform.get(
                 "translateX"

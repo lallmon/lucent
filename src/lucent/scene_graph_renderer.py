@@ -251,16 +251,8 @@ class SceneGraphRenderer(QQuickItem):
         """Wrap node in QSGTransformNode for GPU-accelerated transforms."""
         transform = item.transform
 
-        origin_x = (
-            geometry_bounds.x()
-            + geometry_bounds.width() * transform.origin_x
-            + offset_x
-        )
-        origin_y = (
-            geometry_bounds.y()
-            + geometry_bounds.height() * transform.origin_y
-            + offset_y
-        )
+        origin_x = transform.pivot_x + offset_x
+        origin_y = transform.pivot_y + offset_y
 
         matrix = transform.to_qmatrix4x4_centered(origin_x, origin_y)
 

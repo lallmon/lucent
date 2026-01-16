@@ -127,6 +127,16 @@ Item {
     readonly property real currentRotation: currentTransform ? (currentTransform.rotate ?? 0) : 0
     readonly property real currentOriginX: currentTransform ? (currentTransform.originX ?? 0) : 0
     readonly property real currentOriginY: currentTransform ? (currentTransform.originY ?? 0) : 0
+    readonly property real originSnapTolerance: 0.02
+
+    function _snapOrigin(value) {
+        var targets = [0, 0.5, 1];
+        for (var i = 0; i < targets.length; i++) {
+            if (Math.abs(value - targets[i]) <= originSnapTolerance)
+                return targets[i];
+        }
+        return value;
+    }
 
     implicitHeight: contentLayout.implicitHeight
 
@@ -175,7 +185,7 @@ Item {
                         width: 16
                         height: 16
                         checkable: true
-                        checked: root.currentOriginX === modelData.ox && root.currentOriginY === modelData.oy
+                        checked: root._snapOrigin(root.currentOriginX) === modelData.ox && root._snapOrigin(root.currentOriginY) === modelData.oy
                         ButtonGroup.group: originGroup
 
                         onClicked: canvasModel.setItemOrigin(root.selectedIndex, modelData.ox, modelData.oy)
