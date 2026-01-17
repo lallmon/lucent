@@ -72,9 +72,9 @@ class TextureCache:
 
         Returns None for items that can't be textured (groups, etc.)
         """
-        from lucent.canvas_items import ShapeItem, TextItem
+        from lucent.canvas_items import ArtboardItem, ShapeItem, TextItem
 
-        if not isinstance(item, (ShapeItem, TextItem)):
+        if not isinstance(item, (ShapeItem, TextItem, ArtboardItem)):
             return None
 
         current_version = self._get_item_version(item)
@@ -105,7 +105,13 @@ class TextureCache:
 
         Transform changes don't invalidate since GPU handles transforms.
         """
+        from lucent.canvas_items import ArtboardItem
+
         version = 0
+
+        # Artboards have simple x, y, width, height
+        if isinstance(item, ArtboardItem):
+            return hash((item.x, item.y, item.width, item.height))
 
         if hasattr(item, "geometry"):
             bounds = item.geometry.get_bounds()
@@ -141,6 +147,11 @@ class TextureCache:
         automatically accounting for width, cap, join, and alignment.
         """
         from lucent.appearances import Stroke
+        from lucent.canvas_items import ArtboardItem
+
+        # Artboards have simple bounds
+        if isinstance(item, ArtboardItem):
+            return QRectF(item.x, item.y, item.width, item.height)
 
         geometry_bounds = item.geometry.get_bounds()
         stroke = getattr(item, "stroke", None)
@@ -176,11 +187,15 @@ class TextureCache:
         version: int,
     ) -> Optional[TextureCacheEntry]:
         """Rasterize item to QImage. GPU applies transforms separately."""
-        from lucent.canvas_items import ShapeItem, TextItem
+        from lucent.canvas_items import ArtboardItem, ShapeItem, TextItem
         from lucent.transforms import Transform
 
-        if not isinstance(item, (ShapeItem, TextItem)):
+        if not isinstance(item, (ShapeItem, TextItem, ArtboardItem)):
             return None
+
+        # Handle artboards specially - they have direct x, y, width, height
+        if isinstance(item, ArtboardItem):
+            return self._rasterize_artboard(item, version)
 
         geometry_bounds = item.geometry.get_bounds()
         if geometry_bounds.isEmpty():
@@ -226,6 +241,39 @@ class TextureCache:
             item.transform = original_transform
             if original_stroke_width is not None and stroke_ref is not None:
                 stroke_ref.width = original_stroke_width
+
+        painter.end()
+
+        return TextureCacheEntry(
+            image=image,
+            bounds=render_bounds,
+            item_version=version,
+            padding=padding,
+        )
+
+    def _rasterize_artboard(
+        self,
+        item: "CanvasItem",
+        version: int,
+    ) -> TextureCacheEntry:
+        """Rasterize artboard as simple white rectangle."""
+        render_bounds = QRectF(item.x, item.y, item.width, item.height)
+        padding = float(self.PADDING)
+        scale = self.RENDER_SCALE
+
+        tex_width = max(int((render_bounds.width() + padding * 2) * scale), 4)
+        tex_height = max(int((render_bounds.height() + padding * 2) * scale), 4)
+
+        image = QImage(tex_width, tex_height, QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(QColor(0, 0, 0, 0))
+
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.scale(scale, scale)
+        painter.translate(padding, padding)
+
+        # Fill with white
+        painter.fillRect(QRectF(0, 0, item.width, item.height), QColor("#ffffff"))
 
         painter.end()
 
