@@ -276,6 +276,14 @@ class CanvasModel(QAbstractListModel):
 
         item = self._items[idx]
 
+        # Artboards have direct x, y properties (no geometry/transform)
+        if isinstance(item, ArtboardItem):
+            old_data = self._itemToDict(item)
+            new_data = dict(old_data)
+            new_data["x"] = item.x + dx
+            new_data["y"] = item.y + dy
+            return UpdateItemCommand(self, idx, old_data, new_data)
+
         # Only shapes with geometry can be moved
         if not hasattr(item, "geometry"):
             return None
@@ -341,6 +349,11 @@ class CanvasModel(QAbstractListModel):
                     if cmd:
                         commands.append(cmd)
                     already_moved.add(desc_idx)
+                # Also move the container itself (artboards have geometry)
+                cmd = self._move_single_item(idx, dx, dy)
+                if cmd:
+                    commands.append(cmd)
+                already_moved.add(idx)
                 moved_container_indices.add(idx)
             else:
                 # Regular shape - skip if parent container is in selection
@@ -1143,6 +1156,29 @@ class CanvasModel(QAbstractListModel):
         anchor_y: float,
     ) -> None:
         """Scale an item while keeping the anchor point fixed."""
+        if not (0 <= index < len(self._items)):
+            return
+
+        item = self._items[index]
+
+        # Artboards resize by updating width/height directly (no transform)
+        if isinstance(item, ArtboardItem):
+            new_width = item.width * new_scale_x
+            new_height = item.height * new_scale_y
+            # Calculate new position based on anchor point
+            new_x = item.x + item.width * anchor_x - new_width * anchor_x
+            new_y = item.y + item.height * anchor_y - new_height * anchor_y
+            self.setBoundingBox(
+                index,
+                {
+                    "x": new_x,
+                    "y": new_y,
+                    "width": new_width,
+                    "height": new_height,
+                },
+            )
+            return
+
         self._transform_service.scale_item(
             index, new_scale_x, new_scale_y, anchor_x, anchor_y
         )
