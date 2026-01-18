@@ -357,8 +357,12 @@ class DocumentManager(QObject):
         # Empty string means transparent, otherwise use specified color
         effective_bg = background if background else None
 
+        base_dpi = self._document_dpi
+        if self._unit_settings and self._unit_settings.displayUnit != "px":
+            base_dpi = int(self._unit_settings.previewDPI)
+
         options = ExportOptions(
-            document_dpi=self._document_dpi,
+            document_dpi=base_dpi,
             target_dpi=target_dpi,
             padding=padding,
             background=effective_bg,
