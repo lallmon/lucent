@@ -11,7 +11,15 @@ from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING, Union
 
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QImage, QPainter, QColor
+from PySide6.QtGui import (
+    QImage,
+    QPainter,
+    QColor,
+    QPdfWriter,
+    QPageSize,
+    QPageLayout,
+)
+from PySide6.QtCore import QMarginsF, QSizeF
 
 if TYPE_CHECKING:
     from lucent.canvas_items import CanvasItem
@@ -110,6 +118,84 @@ def export_png(
         return image.save(str(path))
     except Exception:
         return False
+
+
+def export_jpg(
+    items: List["CanvasItem"],
+    bounds: QRectF,
+    path: Union[str, Path],
+    options: ExportOptions,
+) -> bool:
+    """Export items to a JPG file (opaque)."""
+    if bounds.isEmpty():
+        return False
+
+    width = int(bounds.width() * options.scale)
+    height = int(bounds.height() * options.scale)
+    if width <= 0 or height <= 0:
+        return False
+
+    image = QImage(width, height, QImage.Format.Format_RGB32)
+    image.fill(QColor(options.background or "#ffffff"))
+
+    painter = QPainter(image)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.scale(options.scale, options.scale)
+    painter.translate(-bounds.x(), -bounds.y())
+
+    for item in items:
+        try:
+            item.paint(painter, zoom_level=1.0, offset_x=0, offset_y=0)
+        except Exception:
+            pass
+
+    painter.end()
+
+    try:
+        return image.save(str(path), b"JPG")
+    except Exception:
+        return False
+
+
+def export_pdf(
+    items: List["CanvasItem"],
+    bounds: QRectF,
+    path: Union[str, Path],
+    options: ExportOptions,
+) -> bool:
+    """Export items to a PDF file."""
+    if bounds.isEmpty():
+        return False
+
+    width = int(bounds.width() * options.scale)
+    height = int(bounds.height() * options.scale)
+    if width <= 0 or height <= 0:
+        return False
+
+    writer = QPdfWriter(str(path))
+    writer.setResolution(int(options.target_dpi))
+    width_points = width * 72.0 / options.target_dpi
+    height_points = height * 72.0 / options.target_dpi
+    page_size = QPageSize(QSizeF(width_points, height_points), QPageSize.Unit.Point)
+    writer.setPageSize(page_size)
+    writer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Unit.Point)
+
+    painter = QPainter(writer)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.scale(options.scale, options.scale)
+    painter.translate(-bounds.x(), -bounds.y())
+
+    if options.background:
+        painter.fillRect(bounds, QColor(options.background))
+
+    for item in items:
+        try:
+            item.paint(painter, zoom_level=1.0, offset_x=0, offset_y=0)
+        except Exception:
+            pass
+
+    painter.end()
+    return True
 
 
 def _item_to_svg_element(item: "CanvasItem") -> Optional[ET.Element]:

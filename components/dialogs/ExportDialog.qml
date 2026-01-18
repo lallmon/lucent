@@ -56,8 +56,8 @@ Dialog {
         id: saveDialog
         title: qsTr("Export As")
         fileMode: Platform.FileDialog.SaveFile
-        nameFilters: formatCombo.currentIndex === 0 ? ["PNG files (*.png)"] : ["SVG files (*.svg)"]
-        defaultSuffix: formatCombo.currentIndex === 0 ? "png" : "svg"
+        nameFilters: formatCombo.currentIndex === 0 ? ["PNG files (*.png)"] : formatCombo.currentIndex === 1 ? ["SVG files (*.svg)"] : formatCombo.currentIndex === 2 ? ["JPG files (*.jpg *.jpeg)"] : ["PDF files (*.pdf)"]
+        defaultSuffix: formatCombo.currentIndex === 0 ? "png" : formatCombo.currentIndex === 1 ? "svg" : formatCombo.currentIndex === 2 ? "jpg" : "pdf"
         onAccepted: {
             if (documentManager) {
                 var bg = transparentCheck.checked ? "" : bgColorPicker.color.toString();
@@ -91,17 +91,22 @@ Dialog {
             }
             ComboBox {
                 id: formatCombo
-                model: ["PNG", "SVG"]
+                model: ["PNG", "SVG", "JPG", "PDF"]
                 Layout.fillWidth: true
+                onCurrentIndexChanged: {
+                    if (currentIndex === 2) {
+                        transparentCheck.checked = false;
+                    }
+                }
             }
 
             Label {
                 text: qsTr("Export mode:")
-                visible: formatCombo.currentIndex === 0
+                visible: formatCombo.currentIndex === 0 || formatCombo.currentIndex === 2 || formatCombo.currentIndex === 3
             }
             ComboBox {
                 id: exportModeCombo
-                visible: formatCombo.currentIndex === 0
+                visible: formatCombo.currentIndex === 0 || formatCombo.currentIndex === 2 || formatCombo.currentIndex === 3
                 model: [qsTr("Screen (1×)"), qsTr("Print (DPI)")]
                 currentIndex: 0
                 Layout.fillWidth: true
@@ -109,11 +114,11 @@ Dialog {
 
             Label {
                 text: qsTr("Resolution:")
-                visible: formatCombo.currentIndex === 0 && exportModeCombo.currentIndex === 1
+                visible: (formatCombo.currentIndex === 0 || formatCombo.currentIndex === 2 || formatCombo.currentIndex === 3) && exportModeCombo.currentIndex === 1
             }
             ComboBox {
                 id: dpiCombo
-                visible: formatCombo.currentIndex === 0 && exportModeCombo.currentIndex === 1
+                visible: (formatCombo.currentIndex === 0 || formatCombo.currentIndex === 2 || formatCombo.currentIndex === 3) && exportModeCombo.currentIndex === 1
                 model: ListModel {
                     ListElement {
                         text: "72 DPI (Screen)"
@@ -155,6 +160,7 @@ Dialog {
                     id: transparentCheck
                     text: qsTr("Transparent")
                     checked: true
+                    enabled: formatCombo.currentIndex !== 2
                 }
                 Lucent.ColorPickerButton {
                     id: bgColorPicker
@@ -175,7 +181,7 @@ Dialog {
 
         Label {
             text: qsTr("Output size: %1 × %2 px").arg(Math.round(root.computedWidth)).arg(Math.round(root.computedHeight))
-            visible: formatCombo.currentIndex === 0
+            visible: formatCombo.currentIndex === 0 || formatCombo.currentIndex === 2 || formatCombo.currentIndex === 3
             color: palette.text
         }
 

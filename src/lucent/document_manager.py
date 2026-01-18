@@ -340,6 +340,8 @@ class DocumentManager(QObject):
 
         from lucent.exporter import (
             ExportOptions,
+            export_jpg,
+            export_pdf,
             export_png,
             export_svg,
         )
@@ -377,7 +379,11 @@ class DocumentManager(QObject):
         )
 
         # Determine format from extension
-        if local_path.lower().endswith(".svg"):
+        lower_path = local_path.lower()
+        if lower_path.endswith(".svg"):
             return export_svg(items, bounds, local_path, options)
-        else:
-            return export_png(items, bounds, local_path, options)
+        if lower_path.endswith(".pdf"):
+            return export_pdf(items, bounds, local_path, options)
+        if lower_path.endswith(".jpg") or lower_path.endswith(".jpeg"):
+            return export_jpg(items, bounds, local_path, options)
+        return export_png(items, bounds, local_path, options)

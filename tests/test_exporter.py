@@ -8,7 +8,14 @@ from PySide6.QtGui import QImage
 
 from lucent.appearances import Fill, Stroke
 from lucent.canvas_items import EllipseItem, PathItem, RectangleItem, TextItem
-from lucent.exporter import ExportOptions, compute_bounds, export_png, export_svg
+from lucent.exporter import (
+    ExportOptions,
+    compute_bounds,
+    export_jpg,
+    export_pdf,
+    export_png,
+    export_svg,
+)
 from lucent.exporter import _item_to_svg_element
 from lucent.geometry import EllipseGeometry, PathGeometry, RectGeometry, TextGeometry
 
@@ -80,6 +87,22 @@ def test_export_png_returns_false_on_save_exception(tmp_path, monkeypatch):
     bounds = QRectF(0, 0, 10, 10)
     result = export_png([], bounds, tmp_path / "out.png", options)
     assert result is False
+
+
+def test_export_jpg_writes_file(tmp_path):
+    options = ExportOptions(background="#ffffff")
+    bounds = QRectF(0, 0, 10, 10)
+    result = export_jpg([], bounds, tmp_path / "out.jpg", options)
+    assert result is True
+    assert (tmp_path / "out.jpg").exists()
+
+
+def test_export_pdf_writes_file(tmp_path):
+    options = ExportOptions()
+    bounds = QRectF(0, 0, 10, 10)
+    result = export_pdf([], bounds, tmp_path / "out.pdf", options)
+    assert result is True
+    assert (tmp_path / "out.pdf").exists()
 
 
 def test_item_to_svg_element_rectangle_uniform():
